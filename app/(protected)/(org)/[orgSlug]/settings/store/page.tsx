@@ -3,7 +3,7 @@ import { notFound } from "next/navigation"
 
 import { getLocationByOrganizationId } from "@/lib/queries/location"
 import { getOrgForUser } from "@/lib/queries/organization"
-import { getServerSession } from "@/lib/server-auth"
+import { requireSession } from "@/lib/server-auth"
 
 import { StoreSettingsForm } from "@/components/settings/store-settings-form"
 
@@ -15,10 +15,7 @@ export async function generateMetadata({
   params: Promise<{ orgSlug: string }>
 }): Promise<Metadata> {
   const { orgSlug } = await params
-  const session = await getServerSession()
-  if (!session?.user?.id) {
-    return { title: "Location" }
-  }
+  const session = await requireSession()
   const ctx = await getOrgForUser(orgSlug, session.user.id)
   if (!ctx) {
     return { title: "Location" }
@@ -35,8 +32,7 @@ export default async function StoreSettingsPage({
   params: Promise<{ orgSlug: string }>
 }) {
   const { orgSlug } = await params
-  const session = await getServerSession()
-  if (!session?.user?.id) notFound()
+  const session = await requireSession()
 
   const ctx = await getOrgForUser(orgSlug, session.user.id)
   if (!ctx) notFound()

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation"
 import { BrandingSettingsForm } from "@/components/settings/branding-settings-form"
 import { storeBrandingRowToFormInitial } from "@/lib/branding-form-initial"
 import { getStoreBranding, userCanEditStoreBranding } from "@/lib/queries/store-branding"
-import { getServerSession } from "@/lib/server-auth"
+import { requireSession } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"
 
@@ -14,8 +14,7 @@ export const metadata: Metadata = {
 }
 
 export default async function StoreBrandingSettingsPage() {
-  const session = await getServerSession()
-  if (!session?.user?.id) notFound()
+  const session = await requireSession()
 
   if (!(await userCanEditStoreBranding(session.user.id))) notFound()
 

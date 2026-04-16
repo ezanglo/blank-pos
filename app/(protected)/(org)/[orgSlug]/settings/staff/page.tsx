@@ -3,7 +3,7 @@ import { notFound } from "next/navigation"
 
 import { listMembersForOrganization } from "@/lib/queries/members"
 import { getOrgForUser } from "@/lib/queries/organization"
-import { getServerSession } from "@/lib/server-auth"
+import { requireSession } from "@/lib/server-auth"
 
 import { StaffPanel } from "@/components/settings/staff-panel"
 
@@ -15,10 +15,7 @@ export async function generateMetadata({
   params: Promise<{ orgSlug: string }>
 }): Promise<Metadata> {
   const { orgSlug } = await params
-  const session = await getServerSession()
-  if (!session?.user?.id) {
-    return { title: "Staff" }
-  }
+  const session = await requireSession()
   const ctx = await getOrgForUser(orgSlug, session.user.id)
   if (!ctx) {
     return { title: "Staff" }
@@ -35,8 +32,7 @@ export default async function StaffSettingsPage({
   params: Promise<{ orgSlug: string }>
 }) {
   const { orgSlug } = await params
-  const session = await getServerSession()
-  if (!session?.user?.id) notFound()
+  const session = await requireSession()
 
   const ctx = await getOrgForUser(orgSlug, session.user.id)
   if (!ctx) notFound()

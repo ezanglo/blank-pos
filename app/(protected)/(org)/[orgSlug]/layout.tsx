@@ -1,8 +1,8 @@
-import { notFound, redirect } from "next/navigation"
+import { notFound } from "next/navigation"
 
 import { getOrgForUser } from "@/lib/queries/organization"
 import { getStoreBranding } from "@/lib/queries/store-branding"
-import { getServerSession } from "@/lib/server-auth"
+import { requireSession } from "@/lib/server-auth"
 
 import { OrgHeader } from "@/components/org-header"
 
@@ -16,8 +16,7 @@ export default async function OrgLayout({
   params: Promise<{ orgSlug: string }>
 }) {
   const { orgSlug } = await params
-  const session = await getServerSession()
-  if (!session?.user?.id) redirect("/login")
+  const session = await requireSession()
 
   const ctx = await getOrgForUser(orgSlug, session.user.id)
   if (!ctx) notFound()
