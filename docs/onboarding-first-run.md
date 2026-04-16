@@ -22,7 +22,7 @@ It belongs to **Phase 1**; see [phases/phase-01-foundation-branding.md](phases/p
 Document these clearly in the root **README** (copy-paste checklist):
 
 1. **Create a Supabase project** (or run **Supabase local** if you add that path).
-2. **Copy `.env.example` → `.env.local`** and fill: database URL (or Supabase connection), `NEXT_PUBLIC_SUPABASE_URL`, anon key, server secrets, **better-auth** secret and `BETTER_AUTH_URL` / app URL.
+2. **Copy `.env.example` → `.env.local`** and fill: database URL (or Supabase connection), `NEXT_PUBLIC_SUPABASE_URL`, **`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`** (Supabase publishable key; legacy anon JWT is still accepted by the app env parser), server secrets, **better-auth** secret and `BETTER_AUTH_URL` / app URL.
 3. **Run migrations** once (`drizzle-kit` / Better Auth migrate—whatever the repo standardizes on) so tables exist **before** the first user exists.
 
 Everything **after** step 3 should be doable from the **frontend wizard**.

@@ -36,7 +36,7 @@
 ## Workstream A — Tooling and project hygiene
 
 - [ ] Add and configure **ESLint / Prettier** (already present—ensure rules align with Next 16).
-- [ ] Add **environment** validation (e.g. `zod` + `src/env` pattern) for `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, server-only secrets, better-auth secrets.
+- [ ] Add **environment** validation (e.g. `zod` + `src/env` pattern) for `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, server-only secrets, better-auth secrets.
 - [ ] Document **local dev**: Supabase CLI optional, seed commands, how to run migrations.
 - [ ] Add **shadcn** primitives needed for shell and forms: `button`, `input`, `label`, `card`, `dialog`, `dropdown-menu`, `avatar`, `toast`/`sonner`, `form` (as needed)—install via `npx shadcn@latest` to match registry.
 

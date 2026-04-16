@@ -1,19 +1,22 @@
-import { Button } from "@/components/ui/button"
+import { redirect } from "next/navigation"
 
-export default function Page() {
-  return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
-        </div>
-        <div className="font-mono text-xs text-muted-foreground">
-          (Press <kbd>d</kbd> to toggle dark mode)
-        </div>
-      </div>
-    </div>
+import { getDashboardPathForUser } from "@/lib/dashboard-path"
+import { getServerSession } from "@/lib/server-auth"
+import { getUserCount } from "@/lib/user-count"
+
+export const dynamic = "force-dynamic"
+
+export default async function HomePage() {
+  const n = await getUserCount()
+  if (n === 0) redirect("/setup")
+
+  const session = await getServerSession()
+  if (!session?.user?.id || !session.session) redirect("/login")
+
+  const path = await getDashboardPathForUser(
+    session.user.id,
+    session.session.activeOrganizationId,
   )
+  if (path) redirect(path)
+  redirect("/login")
 }

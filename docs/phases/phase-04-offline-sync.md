@@ -59,7 +59,7 @@
 
 ## Workstream D — Security and secrets
 
-- [ ] Supabase **anon** key only in client; RLS must protect all sync paths; no service role in browser.
+- [ ] Supabase **publishable** key only in client; RLS must protect all sync paths; no service role in browser.
 - [ ] **Auth token refresh** while offline: document session TTL limits; graceful re-auth when back online if session expired.
 
 ---
