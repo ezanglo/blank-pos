@@ -24,13 +24,8 @@ export default async function StaffSettingsPage({
   const members = await listMembersForOrganization(ctx.organization.id)
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Staff</h1>
-        <p className="text-muted-foreground text-sm">
-          Create sign-ins with username and password. No email invites.
-        </p>
-      </div>
+    <div className="space-y-2">
+      <h1 className="text-2xl font-semibold tracking-tight">Staff</h1>
       <StaffPanel
         orgSlug={orgSlug}
         organizationId={ctx.organization.id}

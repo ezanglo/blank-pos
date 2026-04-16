@@ -23,13 +23,5 @@ export default async function StoreSettingsPage({
 
   const meta = parseOrgMetadata(ctx.organization.metadata)
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Store</h1>
-        <p className="text-muted-foreground text-sm">Organization name and site details.</p>
-      </div>
-      <StoreSettingsForm orgSlug={orgSlug} initialName={ctx.organization.name} initialMeta={meta} />
-    </div>
-  )
+  return <StoreSettingsForm orgSlug={orgSlug} initialName={ctx.organization.name} initialMeta={meta} />
 }

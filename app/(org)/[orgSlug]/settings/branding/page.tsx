@@ -30,13 +30,5 @@ export default async function BrandingSettingsPage({
     receiptFooterText: b?.receiptFooterText ?? "",
   }
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Branding</h1>
-        <p className="text-muted-foreground text-sm">Receipt-facing name, colors, and copy.</p>
-      </div>
-      <BrandingSettingsForm orgSlug={orgSlug} initial={initial} />
-    </div>
-  )
+  return <BrandingSettingsForm orgSlug={orgSlug} initial={initial} />
 }

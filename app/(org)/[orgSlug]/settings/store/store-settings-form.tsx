@@ -1,11 +1,32 @@
 "use client"
 
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useForm } from "react-hook-form"
 
 import { updateOrganizationStore } from "@/app/actions/organization"
 import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { FieldGroup } from "@/components/ui/field"
+import { SelectFormField, TextFormField } from "@/components/form"
 import type { OrgMetadata } from "@/lib/org-metadata"
+import { type StoreSettingsFormValues, storeSettingsSchema } from "@/lib/schemas/app-forms"
+
+function RootFormError({ message }: { message?: string }) {
+  if (!message) return null
+  return (
+    <p className="border-destructive/50 bg-destructive/10 text-destructive rounded-xl border px-3 py-2 text-sm">
+      {message}
+    </p>
+  )
+}
 
 export function StoreSettingsForm({
   orgSlug,
@@ -17,92 +38,64 @@ export function StoreSettingsForm({
   initialMeta: OrgMetadata
 }) {
   const router = useRouter()
-  const [name, setName] = useState(initialName)
-  const [defaultCurrency, setDefaultCurrency] = useState(initialMeta.defaultCurrency ?? "USD")
-  const [addressLine1, setAddressLine1] = useState(initialMeta.addressLine1 ?? "")
-  const [phone, setPhone] = useState(initialMeta.phone ?? "")
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+  const form = useForm<StoreSettingsFormValues>({
+    resolver: standardSchemaResolver(storeSettingsSchema),
+    defaultValues: {
+      name: initialName,
+      defaultCurrency: (initialMeta.defaultCurrency as StoreSettingsFormValues["defaultCurrency"]) ?? "USD",
+      addressLine1: initialMeta.addressLine1 ?? "",
+      phone: initialMeta.phone ?? "",
+    },
+  })
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-    setBusy(true)
+  async function onSubmit(values: StoreSettingsFormValues) {
     try {
       const metadata: OrgMetadata = {
-        defaultCurrency,
-        addressLine1: addressLine1 || undefined,
-        phone: phone || undefined,
+        defaultCurrency: values.defaultCurrency,
+        addressLine1: values.addressLine1 || undefined,
+        phone: values.phone || undefined,
       }
-      await updateOrganizationStore(orgSlug, { name, metadata })
+      await updateOrganizationStore(orgSlug, { name: values.name, metadata })
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save")
-    } finally {
-      setBusy(false)
+      form.setError("root", {
+        message: err instanceof Error ? err.message : "Could not save",
+      })
     }
   }
 
   return (
-    <form className="space-y-4" onSubmit={onSubmit}>
-      {error ? (
-        <p className="border-destructive/50 bg-destructive/10 text-destructive rounded-xl border px-3 py-2 text-sm">
-          {error}
-        </p>
-      ) : null}
-      <div className="space-y-2">
-        <label className="text-sm font-medium" htmlFor="store-name">
-          Store name
-        </label>
-        <input
-          id="store-name"
-          className="border-input bg-background w-full rounded-xl border px-3 py-2 text-sm"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-      </div>
-      <div className="space-y-2">
-        <label className="text-sm font-medium" htmlFor="store-currency">
-          Default currency
-        </label>
-        <select
-          id="store-currency"
-          className="border-input bg-background w-full rounded-xl border px-3 py-2 text-sm"
-          value={defaultCurrency}
-          onChange={(e) => setDefaultCurrency(e.target.value)}
-        >
-          <option value="USD">USD</option>
-          <option value="EUR">EUR</option>
-          <option value="GBP">GBP</option>
-          <option value="PHP">PHP</option>
-        </select>
-      </div>
-      <div className="space-y-2">
-        <label className="text-sm font-medium" htmlFor="store-address">
-          Street address
-        </label>
-        <input
-          id="store-address"
-          className="border-input bg-background w-full rounded-xl border px-3 py-2 text-sm"
-          value={addressLine1}
-          onChange={(e) => setAddressLine1(e.target.value)}
-        />
-      </div>
-      <div className="space-y-2">
-        <label className="text-sm font-medium" htmlFor="store-phone">
-          Phone
-        </label>
-        <input
-          id="store-phone"
-          className="border-input bg-background w-full rounded-xl border px-3 py-2 text-sm"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-        />
-      </div>
-      <Button type="submit" disabled={busy}>
-        {busy ? "Saving…" : "Save"}
-      </Button>
-    </form>
+    <Card>
+      <CardHeader>
+        <CardTitle>Store</CardTitle>
+        <CardDescription>Organization name and site details.</CardDescription>
+      </CardHeader>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <CardContent className="space-y-4">
+          <RootFormError message={form.formState.errors.root?.message} />
+          <FieldGroup>
+            <TextFormField control={form.control} name="name" label="Store name" />
+            <SelectFormField
+              control={form.control}
+              name="defaultCurrency"
+              label="Default currency"
+              options={[
+                { value: "USD", label: "USD" },
+                { value: "EUR", label: "EUR" },
+                { value: "GBP", label: "GBP" },
+                { value: "PHP", label: "PHP" },
+              ]}
+            />
+            <TextFormField control={form.control} name="addressLine1" label="Street address" />
+            <TextFormField control={form.control} name="phone" label="Phone" />
+          </FieldGroup>
+        </CardContent>
+        <CardFooter>
+          <Button type="submit" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? "Saving…" : "Save"}
+          </Button>
+        </CardFooter>
+      </form>
+    </Card>
   )
 }

@@ -1,10 +1,38 @@
 "use client"
 
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useForm } from "react-hook-form"
 
 import { updateBranding } from "@/app/actions/branding"
 import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { FieldGroup } from "@/components/ui/field"
+import {
+  ColorFormField,
+  TextareaFormField,
+  TextFormField,
+} from "@/components/form"
+import {
+  type BrandingSettingsFormValues,
+  brandingSettingsSchema,
+} from "@/lib/schemas/app-forms"
+
+function RootFormError({ message }: { message?: string }) {
+  if (!message) return null
+  return (
+    <p className="border-destructive/50 bg-destructive/10 text-destructive rounded-xl border px-3 py-2 text-sm">
+      {message}
+    </p>
+  )
+}
 
 export function BrandingSettingsForm({
   orgSlug,
@@ -21,127 +49,86 @@ export function BrandingSettingsForm({
   }
 }) {
   const router = useRouter()
-  const [displayName, setDisplayName] = useState(initial.displayName)
-  const [tagline, setTagline] = useState(initial.tagline)
-  const [primaryColor, setPrimaryColor] = useState(initial.primaryColor)
-  const [accentColor, setAccentColor] = useState(initial.accentColor)
-  const [receiptHeaderText, setReceiptHeaderText] = useState(initial.receiptHeaderText)
-  const [receiptFooterText, setReceiptFooterText] = useState(initial.receiptFooterText)
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+  const form = useForm<BrandingSettingsFormValues>({
+    resolver: standardSchemaResolver(brandingSettingsSchema),
+    defaultValues: {
+      displayName: initial.displayName,
+      tagline: initial.tagline,
+      primaryColor: initial.primaryColor,
+      accentColor: initial.accentColor,
+      receiptHeaderText: initial.receiptHeaderText,
+      receiptFooterText: initial.receiptFooterText,
+    },
+  })
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-    setBusy(true)
+  const primary = form.watch("primaryColor")
+  const accent = form.watch("accentColor")
+
+  async function onSubmit(values: BrandingSettingsFormValues) {
     try {
       await updateBranding(orgSlug, {
-        displayName: displayName || null,
-        tagline: tagline || null,
-        primaryColor,
-        accentColor,
-        receiptHeaderText: receiptHeaderText || null,
-        receiptFooterText: receiptFooterText || null,
+        displayName: values.displayName?.trim() || null,
+        tagline: values.tagline?.trim() || null,
+        primaryColor: values.primaryColor,
+        accentColor: values.accentColor,
+        receiptHeaderText: values.receiptHeaderText?.trim() || null,
+        receiptFooterText: values.receiptFooterText?.trim() || null,
       })
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save")
-    } finally {
-      setBusy(false)
+      form.setError("root", {
+        message: err instanceof Error ? err.message : "Could not save",
+      })
     }
   }
 
   return (
-    <form className="space-y-4" onSubmit={onSubmit}>
-      {error ? (
-        <p className="border-destructive/50 bg-destructive/10 text-destructive rounded-xl border px-3 py-2 text-sm">
-          {error}
-        </p>
-      ) : null}
-      <div className="space-y-2">
-        <label className="text-sm font-medium" htmlFor="brand-display">
-          Receipt display name
-        </label>
-        <input
-          id="brand-display"
-          className="border-input bg-background w-full rounded-xl border px-3 py-2 text-sm"
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-        />
-      </div>
-      <div className="space-y-2">
-        <label className="text-sm font-medium" htmlFor="brand-tagline">
-          Tagline
-        </label>
-        <input
-          id="brand-tagline"
-          className="border-input bg-background w-full rounded-xl border px-3 py-2 text-sm"
-          value={tagline}
-          onChange={(e) => setTagline(e.target.value)}
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <label className="text-sm font-medium" htmlFor="brand-primary">
-            Primary
-          </label>
-          <input
-            id="brand-primary"
-            type="color"
-            className="border-input h-10 w-full rounded-xl border"
-            value={primaryColor}
-            onChange={(e) => setPrimaryColor(e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium" htmlFor="brand-accent">
-            Accent
-          </label>
-          <input
-            id="brand-accent"
-            type="color"
-            className="border-input h-10 w-full rounded-xl border"
-            value={accentColor}
-            onChange={(e) => setAccentColor(e.target.value)}
-          />
-        </div>
-      </div>
-      <div className="space-y-2">
-        <label className="text-sm font-medium" htmlFor="brand-rh">
-          Receipt header
-        </label>
-        <textarea
-          id="brand-rh"
-          className="border-input bg-background min-h-[72px] w-full rounded-xl border px-3 py-2 text-sm"
-          value={receiptHeaderText}
-          onChange={(e) => setReceiptHeaderText(e.target.value)}
-        />
-      </div>
-      <div className="space-y-2">
-        <label className="text-sm font-medium" htmlFor="brand-rf">
-          Receipt footer
-        </label>
-        <textarea
-          id="brand-rf"
-          className="border-input bg-background min-h-[72px] w-full rounded-xl border px-3 py-2 text-sm"
-          value={receiptFooterText}
-          onChange={(e) => setReceiptFooterText(e.target.value)}
-        />
-      </div>
-      <div
-        className="rounded-xl border p-4 text-sm"
-        style={
-          {
-            borderColor: accentColor,
-            background: `linear-gradient(135deg, ${primaryColor}22, transparent)`,
-          } as React.CSSProperties
-        }
-      >
-        Preview: shell uses these colors after refresh.
-      </div>
-      <Button type="submit" disabled={busy}>
-        {busy ? "Saving…" : "Save"}
-      </Button>
-    </form>
+    <Card>
+      <CardHeader>
+        <CardTitle>Branding</CardTitle>
+        <CardDescription>Receipt-facing name, colors, and copy.</CardDescription>
+      </CardHeader>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <CardContent className="space-y-4">
+          <RootFormError message={form.formState.errors.root?.message} />
+          <FieldGroup>
+            <TextFormField control={form.control} name="displayName" label="Receipt display name" />
+            <TextFormField control={form.control} name="tagline" label="Tagline" />
+            <div className="grid grid-cols-2 gap-3">
+              <ColorFormField control={form.control} name="primaryColor" label="Primary" />
+              <ColorFormField control={form.control} name="accentColor" label="Accent" />
+            </div>
+            <TextareaFormField
+              control={form.control}
+              name="receiptHeaderText"
+              label="Receipt header"
+              className="min-h-[72px]"
+            />
+            <TextareaFormField
+              control={form.control}
+              name="receiptFooterText"
+              label="Receipt footer"
+              className="min-h-[72px]"
+            />
+            <div
+              className="rounded-xl border p-4 text-sm"
+              style={
+                {
+                  borderColor: accent,
+                  background: `linear-gradient(135deg, ${primary}22, transparent)`,
+                } as React.CSSProperties
+              }
+            >
+              Preview: shell uses these colors after refresh.
+            </div>
+          </FieldGroup>
+        </CardContent>
+        <CardFooter>
+          <Button type="submit" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? "Saving…" : "Save"}
+          </Button>
+        </CardFooter>
+      </form>
+    </Card>
   )
 }

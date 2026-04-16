@@ -1,76 +1,85 @@
 "use client"
 
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useForm } from "react-hook-form"
 
 import { getPostLoginRedirect } from "@/app/actions/nav"
 import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { FieldGroup } from "@/components/ui/field"
+import { TextFormField } from "@/components/form"
 import { authClient } from "@/lib/auth-client"
+import { type LoginFormValues, loginSchema } from "@/lib/schemas/app-forms"
+
+function RootFormError({ message }: { message?: string }) {
+  if (!message) return null
+  return (
+    <p className="border-destructive/50 bg-destructive/10 text-destructive rounded-xl border px-3 py-2 text-sm">
+      {message}
+    </p>
+  )
+}
 
 export function LoginForm() {
   const router = useRouter()
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+  const form = useForm<LoginFormValues>({
+    resolver: standardSchemaResolver(loginSchema),
+    defaultValues: { username: "", password: "" },
+  })
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-    setBusy(true)
-    try {
-      const signIn = await authClient.signIn.username({ username, password })
-      if (signIn.error) {
-        setError(signIn.error.message ?? "Sign-in failed")
-        return
-      }
-      const next = await getPostLoginRedirect()
-      router.replace(next)
-      router.refresh()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong")
-    } finally {
-      setBusy(false)
+  async function onSubmit(values: LoginFormValues) {
+    const signIn = await authClient.signIn.username({
+      username: values.username,
+      password: values.password,
+    })
+    if (signIn.error) {
+      form.setError("root", { message: signIn.error.message ?? "Sign-in failed" })
+      return
     }
+    const next = await getPostLoginRedirect()
+    router.replace(next)
+    router.refresh()
   }
 
   return (
-    <form className="space-y-4" onSubmit={onSubmit}>
-      {error ? (
-        <p className="border-destructive/50 bg-destructive/10 text-destructive rounded-xl border px-3 py-2 text-sm">
-          {error}
-        </p>
-      ) : null}
-      <div className="space-y-2">
-        <label className="text-sm font-medium" htmlFor="login-username">
-          Username
-        </label>
-        <input
-          id="login-username"
-          className="border-input bg-background w-full rounded-xl border px-3 py-2 text-sm"
-          autoComplete="username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
-        />
-      </div>
-      <div className="space-y-2">
-        <label className="text-sm font-medium" htmlFor="login-password">
-          Password
-        </label>
-        <input
-          id="login-password"
-          type="password"
-          className="border-input bg-background w-full rounded-xl border px-3 py-2 text-sm"
-          autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-      </div>
-      <Button type="submit" className="w-full" disabled={busy}>
-        {busy ? "Signing in…" : "Sign in"}
-      </Button>
-    </form>
+    <Card>
+      <CardHeader>
+        <CardTitle>Sign in</CardTitle>
+        <CardDescription>Use your staff username and password.</CardDescription>
+      </CardHeader>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <CardContent className="space-y-4">
+          <RootFormError message={form.formState.errors.root?.message} />
+          <FieldGroup>
+            <TextFormField
+              control={form.control}
+              name="username"
+              label="Username"
+              autoComplete="username"
+            />
+            <TextFormField
+              control={form.control}
+              name="password"
+              label="Password"
+              type="password"
+              autoComplete="current-password"
+            />
+          </FieldGroup>
+        </CardContent>
+        <CardFooter>
+          <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? "Signing in…" : "Sign in"}
+          </Button>
+        </CardFooter>
+      </form>
+    </Card>
   )
 }

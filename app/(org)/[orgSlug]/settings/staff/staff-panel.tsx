@@ -1,10 +1,23 @@
 "use client"
 
+import { useEffect, useState } from "react"
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useForm } from "react-hook-form"
 
 import { staffCreateUser, staffRemoveMember } from "@/app/actions/staff"
 import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { FieldGroup } from "@/components/ui/field"
+import { SelectFormField, TextFormField } from "@/components/form"
+import { type StaffCreateFormValues, staffCreateSchema } from "@/lib/schemas/app-forms"
 
 type MemberRow = {
   memberId: string
@@ -12,6 +25,15 @@ type MemberRow = {
   role: string | null
   name: string
   username: string | null
+}
+
+function RootFormError({ message }: { message?: string }) {
+  if (!message) return null
+  return (
+    <p className="border-destructive/50 bg-destructive/10 text-destructive rounded-xl border px-3 py-2 text-sm">
+      {message}
+    </p>
+  )
 }
 
 export function StaffPanel({
@@ -28,149 +50,158 @@ export function StaffPanel({
   members: MemberRow[]
 }) {
   const router = useRouter()
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [name, setName] = useState("")
-  const [role, setRole] = useState<"manager" | "cashier">("cashier")
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [listError, setListError] = useState<string | null>(null)
+  const [removingId, setRemovingId] = useState<string | null>(null)
 
-  async function onAdd(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-    setBusy(true)
+  const form = useForm<StaffCreateFormValues>({
+    resolver: standardSchemaResolver(staffCreateSchema),
+    defaultValues: {
+      username: "",
+      password: "",
+      name: "",
+      role: "cashier",
+    },
+  })
+
+  useEffect(() => {
+    if (currentRole !== "owner") {
+      form.setValue("role", "cashier")
+    }
+  }, [currentRole, form])
+
+  async function onCreate(values: StaffCreateFormValues) {
+    const effectiveRole: "manager" | "cashier" =
+      currentRole === "owner" ? values.role : "cashier"
     try {
-      const effectiveRole: "manager" | "cashier" = currentRole === "owner" ? role : "cashier"
       await staffCreateUser({
         organizationId,
-        username,
-        password,
-        name,
+        username: values.username,
+        password: values.password,
+        name: values.name,
         role: effectiveRole,
       })
-      setUsername("")
-      setPassword("")
-      setName("")
-      setRole("cashier")
+      form.reset({ username: "", password: "", name: "", role: "cashier" })
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not add staff")
-    } finally {
-      setBusy(false)
+      form.setError("root", {
+        message: err instanceof Error ? err.message : "Could not add staff",
+      })
     }
   }
 
   async function onRemove(memberId: string) {
-    setError(null)
-    setBusy(true)
+    setListError(null)
+    setRemovingId(memberId)
     try {
       await staffRemoveMember(orgSlug, memberId)
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not remove")
+      setListError(err instanceof Error ? err.message : "Could not remove")
     } finally {
-      setBusy(false)
+      setRemovingId(null)
     }
   }
 
   return (
     <div className="space-y-8">
-      {error ? (
+      {listError ? (
         <p className="border-destructive/50 bg-destructive/10 text-destructive rounded-xl border px-3 py-2 text-sm">
-          {error}
+          {listError}
         </p>
       ) : null}
 
-      <form className="space-y-4" onSubmit={onAdd}>
-        <h2 className="text-lg font-medium">Add staff</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium" htmlFor="staff-user">
-              Username
-            </label>
-            <input
-              id="staff-user"
-              className="border-input bg-background w-full rounded-xl border px-3 py-2 text-sm"
-              autoComplete="off"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium" htmlFor="staff-pass">
-              Temporary password
-            </label>
-            <input
-              id="staff-pass"
-              type="password"
-              className="border-input bg-background w-full rounded-xl border px-3 py-2 text-sm"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium" htmlFor="staff-name">
-              Display name
-            </label>
-            <input
-              id="staff-name"
-              className="border-input bg-background w-full rounded-xl border px-3 py-2 text-sm"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium" htmlFor="staff-role">
-              Role
-            </label>
-            <select
-              id="staff-role"
-              className="border-input bg-background w-full rounded-xl border px-3 py-2 text-sm"
-              value={currentRole === "owner" ? role : "cashier"}
-              onChange={(e) => setRole(e.target.value as "manager" | "cashier")}
-            >
-              <option value="cashier">Cashier</option>
-              {currentRole === "owner" ? <option value="manager">Manager</option> : null}
-            </select>
-          </div>
-        </div>
-        <Button type="submit" disabled={busy}>
-          {busy ? "Working…" : "Create user & add to store"}
-        </Button>
-      </form>
-
-      <div className="space-y-3">
-        <h2 className="text-lg font-medium">Team</h2>
-        <ul className="divide-y rounded-xl border">
-          {members.map((m) => (
-            <li key={m.memberId} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
-              <div>
-                <span className="font-medium">{m.name}</span>
-                {m.username ? (
-                  <span className="text-muted-foreground ml-2">@{m.username}</span>
-                ) : null}
-                <span className="text-muted-foreground ml-2 capitalize">({m.role})</span>
+      <Card>
+        <CardHeader>
+          <CardTitle>Add staff</CardTitle>
+          <CardDescription>Create sign-ins with username and password. No email invites.</CardDescription>
+        </CardHeader>
+        <form onSubmit={form.handleSubmit(onCreate)}>
+          <CardContent className="space-y-4">
+            <RootFormError message={form.formState.errors.root?.message} />
+            <FieldGroup>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <TextFormField
+                  control={form.control}
+                  name="username"
+                  label="Username"
+                  autoComplete="off"
+                />
+                <TextFormField
+                  control={form.control}
+                  name="password"
+                  label="Temporary password"
+                  type="password"
+                  autoComplete="new-password"
+                />
               </div>
-              {m.userId !== currentUserId && m.role !== "owner" ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => onRemove(m.memberId)}
-                >
-                  Remove
-                </Button>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <TextFormField control={form.control} name="name" label="Display name" />
+                {currentRole === "owner" ? (
+                  <SelectFormField
+                    control={form.control}
+                    name="role"
+                    label="Role"
+                    options={[
+                      { value: "cashier", label: "Cashier" },
+                      { value: "manager", label: "Manager" },
+                    ]}
+                  />
+                ) : (
+                  <SelectFormField
+                    control={form.control}
+                    name="role"
+                    label="Role"
+                    options={[{ value: "cashier", label: "Cashier" }]}
+                  />
+                )}
+              </div>
+            </FieldGroup>
+          </CardContent>
+          <CardFooter>
+            <Button type="submit" disabled={form.formState.isSubmitting}>
+              {form.formState.isSubmitting ? "Working…" : "Create user & add to store"}
+            </Button>
+          </CardFooter>
+        </form>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Team</CardTitle>
+          <CardDescription>Members who can sign in to this store.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ul className="divide-y rounded-xl border">
+            {members.map((m) => (
+              <li
+                key={m.memberId}
+                className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm"
+              >
+                <div>
+                  <span className="font-medium">{m.name}</span>
+                  {m.username ? (
+                    <span className="text-muted-foreground ml-2">@{m.username}</span>
+                  ) : null}
+                  <span className="text-muted-foreground ml-2 capitalize">
+                    ({m.role ?? "member"})
+                  </span>
+                </div>
+                {m.userId !== currentUserId && m.role !== "owner" ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={removingId !== null}
+                    onClick={() => onRemove(m.memberId)}
+                  >
+                    {removingId === m.memberId ? "Removing…" : "Remove"}
+                  </Button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
     </div>
   )
 }

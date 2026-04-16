@@ -14,13 +14,5 @@ export default async function LoginPage() {
     if (next !== "/login") redirect(next)
   }
 
-  return (
-    <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
-        <p className="text-muted-foreground text-sm">Use your staff username and password.</p>
-      </header>
-      <LoginForm />
-    </div>
-  )
+  return <LoginForm />
 }
