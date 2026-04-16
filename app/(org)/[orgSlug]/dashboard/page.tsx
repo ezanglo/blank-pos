@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation"
 
-import { parseOrgMetadata } from "@/lib/org-metadata"
+import { getLocationByOrganizationId } from "@/lib/queries/location"
 import { getOrgForUser } from "@/lib/queries/organization"
+import { getStoreBranding } from "@/lib/queries/store-branding"
 import { getServerSession } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"
@@ -18,8 +19,10 @@ export default async function OrgDashboardPage({
   const ctx = await getOrgForUser(orgSlug, session.user.id)
   if (!ctx) notFound()
 
-  const meta = parseOrgMetadata(ctx.organization.metadata)
-  const display = ctx.branding?.displayName?.trim() || ctx.organization.name
+  const site = await getStoreBranding()
+  const loc = await getLocationByOrganizationId(ctx.organization.id)
+  const chainName = site?.displayName?.trim() || null
+  const locationName = ctx.organization.name
 
   return (
     <div className="space-y-4">
@@ -29,13 +32,16 @@ export default async function OrgDashboardPage({
         {ctx.member.role})
       </p>
       <div className="rounded-xl border p-4 text-sm">
-        <p className="font-medium">{display}</p>
-        {meta.defaultCurrency ? (
-          <p className="text-muted-foreground mt-1">Default currency: {meta.defaultCurrency}</p>
+        <p className="font-medium">{locationName}</p>
+        {chainName && chainName !== locationName ? (
+          <p className="text-muted-foreground mt-1">{chainName}</p>
         ) : null}
-        {meta.phone ? <p className="text-muted-foreground mt-1">Phone: {meta.phone}</p> : null}
-        {meta.addressLine1 ? (
-          <p className="text-muted-foreground mt-1">{meta.addressLine1}</p>
+        {loc?.defaultCurrency ? (
+          <p className="text-muted-foreground mt-1">Default currency: {loc.defaultCurrency}</p>
+        ) : null}
+        {loc?.phone ? <p className="text-muted-foreground mt-1">Phone: {loc.phone}</p> : null}
+        {loc?.addressLine1 ? (
+          <p className="text-muted-foreground mt-1">{loc.addressLine1}</p>
         ) : null}
       </div>
     </div>

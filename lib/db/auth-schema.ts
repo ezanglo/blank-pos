@@ -5,7 +5,6 @@ import {
   timestamp,
   boolean,
   index,
-  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
@@ -88,18 +87,21 @@ export const verification = pgTable(
   (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
-export const organization = pgTable(
-  "organization",
-  {
-    id: text("id").primaryKey(),
-    name: text("name").notNull(),
-    slug: text("slug").notNull().unique(),
-    logo: text("logo"),
-    createdAt: timestamp("created_at").notNull(),
-    metadata: text("metadata"),
-  },
-  (table) => [uniqueIndex("organization_slug_uidx").on(table.slug)],
-);
+/**
+ * better-auth `organization` plugin — canonical columns only.
+ * @see https://www.better-auth.com/docs/plugins/organization#schema
+ *
+ * App-owned address/currency live in `location` (1:1), not here. Keep `metadata` as a JSON string
+ * only for optional plugin `additionalFields` / small org-level extras.
+ */
+export const organization = pgTable("organization", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  logo: text("logo"),
+  metadata: text("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
 export const member = pgTable(
   "member",

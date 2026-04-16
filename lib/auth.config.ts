@@ -34,6 +34,13 @@ export const auth = betterAuth({
   plugins: [
     organization({
       roles: {
+        owner: orgAc.newRole({
+          organization: ["update", "delete"],
+          member: ["create", "update", "delete"],
+          invitation: ["create", "cancel"],
+          team: ["create", "update", "delete"],
+          ac: ["create", "read", "update", "delete"],
+        }),
         manager: orgAc.newRole({
           organization: ["update"],
           member: ["create", "update", "delete"],

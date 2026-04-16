@@ -60,25 +60,25 @@ export function LoginForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card>
-        <CardHeader className="text-center">
-          {branding?.logoImageUrl?.trim() ? (
-            <div className="mb-3 flex justify-center">
-              {/* eslint-disable-next-line @next/next/no-img-element -- branding HTTPS URL */}
-              <img
-                src={branding.logoImageUrl.trim()}
-                alt=""
-                className="h-10 max-w-[160px] object-contain"
-              />
-            </div>
-          ) : null}
-          <CardTitle className="text-xl">Welcome back</CardTitle>
-          <CardDescription>
-            Sign in with your staff username and password.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <Card>
+          <CardHeader className="text-center">
+            {branding?.logoImageUrl?.trim() ? (
+              <div className="mb-3 flex justify-center">
+                {/* eslint-disable-next-line @next/next/no-img-element -- branding HTTPS URL */}
+                <img
+                  src={branding.logoImageUrl.trim()}
+                  alt=""
+                  className="h-10 max-w-[160px] object-contain"
+                />
+              </div>
+            ) : null}
+            <CardTitle className="text-xl">Welcome back</CardTitle>
+            <CardDescription>
+              Sign in with your staff username and password.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <FieldGroup>
               <RootFormError message={form.formState.errors.root?.message} />
               <TextFormField
@@ -105,9 +105,9 @@ export function LoginForm({
                 </Button>
               </Field>
             </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </form>
       <FieldDescription className="max-w-md px-6 text-center text-balance">
         This sign-in is for staff only. It is not a public page and should be
         used on store devices or trusted networks inside your organization.

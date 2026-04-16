@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1776352387800,
-      "tag": "0000_init",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1777000000000,
-      "tag": "0001_login_background_image_url",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1777100000000,
-      "tag": "0002_logo_image_url",
+      "when": 1776360686251,
+      "tag": "0000_numerous_jackpot",
       "breakpoints": true
     }
   ]

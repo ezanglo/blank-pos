@@ -110,12 +110,12 @@ export function StaffPanel({
         </p>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Add staff</CardTitle>
-          <CardDescription>Create sign-ins with username and password. No email invites.</CardDescription>
-        </CardHeader>
-        <form onSubmit={form.handleSubmit(onCreate)}>
+      <form onSubmit={form.handleSubmit(onCreate)}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Add staff</CardTitle>
+            <CardDescription>Create sign-ins with username and password. No email invites.</CardDescription>
+          </CardHeader>
           <CardContent className="space-y-4">
             <RootFormError message={form.formState.errors.root?.message} />
             <FieldGroup>
@@ -162,8 +162,8 @@ export function StaffPanel({
               {form.formState.isSubmitting ? "Working…" : "Create user & add to store"}
             </Button>
           </CardFooter>
-        </form>
-      </Card>
+        </Card>
+      </form>
 
       <Card>
         <CardHeader>

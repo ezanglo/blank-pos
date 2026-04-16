@@ -5,7 +5,6 @@ import { admin, createAccessControl, organization, username } from "better-auth/
 
 import { getDb } from "@/lib/db"
 import * as schema from "@/lib/db/schema"
-import { organizationBranding } from "@/lib/db/schema-app"
 import { getServerEnv } from "@/lib/env"
 
 const env = () => getServerEnv()
@@ -40,6 +39,14 @@ export const auth = betterAuth({
     }),
     organization({
       roles: {
+        // Creators get role "owner" by default; custom `roles` replaces better-auth defaults, so owner must be defined.
+        owner: orgAc.newRole({
+          organization: ["update", "delete"],
+          member: ["create", "update", "delete"],
+          invitation: ["create", "cancel"],
+          team: ["create", "update", "delete"],
+          ac: ["create", "read", "update", "delete"],
+        }),
         manager: orgAc.newRole({
           organization: ["update"],
           member: ["create", "update", "delete"],
@@ -54,20 +61,6 @@ export const auth = betterAuth({
           team: [],
           ac: ["read"],
         }),
-      },
-      organizationHooks: {
-        afterCreateOrganization: async ({ organization }) => {
-          const db = getDb()
-          await db
-            .insert(organizationBranding)
-            .values({
-              organizationId: organization.id,
-              displayName: organization.name,
-              primaryColor: "#171717",
-              accentColor: "#404040",
-            })
-            .onConflictDoNothing()
-        },
       },
     }),
   ],

@@ -16,8 +16,9 @@ import {
 } from "@/components/ui/card"
 import { FieldGroup } from "@/components/ui/field"
 import { SelectFormField, TextFormField } from "@/components/form"
-import type { OrgMetadata } from "@/lib/org-metadata"
 import { type StoreSettingsFormValues, storeSettingsSchema } from "@/lib/schemas/app-forms"
+import { storeLocationToStoreSettingsFields } from "@/lib/store-location"
+import type { StoreLocation } from "@/lib/db/schema-app"
 
 function RootFormError({ message }: { message?: string }) {
   if (!message) return null
@@ -31,31 +32,36 @@ function RootFormError({ message }: { message?: string }) {
 export function StoreSettingsForm({
   orgSlug,
   initialName,
-  initialMeta,
+  initialLocation,
 }: {
   orgSlug: string
   initialName: string
-  initialMeta: OrgMetadata
+  initialLocation: StoreLocation | null
 }) {
   const router = useRouter()
+  const locFields = storeLocationToStoreSettingsFields(initialLocation)
   const form = useForm<StoreSettingsFormValues>({
     resolver: standardSchemaResolver(storeSettingsSchema),
     defaultValues: {
       name: initialName,
-      defaultCurrency: (initialMeta.defaultCurrency as StoreSettingsFormValues["defaultCurrency"]) ?? "USD",
-      addressLine1: initialMeta.addressLine1 ?? "",
-      phone: initialMeta.phone ?? "",
+      ...locFields,
     },
   })
 
   async function onSubmit(values: StoreSettingsFormValues) {
     try {
-      const metadata: OrgMetadata = {
-        defaultCurrency: values.defaultCurrency,
-        addressLine1: values.addressLine1 || undefined,
-        phone: values.phone || undefined,
-      }
-      await updateOrganizationStore(orgSlug, { name: values.name, metadata })
+      await updateOrganizationStore(orgSlug, {
+        name: values.name,
+        location: {
+          defaultCurrency: values.defaultCurrency,
+          addressLine1: values.addressLine1 || undefined,
+          addressLine2: values.addressLine2 || undefined,
+          city: values.city || undefined,
+          region: values.region || undefined,
+          postalCode: values.postalCode || undefined,
+          phone: values.phone || undefined,
+        },
+      })
       router.refresh()
     } catch (err) {
       form.setError("root", {
@@ -65,20 +71,23 @@ export function StoreSettingsForm({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Store</CardTitle>
-        <CardDescription>Organization name and site details.</CardDescription>
-      </CardHeader>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
+    <form onSubmit={form.handleSubmit(onSubmit)}>
+      <Card>
+        <CardHeader>
+          <CardTitle>Location</CardTitle>
+          <CardDescription>
+            The name staff see for this shop, the address you keep on file, and the money type you
+            use here.
+          </CardDescription>
+        </CardHeader>
         <CardContent className="space-y-4">
           <RootFormError message={form.formState.errors.root?.message} />
           <FieldGroup>
-            <TextFormField control={form.control} name="name" label="Store name" />
+            <TextFormField control={form.control} name="name" label="Location name" />
             <SelectFormField
               control={form.control}
               name="defaultCurrency"
-              label="Default currency"
+              label="Currency"
               options={[
                 { value: "USD", label: "USD" },
                 { value: "EUR", label: "EUR" },
@@ -86,7 +95,13 @@ export function StoreSettingsForm({
                 { value: "PHP", label: "PHP" },
               ]}
             />
-            <TextFormField control={form.control} name="addressLine1" label="Street address" />
+            <TextFormField control={form.control} name="addressLine1" label="Address line 1" />
+            <TextFormField control={form.control} name="addressLine2" label="Address line 2" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <TextFormField control={form.control} name="city" label="City" />
+              <TextFormField control={form.control} name="region" label="State / region" />
+            </div>
+            <TextFormField control={form.control} name="postalCode" label="Postal code" />
             <TextFormField control={form.control} name="phone" label="Phone" />
           </FieldGroup>
         </CardContent>
@@ -95,7 +110,7 @@ export function StoreSettingsForm({
             {form.formState.isSubmitting ? "Saving…" : "Save"}
           </Button>
         </CardFooter>
-      </form>
-    </Card>
+      </Card>
+    </form>
   )
 }

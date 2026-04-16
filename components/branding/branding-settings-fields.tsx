@@ -1,0 +1,167 @@
+"use client"
+
+import Image from "next/image"
+import { useWatch, type Control } from "react-hook-form"
+
+import { TextareaFormField, TextFormField } from "@/components/form"
+import { FieldGroup } from "@/components/ui/field"
+import { type BrandingSettingsFormValues } from "@/lib/schemas/app-forms"
+
+export function BrandingSettingsFields({
+  control,
+}: {
+  control: Control<BrandingSettingsFormValues>
+}) {
+  const logoPreview =
+    useWatch({ control, name: "logoImageUrl" })?.trim() || null
+
+  return (
+    <FieldGroup>
+      <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        Store brand
+      </p>
+      <TextFormField
+        control={control}
+        name="displayName"
+        label="Display name"
+        description="How your business shows up in the app and to customers. Same for every shop. To change one shop’s name in the app, use Location in that shop."
+      />
+      <TextFormField control={control} name="tagline" label="Tagline" />
+      <TextFormField
+        control={control}
+        name="legalName"
+        label="Legal business name"
+        description="Optional. When your legal name should show on paperwork or printed tickets."
+      />
+      <TextFormField
+        control={control}
+        name="taxIdentifier"
+        label="Tax / VAT ID"
+        description="Optional. When you need a tax or VAT number on printed tickets or forms."
+      />
+      <TextFormField
+        control={control}
+        name="logoImageUrl"
+        label="Logo image URL"
+        type="url"
+        placeholder="https://…"
+        description="Optional. Your logo on sign-in, in the app, and wherever your brand appears. Use a normal web link (https)."
+      />
+      {logoPreview ? (
+        <div className="flex items-center gap-3 rounded-xl border p-3">
+          <Image
+            src={logoPreview}
+            alt=""
+            width={48}
+            height={48}
+            unoptimized
+            className="size-12 shrink-0 rounded-md border bg-muted object-contain p-1"
+          />
+          <p className="text-xs text-muted-foreground">Logo preview</p>
+        </div>
+      ) : null}
+      <p className="mt-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        Printed tickets (optional)
+      </p>
+      <TextareaFormField
+        control={control}
+        name="receiptHeaderText"
+        label="Extra text at the top"
+        description="Optional. Only for printed tickets, if you use them."
+        className="min-h-[72px]"
+      />
+      <TextareaFormField
+        control={control}
+        name="receiptFooterText"
+        label="Extra text at the bottom"
+        description="Optional. Only for printed tickets, if you use them."
+        className="min-h-[72px]"
+      />
+
+      <p className="mt-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        Website and contact
+      </p>
+      <TextFormField
+        control={control}
+        name="websiteUrl"
+        label="Website URL"
+        type="url"
+        placeholder="https://…"
+        description="Optional. Your main website or order page."
+      />
+      <TextFormField
+        control={control}
+        name="menuUrl"
+        label="Menu URL"
+        type="url"
+        placeholder="https://…"
+        description="Optional. Link to your menu online."
+      />
+      <TextFormField
+        control={control}
+        name="contactEmail"
+        label="Public contact email"
+        type="email"
+      />
+      <TextFormField
+        control={control}
+        name="publicPhone"
+        label="Public phone"
+        description="Optional. Use this if it is not the same as the phone you saved under Location for a shop."
+      />
+
+      <p className="mt-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        Social and hours
+      </p>
+      <TextFormField
+        control={control}
+        name="instagramUrl"
+        label="Instagram URL"
+        type="url"
+        placeholder="https://…"
+      />
+      <TextFormField
+        control={control}
+        name="facebookUrl"
+        label="Facebook URL"
+        type="url"
+        placeholder="https://…"
+      />
+      <TextareaFormField
+        control={control}
+        name="operatingHoursText"
+        label="Opening hours"
+        description="Optional. Hours or short notes customers might see online or on printed tickets."
+        className="min-h-[72px]"
+      />
+
+      <p className="mt-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        Colors and sign-in
+      </p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <TextFormField
+          control={control}
+          name="primaryColor"
+          label="Primary color"
+          placeholder="#171717"
+          description="#RGB or #RRGGBB"
+        />
+        <TextFormField
+          control={control}
+          name="accentColor"
+          label="Accent color"
+          placeholder="#404040"
+          description="#RGB or #RRGGBB"
+        />
+      </div>
+      <TextFormField
+        control={control}
+        name="loginBackgroundImageUrl"
+        label="Sign-in page image URL"
+        type="url"
+        placeholder="https://…"
+        description="Optional. Picture behind the sign-in page. Use a normal web link (https)."
+      />
+    </FieldGroup>
+  )
+}

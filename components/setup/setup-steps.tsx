@@ -4,8 +4,9 @@ import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 
+import { setupPhaseSaveStoreBranding } from "@/lib/actions/branding"
+import { updateOrganizationStore } from "@/lib/actions/organization"
 import { bootstrapCreateOwner } from "@/lib/actions/setup"
-import { updateBranding } from "@/lib/actions/branding"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -16,21 +17,18 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { FieldGroup } from "@/components/ui/field"
-import {
-  ColorFormField,
-  SelectFormField,
-  TextFormField,
-} from "@/components/form"
+import { SelectFormField, TextFormField } from "@/components/form"
 import { authClient } from "@/lib/auth-client"
-import { type OrgMetadata } from "@/lib/org-metadata"
 import {
   type SetupBrandingFormValues,
+  type SetupOrgLocationFormValues,
   type SetupOwnerFormValues,
-  type SetupStoreFormValues,
   setupBrandingSchema,
+  setupOrgLocationSchema,
   setupOwnerSchema,
-  setupStoreSchema,
 } from "@/lib/schemas/app-forms"
+
+import { SetupBrandingFields } from "./setup-branding-fields"
 
 function RootFormError({ message }: { message?: string }) {
   if (!message) return null
@@ -41,7 +39,13 @@ function RootFormError({ message }: { message?: string }) {
   )
 }
 
-export function SetupOwnerStep({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
+export function SetupOwnerStep({
+  onBack,
+  onDone,
+}: {
+  onBack: () => void
+  onDone: (ownerDisplayName: string) => void
+}) {
   const form = useForm<SetupOwnerFormValues>({
     resolver: standardSchemaResolver(setupOwnerSchema),
     defaultValues: { username: "", password: "", ownerName: "" },
@@ -62,7 +66,7 @@ export function SetupOwnerStep({ onBack, onDone }: { onBack: () => void; onDone:
         form.setError("root", { message: signIn.error.message ?? "Sign-in failed" })
         return
       }
-      onDone()
+      onDone(values.ownerName)
     } catch (err) {
       form.setError("root", {
         message: err instanceof Error ? err.message : "Something went wrong",
@@ -71,12 +75,12 @@ export function SetupOwnerStep({ onBack, onDone }: { onBack: () => void; onDone:
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Owner account</CardTitle>
-        <CardDescription>Create the first admin username and password.</CardDescription>
-      </CardHeader>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
+    <form onSubmit={form.handleSubmit(onSubmit)}>
+      <Card>
+        <CardHeader>
+          <CardTitle>Owner account</CardTitle>
+          <CardDescription>Create the first admin username and password.</CardDescription>
+        </CardHeader>
         <CardContent className="space-y-4">
           <RootFormError message={form.formState.errors.root?.message} />
           <FieldGroup>
@@ -109,49 +113,62 @@ export function SetupOwnerStep({ onBack, onDone }: { onBack: () => void; onDone:
             {form.formState.isSubmitting ? "Working…" : "Create owner & sign in"}
           </Button>
         </CardFooter>
-      </form>
-    </Card>
+      </Card>
+    </form>
   )
 }
 
-export function SetupStoreStep({
+export function SetupOrganizationLocationStep({
   onBack,
-  onDone,
 }: {
   onBack: () => void
-  onDone: (slug: string, displayName: string) => void
 }) {
-  const form = useForm<SetupStoreFormValues>({
-    resolver: standardSchemaResolver(setupStoreSchema),
+  const router = useRouter()
+  const form = useForm<SetupOrgLocationFormValues>({
+    resolver: standardSchemaResolver(setupOrgLocationSchema),
     defaultValues: {
       storeName: "",
       slug: "",
       defaultCurrency: "USD",
       addressLine1: "",
+      addressLine2: "",
+      city: "",
+      region: "",
+      postalCode: "",
       phone: "",
     },
   })
 
   const slugWatch = form.watch("slug")
 
-  async function onSubmit(values: SetupStoreFormValues) {
+  async function onSubmit(values: SetupOrgLocationFormValues) {
     try {
-      const meta: OrgMetadata = {
-        defaultCurrency: values.defaultCurrency,
-        addressLine1: values.addressLine1 || undefined,
-        phone: values.phone || undefined,
-      }
       const res = await authClient.organization.create({
         name: values.storeName,
         slug: values.slug,
-        metadata: meta as Record<string, unknown>,
+        metadata: {} as Record<string, unknown>,
         keepCurrentActiveOrganization: true,
       })
       if (res.error) {
-        form.setError("root", { message: res.error.message ?? "Could not create organization" })
+        form.setError("root", {
+          message: res.error.message ?? "Could not create this location",
+        })
         return
       }
-      onDone(values.slug, values.storeName)
+      await updateOrganizationStore(values.slug, {
+        name: values.storeName,
+        location: {
+          defaultCurrency: values.defaultCurrency,
+          addressLine1: values.addressLine1 || undefined,
+          addressLine2: values.addressLine2 || undefined,
+          city: values.city || undefined,
+          region: values.region || undefined,
+          postalCode: values.postalCode || undefined,
+          phone: values.phone || undefined,
+        },
+      })
+      router.replace(`/${values.slug}/dashboard`)
+      router.refresh()
     } catch (err) {
       form.setError("root", {
         message: err instanceof Error ? err.message : "Something went wrong",
@@ -160,28 +177,31 @@ export function SetupStoreStep({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Your store</CardTitle>
-        <CardDescription>Organization name, URL slug, and site details.</CardDescription>
-      </CardHeader>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
+    <form onSubmit={form.handleSubmit(onSubmit)}>
+      <Card>
+        <CardHeader>
+          <CardTitle>Location</CardTitle>
+          <CardDescription>
+            Name this shop, pick the web link your team uses to sign in, then add currency and
+            address. One shop is one location.
+          </CardDescription>
+        </CardHeader>
         <CardContent className="space-y-4">
           <RootFormError message={form.formState.errors.root?.message} />
           <FieldGroup>
-            <TextFormField control={form.control} name="storeName" label="Store name" />
+            <TextFormField control={form.control} name="storeName" label="Location name" />
             <TextFormField
               control={form.control}
               name="slug"
-              label="URL slug"
+              label="Web link name"
               placeholder="e.g. main-street-cafe"
               autoComplete="off"
-              description={`Your POS will live at /${slugWatch?.trim().toLowerCase() || "slug"}/…`}
+              description={`Staff sign in at /${slugWatch?.trim().toLowerCase() || "your-link"}/ on this site.`}
             />
             <SelectFormField
               control={form.control}
               name="defaultCurrency"
-              label="Default currency"
+              label="Currency"
               options={[
                 { value: "USD", label: "USD" },
                 { value: "EUR", label: "EUR" },
@@ -192,9 +212,15 @@ export function SetupStoreStep({
             <TextFormField
               control={form.control}
               name="addressLine1"
-              label="Street address"
-              description="Optional; shown on receipts later."
+              label="Address line 1"
+              description="Optional. We may use this on receipts later."
             />
+            <TextFormField control={form.control} name="addressLine2" label="Address line 2" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <TextFormField control={form.control} name="city" label="City" />
+              <TextFormField control={form.control} name="region" label="State / region" />
+            </div>
+            <TextFormField control={form.control} name="postalCode" label="Postal code" />
             <TextFormField control={form.control} name="phone" label="Phone" />
           </FieldGroup>
         </CardContent>
@@ -203,47 +229,53 @@ export function SetupStoreStep({
             Back
           </Button>
           <Button type="submit" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? "Working…" : "Create store"}
+            {form.formState.isSubmitting ? "Working…" : "Save location & finish"}
           </Button>
         </CardFooter>
-      </form>
-    </Card>
+      </Card>
+    </form>
   )
 }
 
-export function SetupBrandingStep({
-  orgSlug,
+export function SetupStoreBrandingStep({
   defaultDisplayName,
   onBack,
+  onDone,
 }: {
-  orgSlug: string
   defaultDisplayName: string
   onBack: () => void
+  onDone: () => void
 }) {
-  const router = useRouter()
   const form = useForm<SetupBrandingFormValues>({
     resolver: standardSchemaResolver(setupBrandingSchema),
     defaultValues: {
       displayName: defaultDisplayName,
-      tagline: "",
-      primaryColor: "#171717",
-      accentColor: "#404040",
+      logoImageUrl: "",
     },
   })
 
-  const primary = form.watch("primaryColor")
-  const accent = form.watch("accentColor")
-
   async function onSubmit(values: SetupBrandingFormValues) {
     try {
-      await updateBranding(orgSlug, {
-        displayName: values.displayName?.trim() || null,
-        tagline: values.tagline?.trim() || null,
-        primaryColor: values.primaryColor,
-        accentColor: values.accentColor,
+      await setupPhaseSaveStoreBranding({
+        displayName: values.displayName.trim() || null,
+        logoImageUrl: values.logoImageUrl?.trim() || null,
+        tagline: null,
+        receiptHeaderText: null,
+        receiptFooterText: null,
+        legalName: null,
+        taxIdentifier: null,
+        websiteUrl: null,
+        menuUrl: null,
+        contactEmail: null,
+        publicPhone: null,
+        instagramUrl: null,
+        facebookUrl: null,
+        operatingHoursText: null,
+        primaryColor: null,
+        accentColor: null,
+        loginBackgroundImageUrl: null,
       })
-      router.replace(`/${orgSlug}/dashboard`)
-      router.refresh()
+      onDone()
     } catch (err) {
       form.setError("root", {
         message: err instanceof Error ? err.message : "Something went wrong",
@@ -252,43 +284,29 @@ export function SetupBrandingStep({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Branding</CardTitle>
-        <CardDescription>Colors and receipt-facing name for your shell.</CardDescription>
-      </CardHeader>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
+    <form onSubmit={form.handleSubmit(onSubmit)}>
+      <Card>
+        <CardHeader>
+          <CardTitle>Branding</CardTitle>
+          <CardDescription>
+            How your store brand looks and reads in the app for all your shops—starting with name and
+            logo. This is not your shop address or staff web link; you add those next. You can add
+            colors, contact info, and more later in Settings under Branding.
+          </CardDescription>
+        </CardHeader>
         <CardContent className="space-y-4">
           <RootFormError message={form.formState.errors.root?.message} />
-          <FieldGroup>
-            <TextFormField control={form.control} name="displayName" label="Receipt display name" />
-            <TextFormField control={form.control} name="tagline" label="Tagline (optional)" />
-            <div className="grid grid-cols-2 gap-3">
-              <ColorFormField control={form.control} name="primaryColor" label="Primary" />
-              <ColorFormField control={form.control} name="accentColor" label="Accent" />
-            </div>
-            <div
-              className="rounded-xl border p-4 text-sm"
-              style={
-                {
-                  borderColor: accent,
-                  background: `linear-gradient(135deg, ${primary}22, transparent)`,
-                } as React.CSSProperties
-              }
-            >
-              Preview: buttons and chrome will use these colors.
-            </div>
-          </FieldGroup>
+          <SetupBrandingFields control={form.control} />
         </CardContent>
         <CardFooter className="flex flex-wrap gap-2 border-t pt-6">
           <Button type="button" variant="outline" onClick={onBack}>
             Back
           </Button>
           <Button type="submit" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? "Saving…" : "Finish & go to dashboard"}
+            {form.formState.isSubmitting ? "Saving…" : "Save & continue"}
           </Button>
         </CardFooter>
-      </form>
-    </Card>
+      </Card>
+    </form>
   )
 }

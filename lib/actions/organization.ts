@@ -4,13 +4,25 @@ import { APIError } from "better-auth/api"
 import { headers } from "next/headers"
 
 import { auth } from "@/lib/auth"
-import { type OrgMetadata } from "@/lib/org-metadata"
+import { getDb } from "@/lib/db"
+import { storeLocation } from "@/lib/db/schema-app"
+import { stripLocationKeysFromOrganizationMetadata } from "@/lib/org-metadata"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { getServerSession } from "@/lib/server-auth"
 
+export type OrganizationLocationInput = {
+  defaultCurrency: "USD" | "EUR" | "GBP" | "PHP"
+  addressLine1?: string
+  addressLine2?: string
+  city?: string
+  region?: string
+  postalCode?: string
+  phone?: string
+}
+
 export async function updateOrganizationStore(
   orgSlug: string,
-  input: { name: string; metadata: OrgMetadata },
+  input: { name: string; location: OrganizationLocationInput },
 ) {
   const session = await getServerSession()
   if (!session?.user) throw new Error("Unauthorized")
@@ -20,6 +32,8 @@ export async function updateOrganizationStore(
     throw new Error("Forbidden")
   }
 
+  const metadata = stripLocationKeysFromOrganizationMetadata(ctx.organization.metadata)
+
   try {
     await auth.api.updateOrganization({
       headers: await headers(),
@@ -27,7 +41,7 @@ export async function updateOrganizationStore(
         organizationId: ctx.organization.id,
         data: {
           name: input.name.trim(),
-          metadata: input.metadata as Record<string, unknown>,
+          metadata,
         },
       },
     })
@@ -35,6 +49,35 @@ export async function updateOrganizationStore(
     if (e instanceof APIError) throw new Error(e.message)
     throw e
   }
+
+  const db = getDb()
+  const now = new Date()
+  const loc = input.location
+  await db
+    .insert(storeLocation)
+    .values({
+      organizationId: ctx.organization.id,
+      defaultCurrency: loc.defaultCurrency,
+      addressLine1: loc.addressLine1?.trim() || null,
+      addressLine2: loc.addressLine2?.trim() || null,
+      city: loc.city?.trim() || null,
+      region: loc.region?.trim() || null,
+      postalCode: loc.postalCode?.trim() || null,
+      phone: loc.phone?.trim() || null,
+    })
+    .onConflictDoUpdate({
+      target: storeLocation.organizationId,
+      set: {
+        defaultCurrency: loc.defaultCurrency,
+        addressLine1: loc.addressLine1?.trim() || null,
+        addressLine2: loc.addressLine2?.trim() || null,
+        city: loc.city?.trim() || null,
+        region: loc.region?.trim() || null,
+        postalCode: loc.postalCode?.trim() || null,
+        phone: loc.phone?.trim() || null,
+        updatedAt: now,
+      },
+    })
 
   return { ok: true as const }
 }

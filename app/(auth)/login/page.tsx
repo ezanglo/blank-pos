@@ -8,19 +8,14 @@ import { GalleryVerticalEndIcon } from "lucide-react"
 
 export const dynamic = "force-dynamic"
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ org?: string }>
-}) {
+export default async function LoginPage() {
   const session = await getServerSession()
   if (session?.user?.id) {
     const next = await getPostLoginRedirect()
     if (next !== "/login") redirect(next)
   }
 
-  const { org: orgFromQuery } = await searchParams
-  const branding = await getLoginBranding(orgFromQuery ?? null)
+  const branding = await getLoginBranding()
 
   return (
     <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-6 md:p-10">

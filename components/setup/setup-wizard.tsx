@@ -11,22 +11,26 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
-import { SetupBrandingStep, SetupOwnerStep, SetupStoreStep } from "./setup-steps"
+import {
+  SetupOrganizationLocationStep,
+  SetupOwnerStep,
+  SetupStoreBrandingStep,
+} from "./setup-steps"
 
-type Step = "welcome" | "owner" | "store" | "branding"
+type Step = "welcome" | "owner" | "branding" | "store"
 
 export function SetupWizard() {
   const [step, setStep] = useState<Step>("welcome")
-  const [orgSlug, setOrgSlug] = useState("")
-  const [defaultDisplayName, setDefaultDisplayName] = useState("")
+  const [ownerDisplayName, setOwnerDisplayName] = useState("")
 
   return (
     <div className="space-y-6">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Blank POS setup</h1>
         <p className="text-muted-foreground text-sm">
-          Create the admin account, your store, and branding. No database scripts required after
-          migrations.
+          You will create the main login, then your store’s branding (name and optional logo), then
+          this shop’s details (name, web link, currency, and address). Branding and shop details are
+          two different steps.
         </p>
       </header>
 
@@ -35,8 +39,9 @@ export function SetupWizard() {
           <CardHeader>
             <CardTitle>Welcome</CardTitle>
             <CardDescription>
-              You will set an <strong>owner</strong> username and password, then your store name and
-              URL slug, then colors for the POS shell.
+              First an <strong>owner</strong> login, then <strong>branding</strong> (how your store shows up in the app,
+              starting with name and optional logo), then <strong>location</strong> (shop name, web link, currency,
+              and address). Branding and shop details do not have to match.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -48,28 +53,26 @@ export function SetupWizard() {
       ) : null}
 
       {step === "owner" ? (
-        <SetupOwnerStep onBack={() => setStep("welcome")} onDone={() => setStep("store")} />
-      ) : null}
-
-      {step === "store" ? (
-        <SetupStoreStep
-          onBack={() => setStep("owner")}
-          onDone={(slug, displayName) => {
-            setOrgSlug(slug)
-            setDefaultDisplayName(displayName)
+        <SetupOwnerStep
+          onBack={() => setStep("welcome")}
+          onDone={(name) => {
+            setOwnerDisplayName(name)
             setStep("branding")
           }}
         />
       ) : null}
 
       {step === "branding" ? (
-        <SetupBrandingStep
-          orgSlug={orgSlug}
-          defaultDisplayName={defaultDisplayName}
-          onBack={() => setStep("store")}
+        <SetupStoreBrandingStep
+          defaultDisplayName={ownerDisplayName}
+          onBack={() => setStep("owner")}
+          onDone={() => setStep("store")}
         />
       ) : null}
 
+      {step === "store" ? (
+        <SetupOrganizationLocationStep onBack={() => setStep("branding")} />
+      ) : null}
     </div>
   )
 }

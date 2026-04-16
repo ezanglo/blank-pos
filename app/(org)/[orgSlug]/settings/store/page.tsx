@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation"
 
-import { parseOrgMetadata } from "@/lib/org-metadata"
+import { getLocationByOrganizationId } from "@/lib/queries/location"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { getServerSession } from "@/lib/server-auth"
 
@@ -21,7 +21,13 @@ export default async function StoreSettingsPage({
   if (!ctx) notFound()
   if (ctx.member.role !== "owner" && ctx.member.role !== "manager") notFound()
 
-  const meta = parseOrgMetadata(ctx.organization.metadata)
+  const initialLocation = await getLocationByOrganizationId(ctx.organization.id)
 
-  return <StoreSettingsForm orgSlug={orgSlug} initialName={ctx.organization.name} initialMeta={meta} />
+  return (
+    <StoreSettingsForm
+      orgSlug={orgSlug}
+      initialName={ctx.organization.name}
+      initialLocation={initialLocation}
+    />
+  )
 }

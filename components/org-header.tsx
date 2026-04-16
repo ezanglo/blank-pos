@@ -10,11 +10,12 @@ import { cn } from "@/lib/utils"
 
 export function OrgHeader({
   orgSlug,
-  storeName,
+  locationName,
   logoImageUrl,
 }: {
   orgSlug: string
-  storeName: string
+  /** This location’s name (`organization.name`). */
+  locationName: string
   logoImageUrl?: string | null
 }) {
   const prefix = `/${orgSlug}`
@@ -34,20 +35,20 @@ export function OrgHeader({
         >
           {logo ? (
             <>
-              {/* eslint-disable-next-line @next/next/no-img-element -- branding HTTPS URL */}
+              {/* eslint-disable-next-line @next/next/no-img-element -- site branding HTTPS URL */}
               <img
                 src={logo}
                 alt=""
                 className="size-8 shrink-0 rounded-md border bg-card object-contain p-0.5"
               />
-              <span className="truncate">{storeName}</span>
+              <span className="truncate">{locationName}</span>
             </>
           ) : (
             <>
               <span className="bg-primary text-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-md">
                 <GalleryVerticalEndIcon className="size-4" />
               </span>
-              <span className="truncate">{storeName}</span>
+              <span className="truncate">{locationName}</span>
             </>
           )}
         </Link>
@@ -56,9 +57,9 @@ export function OrgHeader({
             Dashboard
           </Link>
           <Link href={`${prefix}/settings/store`} className="hover:text-foreground">
-            Store
+            Location
           </Link>
-          <Link href={`${prefix}/settings/branding`} className="hover:text-foreground">
+          <Link href="/settings/branding" className="hover:text-foreground">
             Branding
           </Link>
           <Link href={`${prefix}/settings/staff`} className="hover:text-foreground">

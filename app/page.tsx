@@ -15,7 +15,7 @@ export default async function HomePage() {
 
   const path = await getDashboardPathForUser(
     session.user.id,
-    session.session.activeOrganizationId,
+    session.session.activeOrganizationId
   )
   if (path) redirect(path)
   redirect("/login")
