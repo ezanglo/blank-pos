@@ -55,7 +55,6 @@ export function LoginForm({
     }
     const next = await getPostLoginRedirect()
     router.replace(next)
-    router.refresh()
   }
 
   return (

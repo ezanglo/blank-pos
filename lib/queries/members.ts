@@ -12,6 +12,7 @@ export async function listMembersForOrganization(organizationId: string) {
       role: member.role,
       name: user.name,
       username: user.username,
+      joinedAt: member.createdAt,
     })
     .from(member)
     .innerJoin(user, eq(member.userId, user.id))

@@ -1,10 +1,9 @@
 import { notFound } from "next/navigation"
 
+import { OrgAppShell } from "@/components/org-app-shell"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { getStoreBranding } from "@/lib/queries/store-branding"
 import { requireSession } from "@/lib/server-auth"
-
-import { OrgHeader } from "@/components/org-header"
 
 export const dynamic = "force-dynamic"
 
@@ -22,13 +21,27 @@ export default async function OrgLayout({
   if (!ctx) notFound()
 
   const site = await getStoreBranding()
+  const storeName = site?.displayName?.trim() || "Store"
   const locationName = ctx.organization.name
   const logoImageUrl = site?.logoImageUrl ?? null
 
   return (
-    <div className="bg-background text-foreground min-h-dvh">
-      <OrgHeader orgSlug={orgSlug} locationName={locationName} logoImageUrl={logoImageUrl} />
-      <main className="mx-auto max-w-3xl px-4 py-8">{children}</main>
+    <div className="h-dvh overflow-hidden bg-background text-foreground">
+      <OrgAppShell
+        orgSlug={orgSlug}
+        storeName={storeName}
+        locationName={locationName}
+        logoImageUrl={logoImageUrl}
+        user={{
+          name: session.user.name,
+          email: session.user.email,
+          image: session.user.image,
+          brandName: storeName,
+          orgRole: ctx.member.role,
+        }}
+      >
+        {children}
+      </OrgAppShell>
     </div>
   )
 }
