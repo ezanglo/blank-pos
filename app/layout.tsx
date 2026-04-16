@@ -1,8 +1,27 @@
+import type { Metadata, Viewport } from "next"
 import { Geist_Mono, Inter } from "next/font/google"
 
 import { ThemeProvider } from "@/components/theme-provider"
+import { getStoreBranding } from "@/lib/queries/store-branding"
+import { buildRootMetadataFromBranding } from "@/lib/seo"
 import { cn } from "@/lib/utils"
 import "./globals.css"
+
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const branding = await getStoreBranding()
+    return buildRootMetadataFromBranding(branding)
+  } catch {
+    return buildRootMetadataFromBranding(null)
+  }
+}
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
+  ],
+}
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
 

@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 
 import { getPostLoginRedirect } from "@/lib/actions/nav"
@@ -5,6 +6,11 @@ import { LoginForm } from "@/components/login-form"
 import { getLoginBranding } from "@/lib/queries/login-branding"
 import { getServerSession } from "@/lib/server-auth"
 import { GalleryVerticalEndIcon } from "lucide-react"
+
+export const metadata: Metadata = {
+  title: "Sign in",
+  description: "Sign in to your store dashboard.",
+}
 
 export const dynamic = "force-dynamic"
 

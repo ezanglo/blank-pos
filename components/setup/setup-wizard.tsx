@@ -26,7 +26,7 @@ export function SetupWizard() {
   return (
     <div className="space-y-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Blank POS setup</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Set up your store</h1>
         <p className="text-muted-foreground text-sm">
           You will create the main login, then your store’s branding (name and optional logo), then
           this shop’s details (name, web link, currency, and address). Branding and shop details are

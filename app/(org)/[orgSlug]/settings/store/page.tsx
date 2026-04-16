@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
 import { getLocationByOrganizationId } from "@/lib/queries/location"
@@ -7,6 +8,26 @@ import { getServerSession } from "@/lib/server-auth"
 import { StoreSettingsForm } from "@/components/settings/store-settings-form"
 
 export const dynamic = "force-dynamic"
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ orgSlug: string }>
+}): Promise<Metadata> {
+  const { orgSlug } = await params
+  const session = await getServerSession()
+  if (!session?.user?.id) {
+    return { title: "Location" }
+  }
+  const ctx = await getOrgForUser(orgSlug, session.user.id)
+  if (!ctx) {
+    return { title: "Location" }
+  }
+  return {
+    title: `Location · ${ctx.organization.name}`,
+    description: `Store name, web address, and contact details for ${ctx.organization.name}.`,
+  }
+}
 
 export default async function StoreSettingsPage({
   params,

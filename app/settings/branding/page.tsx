@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
 import { BrandingSettingsForm } from "@/components/settings/branding-settings-form"
@@ -6,6 +7,11 @@ import { getStoreBranding, userCanEditStoreBranding } from "@/lib/queries/store-
 import { getServerSession } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"
+
+export const metadata: Metadata = {
+  title: "Branding",
+  description: "Store logos, colors, display name, and shared business details.",
+}
 
 export default async function StoreBrandingSettingsPage() {
   const session = await getServerSession()

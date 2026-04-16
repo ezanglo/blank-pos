@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
 import { listMembersForOrganization } from "@/lib/queries/members"
@@ -7,6 +8,26 @@ import { getServerSession } from "@/lib/server-auth"
 import { StaffPanel } from "@/components/settings/staff-panel"
 
 export const dynamic = "force-dynamic"
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ orgSlug: string }>
+}): Promise<Metadata> {
+  const { orgSlug } = await params
+  const session = await getServerSession()
+  if (!session?.user?.id) {
+    return { title: "Staff" }
+  }
+  const ctx = await getOrgForUser(orgSlug, session.user.id)
+  if (!ctx) {
+    return { title: "Staff" }
+  }
+  return {
+    title: `Staff · ${ctx.organization.name}`,
+    description: `Manage team members and roles for ${ctx.organization.name}.`,
+  }
+}
 
 export default async function StaffSettingsPage({
   params,
