@@ -4,7 +4,7 @@ import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 
-import { updateOrganizationStore } from "@/app/actions/organization"
+import { updateOrganizationStore } from "@/lib/actions/organization"
 import { Button } from "@/components/ui/button"
 import {
   Card,

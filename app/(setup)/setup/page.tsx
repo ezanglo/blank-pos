@@ -1,4 +1,4 @@
-import { SetupWizard } from "./setup-wizard"
+import { SetupWizard } from "@/components/setup/setup-wizard"
 
 export const dynamic = "force-dynamic"
 

@@ -2,11 +2,23 @@
 
 import Link from "next/link"
 
+import { GalleryVerticalEndIcon } from "lucide-react"
+
 import { Button } from "@/components/ui/button"
 import { authClient } from "@/lib/auth-client"
+import { cn } from "@/lib/utils"
 
-export function OrgHeader({ orgSlug, storeName }: { orgSlug: string; storeName: string }) {
+export function OrgHeader({
+  orgSlug,
+  storeName,
+  logoImageUrl,
+}: {
+  orgSlug: string
+  storeName: string
+  logoImageUrl?: string | null
+}) {
   const prefix = `/${orgSlug}`
+  const logo = logoImageUrl?.trim() || null
 
   async function onSignOut() {
     await authClient.signOut()
@@ -16,8 +28,28 @@ export function OrgHeader({ orgSlug, storeName }: { orgSlug: string; storeName: 
   return (
     <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
       <div className="flex min-w-0 flex-wrap items-center gap-3">
-        <Link href={`${prefix}/dashboard`} className="truncate font-medium">
-          {storeName}
+        <Link
+          href={`${prefix}/dashboard`}
+          className={cn("flex min-w-0 max-w-[220px] items-center gap-2 font-medium")}
+        >
+          {logo ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element -- branding HTTPS URL */}
+              <img
+                src={logo}
+                alt=""
+                className="size-8 shrink-0 rounded-md border bg-card object-contain p-0.5"
+              />
+              <span className="truncate">{storeName}</span>
+            </>
+          ) : (
+            <>
+              <span className="bg-primary text-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-md">
+                <GalleryVerticalEndIcon className="size-4" />
+              </span>
+              <span className="truncate">{storeName}</span>
+            </>
+          )}
         </Link>
         <nav className="text-muted-foreground flex flex-wrap gap-3 text-sm">
           <Link href={`${prefix}/dashboard`} className="hover:text-foreground">

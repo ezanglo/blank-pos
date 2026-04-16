@@ -13,7 +13,12 @@ export const organizationBranding = pgTable("organization_branding", {
   accentColor: text("accent_color").notNull().default("#404040"),
   receiptHeaderText: text("receipt_header_text"),
   receiptFooterText: text("receipt_footer_text"),
+  /** Reserved for private Storage paths (e.g. Supabase); optional. */
   logoStoragePath: text("logo_storage_path"),
+  /** Optional HTTPS URL for store logo (header, login, receipts). */
+  logoImageUrl: text("logo_image_url"),
+  /** Optional HTTPS URL for art on the global sign-in page (see `getLoginBranding`). */
+  loginBackgroundImageUrl: text("login_background_image_url"),
   updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
     .notNull()
     .defaultNow(),

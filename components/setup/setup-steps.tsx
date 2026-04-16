@@ -4,8 +4,8 @@ import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 
-import { bootstrapCreateOwner } from "@/app/actions/setup"
-import { updateBranding } from "@/app/actions/branding"
+import { bootstrapCreateOwner } from "@/lib/actions/setup"
+import { updateBranding } from "@/lib/actions/branding"
 import { Button } from "@/components/ui/button"
 import {
   Card,

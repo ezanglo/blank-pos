@@ -5,7 +5,7 @@ import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 
-import { staffCreateUser, staffRemoveMember } from "@/app/actions/staff"
+import { staffCreateUser, staffRemoveMember } from "@/lib/actions/staff"
 import { Button } from "@/components/ui/button"
 import {
   Card,

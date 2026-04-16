@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { getServerSession } from "@/lib/server-auth"
 
-import { OrgHeader } from "./org-header"
+import { OrgHeader } from "@/components/org-header"
 
 export const dynamic = "force-dynamic"
 
@@ -24,6 +24,7 @@ export default async function OrgLayout({
   const primary = ctx.branding?.primaryColor ?? "#171717"
   const accent = ctx.branding?.accentColor ?? "#404040"
   const storeName = ctx.branding?.displayName?.trim() || ctx.organization.name
+  const logoImageUrl = ctx.branding?.logoImageUrl ?? null
 
   return (
     <div
@@ -35,7 +36,7 @@ export default async function OrgLayout({
         } as React.CSSProperties
       }
     >
-      <OrgHeader orgSlug={orgSlug} storeName={storeName} />
+      <OrgHeader orgSlug={orgSlug} storeName={storeName} logoImageUrl={logoImageUrl} />
       <main className="mx-auto max-w-3xl px-4 py-8">{children}</main>
     </div>
   )

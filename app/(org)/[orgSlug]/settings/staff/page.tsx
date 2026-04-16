@@ -4,7 +4,7 @@ import { listMembersForOrganization } from "@/lib/queries/members"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { getServerSession } from "@/lib/server-auth"
 
-import { StaffPanel } from "./staff-panel"
+import { StaffPanel } from "@/components/settings/staff-panel"
 
 export const dynamic = "force-dynamic"
 

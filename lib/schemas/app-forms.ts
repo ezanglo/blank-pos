@@ -48,6 +48,21 @@ export const storeSettingsSchema = z.object({
 })
 export type StoreSettingsFormValues = z.infer<typeof storeSettingsSchema>
 
+function optionalHttpUrlField() {
+  return z
+    .string()
+    .optional()
+    .refine((v) => {
+      if (!v?.trim()) return true
+      try {
+        const u = new URL(v.trim())
+        return u.protocol === "http:" || u.protocol === "https:"
+      } catch {
+        return false
+      }
+    }, "Use a valid http(s) URL or leave blank")
+}
+
 export const brandingSettingsSchema = z.object({
   displayName: z.string().optional(),
   tagline: z.string().optional(),
@@ -55,6 +70,10 @@ export const brandingSettingsSchema = z.object({
   accentColor: z.string(),
   receiptHeaderText: z.string().optional(),
   receiptFooterText: z.string().optional(),
+  /** Optional absolute URL for the sign-in page hero (`/login`). */
+  loginBackgroundImageUrl: optionalHttpUrlField(),
+  /** Optional HTTPS URL for store logo (header, login, receipts). */
+  logoImageUrl: optionalHttpUrlField(),
 })
 export type BrandingSettingsFormValues = z.infer<typeof brandingSettingsSchema>
 

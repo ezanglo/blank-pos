@@ -4,7 +4,7 @@ import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 
-import { updateBranding } from "@/app/actions/branding"
+import { updateBranding } from "@/lib/actions/branding"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -46,6 +46,8 @@ export function BrandingSettingsForm({
     accentColor: string
     receiptHeaderText: string
     receiptFooterText: string
+    loginBackgroundImageUrl: string
+    logoImageUrl: string
   }
 }) {
   const router = useRouter()
@@ -58,11 +60,14 @@ export function BrandingSettingsForm({
       accentColor: initial.accentColor,
       receiptHeaderText: initial.receiptHeaderText,
       receiptFooterText: initial.receiptFooterText,
+      loginBackgroundImageUrl: initial.loginBackgroundImageUrl,
+      logoImageUrl: initial.logoImageUrl,
     },
   })
 
   const primary = form.watch("primaryColor")
   const accent = form.watch("accentColor")
+  const logoPreview = form.watch("logoImageUrl")?.trim() || null
 
   async function onSubmit(values: BrandingSettingsFormValues) {
     try {
@@ -73,6 +78,8 @@ export function BrandingSettingsForm({
         accentColor: values.accentColor,
         receiptHeaderText: values.receiptHeaderText?.trim() || null,
         receiptFooterText: values.receiptFooterText?.trim() || null,
+        loginBackgroundImageUrl: values.loginBackgroundImageUrl?.trim() || null,
+        logoImageUrl: values.logoImageUrl?.trim() || null,
       })
       router.refresh()
     } catch (err) {
@@ -86,7 +93,9 @@ export function BrandingSettingsForm({
     <Card>
       <CardHeader>
         <CardTitle>Branding</CardTitle>
-        <CardDescription>Receipt-facing name, colors, and copy.</CardDescription>
+        <CardDescription>
+          Receipt-facing name, colors, copy, optional logo URL, and optional sign-in page image.
+        </CardDescription>
       </CardHeader>
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <CardContent className="space-y-4">
@@ -94,6 +103,25 @@ export function BrandingSettingsForm({
           <FieldGroup>
             <TextFormField control={form.control} name="displayName" label="Receipt display name" />
             <TextFormField control={form.control} name="tagline" label="Tagline" />
+            <TextFormField
+              control={form.control}
+              name="logoImageUrl"
+              label="Logo image URL"
+              type="url"
+              placeholder="https://…"
+              description="Optional. Shown on login and in the app header. Use https (or http in dev)."
+            />
+            {logoPreview ? (
+              <div className="flex items-center gap-3 rounded-xl border p-3">
+                {/* eslint-disable-next-line @next/next/no-img-element -- admin URL from form */}
+                <img
+                  src={logoPreview}
+                  alt=""
+                  className="size-12 shrink-0 rounded-md border bg-muted object-contain p-1"
+                />
+                <p className="text-muted-foreground text-xs">Logo preview</p>
+              </div>
+            ) : null}
             <div className="grid grid-cols-2 gap-3">
               <ColorFormField control={form.control} name="primaryColor" label="Primary" />
               <ColorFormField control={form.control} name="accentColor" label="Accent" />
@@ -109,6 +137,14 @@ export function BrandingSettingsForm({
               name="receiptFooterText"
               label="Receipt footer"
               className="min-h-[72px]"
+            />
+            <TextFormField
+              control={form.control}
+              name="loginBackgroundImageUrl"
+              label="Sign-in page image URL"
+              type="url"
+              placeholder="https://…"
+              description="Optional. Shown on /login when this store is selected (see docs). Must be https (or http in dev)."
             />
             <div
               className="rounded-xl border p-4 text-sm"

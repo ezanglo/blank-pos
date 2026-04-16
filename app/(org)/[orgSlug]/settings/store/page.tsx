@@ -4,7 +4,7 @@ import { parseOrgMetadata } from "@/lib/org-metadata"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { getServerSession } from "@/lib/server-auth"
 
-import { StoreSettingsForm } from "./store-settings-form"
+import { StoreSettingsForm } from "@/components/settings/store-settings-form"
 
 export const dynamic = "force-dynamic"
 

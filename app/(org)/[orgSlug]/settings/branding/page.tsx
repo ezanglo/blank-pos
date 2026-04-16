@@ -3,7 +3,7 @@ import { notFound } from "next/navigation"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { getServerSession } from "@/lib/server-auth"
 
-import { BrandingSettingsForm } from "./branding-settings-form"
+import { BrandingSettingsForm } from "@/components/settings/branding-settings-form"
 
 export const dynamic = "force-dynamic"
 
@@ -28,6 +28,8 @@ export default async function BrandingSettingsPage({
     accentColor: b?.accentColor ?? "#404040",
     receiptHeaderText: b?.receiptHeaderText ?? "",
     receiptFooterText: b?.receiptFooterText ?? "",
+    loginBackgroundImageUrl: b?.loginBackgroundImageUrl ?? "",
+    logoImageUrl: b?.logoImageUrl ?? "",
   }
 
   return <BrandingSettingsForm orgSlug={orgSlug} initial={initial} />
