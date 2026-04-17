@@ -29,6 +29,8 @@ export const auth = betterAuth({
   trustedOrigins: [env().BETTER_AUTH_URL],
   emailAndPassword: {
     enabled: true,
+    /** Blocks `POST /sign-up/email` and client `signUp.email`; Admin `createUser` + bootstrap still allowed. */
+    disableSignUp: true,
   },
   plugins: [
     nextCookies(),

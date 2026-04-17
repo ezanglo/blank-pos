@@ -50,7 +50,7 @@ Core auth tables (`user`, `account`, `verification`, …) remain better-auth’s
 ## User lifecycle (v1): no public registration; admin-created staff
 
 **Bootstrap (once per empty database)**  
-Only the **[onboarding-first-run.md](onboarding-first-run.md)** wizard may create the **first** `user` (the **owner**). This is **not** a global “Sign up” product feature—disable ordinary **sign-up** in better-auth after bootstrap (or gate it so only `count(user) === 0` allows account creation).
+Only the **[onboarding-first-run.md](onboarding-first-run.md)** wizard may create the **first** `user` (the **owner**). This is **not** a global “Sign up” product feature. The server sets **`emailAndPassword.disableSignUp: true`** in [lib/auth.ts](../lib/auth.ts) so **`POST /api/auth/sign-up/email`** (and client **`signUp.email`**) return **`EMAIL_PASSWORD_SIGN_UP_DISABLED`**. **`emailAndPassword.enabled`** stays **`true`** so password hashes and credential accounts created by the **Admin** plugin (`createUser`) and used by **`signIn.username`** keep working. The bootstrap action still enforces **`count(user) === 0`** before calling **`auth.api.createUser`**.
 
 **All other users**  
 Owners (and optionally **managers**, per your RBAC) add staff from **Settings → Staff / Users** in the org shell:

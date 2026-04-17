@@ -23,7 +23,7 @@
 | Branding settings UI | Implemented at **`/settings/branding`** (shared across orgs), not under `[orgSlug]` |
 | Supabase **RLS**, private **Storage**, **signed URLs** for logos | Not implemented (server uses Drizzle; optional Supabase env vars) |
 | **`--brand-*` CSS variables** from DB colors in org shell | Not implemented |
-| **`disableSignUp`** / hard-disable public email sign-up in better-auth | Partially addressed by UX (wizard + staff only); verify API surface |
+| **`disableSignUp`** / hard-disable public email sign-up in better-auth | Implemented (`emailAndPassword.disableSignUp: true` in [lib/auth.ts](../../lib/auth.ts)) |
 
 ---
 
@@ -32,7 +32,7 @@
 ### Implemented
 
 - [x] **First-run onboarding:** empty `user` table → **[onboarding-first-run.md](../onboarding-first-run.md)** wizard: **bootstrap owner** → **shared branding step** → **organization + `location`** (name, slug, currency, address), then `/{orgSlug}/dashboard` without SQL.
-- [x] **No public registration:** no `/register`; **`/login`** uses **username + password** ([Username plugin](https://www.better-auth.com/docs/plugins/username)).
+- [x] **No public registration:** no `/register`; **`/login`** uses **username + password** ([Username plugin](https://www.better-auth.com/docs/plugins/username)); **`emailAndPassword.disableSignUp`** blocks **`signUp.email`** / **`POST …/sign-up/email`** while keeping Admin **`createUser`** for bootstrap and staff.
 - [x] **Staff provisioning:** owner/manager uses **`/{orgSlug}/settings/staff`** with server **`createUser`** (Admin) + **`addMember`** ([schema-better-auth-alignment.md](../schema-better-auth-alignment.md)); no email invites.
 - [x] **`/setup`** inaccessible once `count(user) > 0` (layout guard).
 - [x] **Organization** (better-auth) with stable **`slug`** in URLs (`/{orgSlug}/…`).

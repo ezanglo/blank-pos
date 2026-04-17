@@ -30,7 +30,10 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg" }),
   secret: process.env.BETTER_AUTH_SECRET ?? "0".repeat(32),
   baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
-  emailAndPassword: { enabled: true },
+  emailAndPassword: {
+    enabled: true,
+    disableSignUp: true,
+  },
   plugins: [
     organization({
       roles: {
