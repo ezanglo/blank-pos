@@ -22,7 +22,7 @@
 
 ## 1. Project Overview
 
-**Blank POS** is a simple, extensible point-of-sale system. **v1:** one **better-auth organization** equals **one physical store** (no separate in-app `locations` table); a second storefront is a second organization. It supports product management, categorization, variable pricing, inventory tracking, recipe/composite product creation, costing, and promotions/coupon codes — all with offline-first capability and cloud sync via Supabase. **Multi-branch under one org** can be replanned later ([schema-better-auth-alignment.md](schema-better-auth-alignment.md)).
+**Blank POS** is a simple, extensible point-of-sale system. **v1:** one **better-auth organization** equals **one physical store**; site defaults and address live in a single app-owned **`location`** row (1:1 `organization_id`). A second storefront is a second organization. It supports product management, categorization, variable pricing, inventory tracking, recipe/composite product creation, costing, and promotions/coupon codes — all with offline-first capability and cloud sync via Supabase. **Multi-branch under one org** can be replanned later ([schema-better-auth-alignment.md](schema-better-auth-alignment.md)).
 
 ### Core Goals
 
@@ -89,15 +89,15 @@ Core **users, sessions, accounts**, and **organization plugin** tables are **own
 **App-owned (FK to `organization.id` everywhere below as `organization_id`):**
 
 ```sql
-organization_branding
-  organization_id  -- PK/FK → organization.id; POS/receipt branding (see schema-better-auth-alignment.md)
+location   -- v1: one row per organization (PK = organization_id → organization.id)
+           -- default_currency, address_*, phone (see lib/db/schema-app.ts)
 
--- v1: No `locations` table. Site address / phone live on `organization` via better-auth additionalFields.
+store_branding  -- single shared row (id = default): login/shell branding, receipt copy, optional logo URL
 ```
 
-**Tenancy:** RLS uses **`member.organizationId`** only. **Cashiers** do not pick a branch; the active organization is the store.
+**Tenancy:** When RLS is enabled, policies use **`member.organizationId`** matching row **`organization_id`**. **Cashiers** do not pick a branch; the active organization is the store.
 
-POS-specific org defaults (e.g. **default currency**) use **`organization` additionalFields** or typed **`metadata`**—see alignment doc.
+POS-specific **default currency** and **site address** for receipts: read from **`location`** (see [schema-better-auth-alignment.md](schema-better-auth-alignment.md)).
 
 ### Products & Categories
 
@@ -348,18 +348,22 @@ These are planned as future modules — keep them in mind when designing the sch
 ```
 blank-pos/
 ├── app/
-│   ├── (auth)/               # Login only (no public register; staff added in-app)
-│   ├── (setup)/              # First-run wizard (/setup) when DB has no users
-│   ├── (org)/
-│   │   ├── [orgSlug]/
-│   │   │   ├── dashboard/
-│   │   │   ├── pos/          # POS terminal
-│   │   │   ├── products/     # Product & category management
-│   │   │   ├── inventory/    # Inventory items & movements
-│   │   │   ├── promotions/   # Promotions & coupon codes
-│   │   │   ├── transactions/ # Sales history
-│   │   │   ├── reports/
-│   │   │   └── settings/     # Org (store), staff (create user + member, username/password)
+│   ├── login/                # Username sign-in (no public register)
+│   ├── setup/                # First-run wizard when user table is empty
+│   ├── (protected)/          # Session required
+│   │   ├── (org)/
+│   │   │   └── [orgSlug]/    # Org-scoped shell (dashboard, settings/store, settings/staff, …)
+│   │   └── settings/
+│   │       └── branding/     # Shared store_branding (owner/manager)
+│   │   # (within [orgSlug]/ as implemented:)
+│   │   #   dashboard/
+│   │   #   pos/                # POS terminal (future)
+│   │   #   products/           # Product & category management
+│   │   #   inventory/
+│   │   #   promotions/
+│   │   #   transactions/
+│   │   #   reports/
+│   │   #   settings/store, settings/staff
 ├── components/
 │   ├── pos/                  # Cart, numpad, product grid, coupon input
 │   ├── products/
@@ -390,8 +394,8 @@ blank-pos/
 - Initialize Next.js project with TypeScript, Tailwind, shadcn/ui
 - Set up Supabase project and local PGlite database
 - Configure better-auth with organization support
-- Generate better-auth + organization plugin schema; add app tables (`organization_branding`, …) FK to `organization.id` ([schema-better-auth-alignment.md](schema-better-auth-alignment.md))
-- **First-run onboarding** in the browser: first user, organization (= store), branding, required org fields ([onboarding-first-run.md](onboarding-first-run.md)); README “First run” for clone → migrate → wizard
+- Generate better-auth + organization plugin schema; add app tables **`location`** (1:1 org) and **`store_branding`** ([schema-better-auth-alignment.md](schema-better-auth-alignment.md))
+- **First-run onboarding** in the browser: owner → shared branding → organization + location ([onboarding-first-run.md](onboarding-first-run.md)); README “First run” for clone → migrate → wizard
 
 ### Phase 2 — Product Engine (Weeks 3–4)
 

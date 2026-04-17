@@ -21,13 +21,14 @@ Official references:
 
 ---
 
-## v1 tenancy: organization = physical site
+## v1 tenancy: organization = physical site (+ `location` row)
 
-**In v1, one better-auth `organization` is exactly one retail site** (one storefront, one stock pool, one POS context). There is **no** separate **`locations`** table and **no** `location_id` dimension on sales, inventory, or promotions.
+**In v1, one better-auth `organization` is exactly one retail site** (one storefront, one stock pool, one POS context). There is **no** `location_id` dimension on sales, inventory, or promotions—**`organization_id`** is the tenancy key.
 
-- **Address and site metadata** (street, city, region, postal code, phone, …) live on **`organization`** via **`additionalFields`** (or typed **`metadata`** with a clear schema in code). Do not model “the building” elsewhere unless you reintroduce multi-site later.
-- **RLS** only needs **`member.organizationId = row.organization_id`**. No `member_location`, no cashier “branch” picker, no joins through a locations table for tenancy.
-- **Multi-branch under one legal entity** (several stores, shared catalog) is **explicitly out of scope** for v1. If you add it later, introduce a real **`locations`** table, migrate `organization_id` usage on stock/transactions, and revisit RLS; until then, **a second store = a second better-auth organization** (separate slug, members, branding).
+- **Address, phone, and default currency** live in the app-owned Drizzle table **`location`**, **1:1** with **`organization.id`** (`organization_id` as primary key → `organization.id`). This keeps the better-auth **`organization`** table plugin-canonical while still giving SQL-friendly columns for receipts and settings. See [lib/db/schema-app.ts](../lib/db/schema-app.ts).
+- **Shared branding and receipt-oriented copy** (display name, colors, optional HTTPS logo URL, etc.) live in **`store_branding`**, a **single global row** (`id = default`) used for login chrome and the org app shell. It is **not** per-organization today; if multi-org tenants need different brands per shop, add a per-org table later and migrate.
+- **RLS** (when enabled on Supabase) should still key off **`member.organizationId = row.organization_id`** for org-scoped tables. The **`location`** row shares the same `organization_id` as the org.
+- **Multi-branch under one legal entity** (several stores, shared catalog) is **out of scope** for v1. Until then, **a second store = a second better-auth organization** (separate slug, members, `location` row).
 
 Optional better-auth **teams** remain off unless you later map teams to branches; they are not required for v1.
 
@@ -67,11 +68,11 @@ Document in the UI that the admin sets an **initial password**; optional follow-
 
 ## Extending org data without breaking the plugin
 
-**POS-specific columns** should not overload the auth model unnecessarily. Recommended split:
+**POS-specific columns** should not overload the auth model unnecessarily. **Current repo split:**
 
-- **`default_currency` (or `defaultCurrency`)** — add via the organization plugin’s **`additionalFields`** (or a typed layer on `metadata` if you must). Prefer **additionalFields** if you need RLS and SQL filters on it.
-- **Site / mailing address** — same: **`additionalFields`** on **`organization`** (e.g. `addressLine1`, `city`, …) so receipts and settings have a single source of truth.
-- **`organization_branding`** — keep a **1:1** app table keyed by **`organization_id` → `organization.id`** for POS/receipt branding (`logo_storage_path`, colors, receipt copy), as in the phase plans. Optionally sync a public thumbnail into **`organization.logo`** in an **`organizationHooks.afterUpdateOrganization`** hook if you want the auth “org logo” to stay in sync; otherwise keep **`organization.logo`** for auth UI only and branding for POS.
+- **`default_currency`** and **mailing address / phone** — on app table **`location`**, FK **`organization_id` → `organization.id`**, one row per org. Updated from org settings and setup wizard ([lib/db/schema-app.ts](../lib/db/schema-app.ts), `updateOrganizationStore`).
+- **Shared branding** — on **`store_branding`** (single row). Optional **`logo_storage_path`** column exists for a future private-Storage flow; today the UI may use **`logo_image_url`** (HTTPS). Receipt header/footer, colors, and legal/tax placeholders also live here when used.
+- **`organization.logo` / `metadata`** — reserved for better-auth plugin defaults; do not duplicate full branding here unless you add an explicit sync hook later.
 
 **Removing members** — use organization plugin **remove member** / role update APIs so **`member`** rows stay authoritative.
 
@@ -79,10 +80,12 @@ Document in the UI that the admin sets an **initial password**; optional follow-
 
 ## RLS and Supabase
 
-Supabase RLS must resolve **“which orgs may this user touch?”** from data better-auth owns:
+**Today:** the app primarily talks to Postgres through **server-side Drizzle** (connection string / pooler), with **membership enforced in application code**. Supabase **RLS** is **not** defined in-repo yet; treat it as **defense in depth** when you expose direct client reads/writes or use Supabase Realtime.
 
-- Resolve **`user.id`** for the current request (however your stack passes session to Postgres—e.g. JWT custom claim, or **no direct client Postgres** and only server-side Drizzle with service role; many setups use **server actions only** for mutations and still add RLS as defense in depth).
-- **Allow row access** when there exists a **`member`** row with `member.userId = current_user_id` and `member.organizationId = row.organization_id`.
+When you add RLS, resolve **“which orgs may this user touch?”** from better-auth data:
+
+- Resolve **`user.id`** for the current request (JWT claim, session variable, or equivalent).
+- **Allow row access** when there exists a **`member`** row with `member.userId = current_user_id` and `member.organizationId = row.organization_id` (including for **`location`** rows keyed by `organization_id`).
 
 Avoid duplicating membership in a second table that could drift out of sync with **`member`**.
 
@@ -97,12 +100,16 @@ Avoid duplicating membership in a second table that could drift out of sync with
 
 ## Checklist before Phase 2+
 
-- [ ] **Username** + **Admin** plugins enabled (server + matching clients) for username login and **`createUser`** provisioning.
-- [ ] Organization plugin enabled on server and **organizationClient** on client.
-- [ ] Auth tables + **`session.activeOrganizationId`** present in DB.
-- [ ] **`organization_branding`** (and any other app tables) FK to **`organization.id`**; **no** v1 `locations` / `member_location` unless you have explicitly replanned multi-site.
-- [ ] POS roles assigned only through **`member.role`**.
-- [ ] No remaining application reads of a legacy `user_roles` / duplicate `organizations` table.
+- [x] **Username** + **Admin** plugins enabled (server + matching clients) for username login and **`createUser`** provisioning.
+- [x] Organization plugin enabled on server and **organizationClient** on client.
+- [x] Auth tables + **`session.activeOrganizationId`** present in DB (per better-auth organization plugin).
+- [x] App table **`location`** (1:1 **`organization_id`**) for site + default currency; **`store_branding`** for shared branding. No separate multi-site **`locations`** hierarchy or `member_location` in v1.
+- [x] POS roles assigned only through **`member.role`**.
+- [x] No parallel custom `organizations` / `user_roles` tables duplicating auth.
+
+Optional before exposing Supabase directly:
+
+- [ ] **RLS** policies for org-scoped app tables + Storage, aligned with **`member`**.
 
 ---
 

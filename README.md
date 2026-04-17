@@ -18,7 +18,7 @@ Phase 1 foundation: **Next.js 16**, **better-auth** (username + organization + a
    pnpm dev
    ```
 
-4. Open `/` — with an empty `user` table you are redirected to **`/setup`**. Complete the wizard (owner account → store org → branding). You land on `/{orgSlug}/dashboard`.
+4. Open `/` — with an empty `user` table you are redirected to **`/setup`**. Complete the wizard (**owner account → shared branding → shop / org + address & currency**). You land on `/{orgSlug}/dashboard`.
 
 5. Returning users sign in at **`/login`**. There is no public registration after the first user exists (`/setup` is blocked).
 

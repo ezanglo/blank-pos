@@ -2,9 +2,9 @@
 
 Detailed task breakdowns for Blank POS delivery. They follow the frozen stack and sequencing in the Cursor master plan (Next 16, Tailwind 4, shadcn v4, Supabase, Drizzle, better-auth, PGlite + custom sync, Zustand) and extend [blank-pos-dev-plan.md](../blank-pos-dev-plan.md).
 
-**Auth schema:** [schema-better-auth-alignment.md](../schema-better-auth-alignment.md) — use better-auth **`organization`** / **`member`** / **`session.activeOrganizationId`**; **v1 org = one physical store** (no `locations` table); do not duplicate org membership tables.
+**Auth schema:** [schema-better-auth-alignment.md](../schema-better-auth-alignment.md) — use better-auth **`organization`** / **`member`** / **`session.activeOrganizationId`**; **v1 org = one physical store** with a 1:1 app **`location`** row (address, currency), not a multi-branch hierarchy; do not duplicate org membership tables.
 
-**First-run UX:** [onboarding-first-run.md](../onboarding-first-run.md) — clone, env, migrate, then **browser-only** wizard (bootstrap owner + store + branding). **No public sign-up**; other users via **Settings → Staff** (`createUser` + `addMember`, username/password).
+**First-run UX:** [onboarding-first-run.md](../onboarding-first-run.md) — clone, env, migrate, then **browser-only** wizard (bootstrap owner → shared **`store_branding`** → org + **`location`**). **No public sign-up**; other users via **Settings → Staff** (`createUser` + `addMember`, username/password).
 
 | Phase | Document |
 | --- | --- |
