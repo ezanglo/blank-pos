@@ -3,7 +3,7 @@
 import Image from "next/image"
 import { useWatch, type Control } from "react-hook-form"
 
-import { TextareaFormField, TextFormField } from "@/components/form"
+import { BrandColorFormField, TextareaFormField, TextFormField } from "@/components/form"
 import { FieldGroup } from "@/components/ui/field"
 import { type BrandingSettingsFormValues } from "@/lib/schemas/app-forms"
 
@@ -138,20 +138,18 @@ export function BrandingSettingsFields({
       <p className="mt-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
         Colors and sign-in
       </p>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <TextFormField
+      <div className="grid gap-6 sm:grid-cols-2">
+        <BrandColorFormField
           control={control}
           name="primaryColor"
           label="Primary color"
-          placeholder="#171717"
-          description="#RGB or #RRGGBB"
+          description="Click the color square for a compact palette, or type a token (e.g. emerald-600) or hex. Used for org shell CSS variables."
         />
-        <TextFormField
+        <BrandColorFormField
           control={control}
           name="accentColor"
           label="Accent color"
-          placeholder="#404040"
-          description="#RGB or #RRGGBB"
+          description="Click the color square for the palette, or type a token / hex."
         />
       </div>
       <TextFormField

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 
 import { OrgAppShell } from "@/components/org-app-shell"
+import { resolveBrandColorToCss } from "@/lib/brand-color"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { getStoreBranding } from "@/lib/queries/store-branding"
 import { requireSession } from "@/lib/server-auth"
@@ -24,6 +25,8 @@ export default async function OrgLayout({
   const storeName = site?.displayName?.trim() || "Store"
   const locationName = ctx.organization.name
   const logoImageUrl = site?.logoImageUrl ?? null
+  const brandPrimaryCss = resolveBrandColorToCss(site?.primaryColor ?? null)
+  const brandAccentCss = resolveBrandColorToCss(site?.accentColor ?? null)
 
   return (
     <div className="h-dvh overflow-hidden bg-background text-foreground">
@@ -32,6 +35,8 @@ export default async function OrgLayout({
         storeName={storeName}
         locationName={locationName}
         logoImageUrl={logoImageUrl}
+        brandPrimaryCss={brandPrimaryCss}
+        brandAccentCss={brandAccentCss}
         user={{
           name: session.user.name,
           email: session.user.email,

@@ -22,7 +22,7 @@
 | Shared **`store_branding`**, per-org **`location`** | Implemented |
 | Branding settings UI | Implemented at **`/settings/branding`** (shared across orgs), not under `[orgSlug]` |
 | Supabase **RLS**, private **Storage**, **signed URLs** for logos | Not implemented (server uses Drizzle; optional Supabase env vars) |
-| **`--brand-*` CSS variables** from DB colors in org shell | Not implemented |
+| **`--brand-primary` / `--brand-accent`** from `store_branding` on org shell | Implemented ([`OrgAppShell`](../../components/org-app-shell.tsx); invalid hex omitted) |
 | **`disableSignUp`** / hard-disable public email sign-up in better-auth | Implemented (`emailAndPassword.disableSignUp: true` in [lib/auth.ts](../../lib/auth.ts)) |
 | **CI** (`lint`, `typecheck`, `build` on push/PR) | Implemented ([`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)) |
 
@@ -45,7 +45,7 @@
 ### Deferred (not in repo today; optional hardening)
 
 - [ ] **Private logo Storage** + **`logo_storage_path`** + **short-lived signed URLs** (today: optional **`logo_image_url`** HTTPS on `store_branding`).
-- [ ] **Org-scoped layout** injecting **`--brand-primary` / `--brand-accent`** from DB.
+- [x] **Org-scoped layout** injecting **`--brand-primary` / `--brand-accent`** from **`store_branding`** on **`SidebarProvider`** ([lib/brand-color.ts](../../lib/brand-color.ts)). Components can adopt these tokens over time; WCAG contrast for primary buttons is a follow-up.
 - [ ] **Supabase RLS** (and Storage policies) aligned with **`member`**; manual cross-org SQL denial checks.
 - [ ] **Org route `error.tsx`** and structured server logging for auth/org errors.
 

@@ -1,5 +1,7 @@
 import { z } from "zod"
 
+import { resolveBrandColorToCss } from "@/lib/brand-color"
+
 export const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
@@ -94,15 +96,16 @@ function optionalHttpUrlField() {
     }, "Use a valid http(s) URL or leave blank")
 }
 
-function optionalHexColorField() {
+/** Empty, Tailwind token (`red-500`), or hex (`#RGB` / `#RRGGBB`). */
+function optionalBrandColorField() {
   return z
     .string()
     .optional()
     .refine((v) => {
       const t = v?.trim()
       if (!t) return true
-      return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(t)
-    }, "Use #RGB or #RRGGBB or leave blank")
+      return resolveBrandColorToCss(t) !== null
+    }, "Pick a palette color, or use #RGB / #RRGGBB, or leave blank")
 }
 
 function optionalEmailField() {
@@ -137,8 +140,8 @@ export const brandingSettingsSchema = z.object({
   instagramUrl: optionalHttpUrlField(),
   facebookUrl: optionalHttpUrlField(),
   operatingHoursText: z.string().optional(),
-  primaryColor: optionalHexColorField(),
-  accentColor: optionalHexColorField(),
+  primaryColor: optionalBrandColorField(),
+  accentColor: optionalBrandColorField(),
   /** Optional absolute URL for the sign-in page hero (`/login`). */
   loginBackgroundImageUrl: optionalHttpUrlField(),
   /** Optional HTTPS URL for store logo (header, login, receipts). */

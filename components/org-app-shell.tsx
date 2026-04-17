@@ -19,6 +19,8 @@ export function OrgAppShell({
   storeName,
   locationName,
   logoImageUrl,
+  brandPrimaryCss,
+  brandAccentCss,
   user,
   children,
 }: {
@@ -26,6 +28,10 @@ export function OrgAppShell({
   storeName: string
   locationName: string
   logoImageUrl?: string | null
+  /** Resolved CSS color (hex or Tailwind palette) for `--brand-primary`; invalid values omitted upstream. */
+  brandPrimaryCss?: string | null
+  /** Resolved CSS color for `--brand-accent`. */
+  brandAccentCss?: string | null
   user: OrgAppShellUser
   children: React.ReactNode
 }) {
@@ -36,6 +42,8 @@ export function OrgAppShell({
         {
           "--sidebar-width": "calc(var(--spacing) * 72)",
           "--header-height": "calc(var(--spacing) * 12)",
+          ...(brandPrimaryCss ? { "--brand-primary": brandPrimaryCss } : {}),
+          ...(brandAccentCss ? { "--brand-accent": brandAccentCss } : {}),
         } as React.CSSProperties
       }
     >
