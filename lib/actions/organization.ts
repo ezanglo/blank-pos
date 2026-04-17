@@ -6,6 +6,7 @@ import { headers } from "next/headers"
 import { auth } from "@/lib/auth"
 import { getDb } from "@/lib/db"
 import { storeLocation } from "@/lib/db/schema-app"
+import { logAuthEvent } from "@/lib/log-server"
 import { stripLocationKeysFromOrganizationMetadata } from "@/lib/org-metadata"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { getServerSession } from "@/lib/server-auth"
@@ -46,6 +47,11 @@ export async function updateOrganizationStore(
       },
     })
   } catch (e) {
+    logAuthEvent("error", "organization.update_store_failed", {
+      orgSlug,
+      organizationId: ctx.organization.id,
+      message: e instanceof APIError ? e.message : e instanceof Error ? e.message : "unknown",
+    })
     if (e instanceof APIError) throw new Error(e.message)
     throw e
   }

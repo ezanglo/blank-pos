@@ -3,6 +3,7 @@
 import { APIError } from "better-auth/api"
 
 import { auth } from "@/lib/auth"
+import { logAuthEvent } from "@/lib/log-server"
 import { getUserCount } from "@/lib/user-count"
 
 function internalEmail(username: string) {
@@ -36,6 +37,10 @@ export async function bootstrapCreateOwner(input: {
       },
     })
   } catch (e) {
+    logAuthEvent("error", "setup.bootstrap_create_owner_failed", {
+      username,
+      message: e instanceof APIError ? e.message : e instanceof Error ? e.message : "unknown",
+    })
     if (e instanceof APIError) {
       throw new Error(e.message)
     }

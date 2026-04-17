@@ -7,6 +7,7 @@ import { headers } from "next/headers"
 import { auth } from "@/lib/auth"
 import { getDb } from "@/lib/db"
 import { member } from "@/lib/db/schema"
+import { logAuthEvent } from "@/lib/log-server"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { getServerSession } from "@/lib/server-auth"
 
@@ -60,6 +61,11 @@ export async function staffCreateUser(input: {
     if (!user?.id) throw new Error("Failed to create user")
     newUserId = user.id
   } catch (e) {
+    logAuthEvent("error", "staff.create_user_failed", {
+      organizationId: input.organizationId,
+      username,
+      message: e instanceof APIError ? e.message : e instanceof Error ? e.message : "unknown",
+    })
     if (e instanceof APIError) throw new Error(e.message)
     throw e
   }
@@ -74,6 +80,12 @@ export async function staffCreateUser(input: {
       },
     })
   } catch (e) {
+    logAuthEvent("error", "staff.add_member_failed", {
+      organizationId: input.organizationId,
+      username,
+      newUserId,
+      message: e instanceof APIError ? e.message : e instanceof Error ? e.message : "unknown",
+    })
     if (e instanceof APIError) throw new Error(e.message)
     throw e
   }
@@ -117,6 +129,12 @@ export async function staffRemoveMember(orgSlug: string, memberId: string) {
       },
     })
   } catch (e) {
+    logAuthEvent("error", "staff.remove_member_failed", {
+      organizationId: ctx.organization.id,
+      orgSlug,
+      memberId,
+      message: e instanceof APIError ? e.message : e instanceof Error ? e.message : "unknown",
+    })
     if (e instanceof APIError) throw new Error(e.message)
     throw e
   }

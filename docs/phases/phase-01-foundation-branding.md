@@ -25,6 +25,7 @@
 | **`--brand-primary` / `--brand-accent`** from `store_branding` on org shell | Implemented ([`OrgAppShell`](../../components/org-app-shell.tsx); invalid hex omitted) |
 | **`disableSignUp`** / hard-disable public email sign-up in better-auth | Implemented (`emailAndPassword.disableSignUp: true` in [lib/auth.ts](../../lib/auth.ts)) |
 | **CI** (`lint`, `typecheck`, `build` on push/PR) | Implemented ([`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)) |
+| **Org / protected error UI** + **server auth logs** | Implemented ([`error.tsx`](../../app/(protected)/(org)/[orgSlug]/error.tsx), [`log-server.ts`](../../lib/log-server.ts)) |
 
 ---
 
@@ -41,13 +42,14 @@
 - [x] **Drizzle** migrations + [`.env.example`](../../.env.example)** documented vars.
 - [x] **Tooling:** ESLint, Prettier, `lib/env.ts` zod validation for core server env (Supabase keys optional until Storage/RLS).
 - [x] **CI:** GitHub Actions runs **`pnpm install --frozen-lockfile`**, **`pnpm lint`**, **`pnpm typecheck`**, **`pnpm build`** with **`SKIP_ENV_VALIDATION=1`** on **`main`**, **`master`**, and PRs.
+- [x] **Error boundaries:** [`app/(protected)/(org)/[orgSlug]/error.tsx`](../../app/(protected)/(org)/[orgSlug]/error.tsx) and [`app/(protected)/error.tsx`](../../app/(protected)/error.tsx) with **Try again** + navigation.
+- [x] **Server logging:** [`lib/log-server.ts`](../../lib/log-server.ts) **`logAuthEvent`** used on bootstrap / staff / organization better-auth failures (JSON lines; sensitive keys stripped).
 
 ### Deferred (not in repo today; optional hardening)
 
 - [ ] **Private logo Storage** + **`logo_storage_path`** + **short-lived signed URLs** (today: optional **`logo_image_url`** HTTPS on `store_branding`).
 - [x] **Org-scoped layout** injecting **`--brand-primary` / `--brand-accent`** from **`store_branding`** on **`SidebarProvider`** ([lib/brand-color.ts](../../lib/brand-color.ts)). Components can adopt these tokens over time; WCAG contrast for primary buttons is a follow-up.
 - [ ] **Supabase RLS** (and Storage policies) aligned with **`member`**; manual cross-org SQL denial checks.
-- [ ] **Org route `error.tsx`** and structured server logging for auth/org errors.
 
 ---
 
