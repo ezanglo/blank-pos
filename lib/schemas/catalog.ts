@@ -15,6 +15,11 @@ export const catalogCategoryUpdateSchema = catalogCategoryCreateSchema.extend({
   id: z.string().min(1),
 })
 
+/** Full ordered list of category IDs for the organization (permutation of current rows). */
+export const catalogCategoryReorderSchema = z.object({
+  orderedIds: z.array(z.string().min(1)),
+})
+
 export const catalogCategoryVariantCreateSchema = z.object({
   categoryId: z.string().min(1),
   label: z.string().trim().min(1, "Label is required.").max(120),

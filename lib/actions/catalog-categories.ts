@@ -10,6 +10,7 @@ import { getDb } from "@/lib/db"
 import { product, productCategory } from "@/lib/db/schema-catalog"
 import {
   catalogCategoryCreateSchema,
+  catalogCategoryReorderSchema,
   catalogCategoryUpdateSchema,
 } from "@/lib/schemas/catalog"
 
@@ -79,5 +80,42 @@ export async function deleteProductCategory(businessSlug: string, categoryId: st
   }
 
   await db.delete(productCategory).where(eq(productCategory.id, categoryId))
+  return { ok: true as const }
+}
+
+export async function reorderProductCategories(
+  businessSlug: string,
+  raw: z.input<typeof catalogCategoryReorderSchema>,
+) {
+  const ctx = await requireCatalogManager(businessSlug)
+  const { orderedIds } = catalogCategoryReorderSchema.parse(raw)
+  if (orderedIds.length === 0) return { ok: true as const }
+
+  const db = getDb()
+  const rows = await db
+    .select({ id: productCategory.id })
+    .from(productCategory)
+    .where(eq(productCategory.organizationId, ctx.organization.id))
+
+  const dbSet = new Set(rows.map((r) => r.id))
+  if (orderedIds.length !== dbSet.size) {
+    throw new Error("Category list is out of date. Refresh the page and try again.")
+  }
+  for (const id of orderedIds) {
+    if (!dbSet.has(id)) {
+      throw new Error("Category list is out of date. Refresh the page and try again.")
+    }
+  }
+
+  await db.transaction(async (tx) => {
+    for (let i = 0; i < orderedIds.length; i++) {
+      const id = orderedIds[i]!
+      await tx
+        .update(productCategory)
+        .set({ sortOrder: i })
+        .where(and(eq(productCategory.id, id), eq(productCategory.organizationId, ctx.organization.id)))
+    }
+  })
+
   return { ok: true as const }
 }
