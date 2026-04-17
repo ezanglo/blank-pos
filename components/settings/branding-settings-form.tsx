@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form"
 
 import { BrandingSettingsFields } from "@/components/branding/branding-settings-fields"
 import { updateStoreBranding } from "@/lib/actions/branding"
+import { flushPendingImageUploads } from "@/lib/offline/pending-image-uploads"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -36,26 +37,30 @@ export function BrandingSettingsForm({ initial }: { initial: BrandingSettingsFor
     defaultValues: initial,
   })
 
-  async function onSubmit(values: BrandingSettingsFormValues) {
+  async function onSubmit() {
     try {
+      await flushPendingImageUploads((_id, url) => {
+        form.setValue("logoImageUrl", url, { shouldValidate: true, shouldDirty: true })
+      })
+      const next = form.getValues()
       await updateStoreBranding({
-        displayName: values.displayName?.trim() || null,
-        tagline: values.tagline?.trim() || null,
-        receiptHeaderText: values.receiptHeaderText?.trim() || null,
-        receiptFooterText: values.receiptFooterText?.trim() || null,
-        legalName: values.legalName?.trim() || null,
-        taxIdentifier: values.taxIdentifier?.trim() || null,
-        websiteUrl: values.websiteUrl?.trim() || null,
-        menuUrl: values.menuUrl?.trim() || null,
-        contactEmail: values.contactEmail?.trim() || null,
-        publicPhone: values.publicPhone?.trim() || null,
-        instagramUrl: values.instagramUrl?.trim() || null,
-        facebookUrl: values.facebookUrl?.trim() || null,
-        operatingHoursText: values.operatingHoursText?.trim() || null,
-        primaryColor: values.primaryColor?.trim() || null,
-        accentColor: values.accentColor?.trim() || null,
-        loginBackgroundImageUrl: values.loginBackgroundImageUrl?.trim() || null,
-        logoImageUrl: values.logoImageUrl?.trim() || null,
+        displayName: next.displayName?.trim() || null,
+        tagline: next.tagline?.trim() || null,
+        receiptHeaderText: next.receiptHeaderText?.trim() || null,
+        receiptFooterText: next.receiptFooterText?.trim() || null,
+        legalName: next.legalName?.trim() || null,
+        taxIdentifier: next.taxIdentifier?.trim() || null,
+        websiteUrl: next.websiteUrl?.trim() || null,
+        menuUrl: next.menuUrl?.trim() || null,
+        contactEmail: next.contactEmail?.trim() || null,
+        publicPhone: next.publicPhone?.trim() || null,
+        instagramUrl: next.instagramUrl?.trim() || null,
+        facebookUrl: next.facebookUrl?.trim() || null,
+        operatingHoursText: next.operatingHoursText?.trim() || null,
+        primaryColor: next.primaryColor?.trim() || null,
+        accentColor: next.accentColor?.trim() || null,
+        loginBackgroundImageUrl: next.loginBackgroundImageUrl?.trim() || null,
+        logoImageUrl: next.logoImageUrl?.trim() || null,
       })
       router.refresh()
     } catch (err) {
@@ -78,7 +83,7 @@ export function BrandingSettingsForm({ initial }: { initial: BrandingSettingsFor
         </CardHeader>
         <CardContent className="space-y-4">
           <RootFormError message={form.formState.errors.root?.message} />
-          <BrandingSettingsFields control={form.control} />
+          <BrandingSettingsFields control={form.control} setValue={form.setValue} />
         </CardContent>
         <CardFooter>
           <Button type="submit" disabled={form.formState.isSubmitting}>

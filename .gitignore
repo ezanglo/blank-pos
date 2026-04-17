@@ -15,6 +15,9 @@
 /.next/
 /out/
 
+# local image uploads (STORAGE_MODE=local)
+/public/uploads/
+
 # production
 /build
 

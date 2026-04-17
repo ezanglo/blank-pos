@@ -17,7 +17,7 @@
 - [ ] **CSV import:** upload, preview, validate rows, commit in batch with error report; dry-run mode.
 - [ ] **Receipt hardening:** optional **thermal** width CSS (80mm), font sizing; escape hatch remains browser print.
 - [ ] **RBAC UI:** hide routes and actions per [blank-pos-dev-plan.md](../blank-pos-dev-plan.md) §7 matrix; server remains source of truth.
-- [ ] **RLS review:** second pass on every table; attempt privilege escalation tests; document policies in `/docs/security/rls.md` (or equivalent short doc).
+- [ ] **Authorization review:** second pass on server actions and org scoping; attempt privilege escalation tests; document in [docs/security/authorization.md](../security/authorization.md) if you add optional Postgres RLS.
 - [ ] **Performance:** Lighthouse or simple RUM on POS; optimize N+1 queries; image optimization for product grid.
 - [ ] **UAT checklist** signed by stakeholder (even self-signoff) with known limitations list.
 
@@ -57,7 +57,7 @@
 
 - [ ] **Error budget:** user-friendly errors for common failures (session expired, sync backlog).
 - [ ] **Observability:** basic client error reporting hook (optional Sentry) behind env flag.
-- [ ] **Backups:** Supabase backup settings verified for production project.
+- [ ] **Backups:** Postgres backup strategy verified for production (provider-native snapshots or `pg_dump` schedule).
 
 ---
 

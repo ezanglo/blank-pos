@@ -15,7 +15,7 @@ Official references:
 
 1. **Do not hand-roll parallel tables** for core tenancy or membership (no custom `organizations` + `user_roles` that mirror auth). Use the plugin’s **`organization`** and **`member`** tables as better-auth defines them. The **`invitation`** table may exist from the organization plugin schema but **v1 does not use email invites** for staff; see **User lifecycle (v1)** below.
 2. **Generate auth schema from the tool** for the exact plugins you enable: run the Better Auth CLI (`auth migrate` / `auth generate` per current docs) and treat that output as authoritative; wire **Drizzle** via the official adapter so runtime and migrations stay aligned.
-3. **All app “tenant” tables** use a foreign key **`organization_id` → `organization.id`** (same string/id type better-auth uses for `organization.id`). Naming in app tables can stay `organization_id` for readability; the referenced table is still singular **`organization`**.
+3. **All app tables scoped to a store location** use a foreign key **`organization_id` → `organization.id`** (same string/id type better-auth uses for `organization.id`). Naming in app tables can stay `organization_id` for readability; the referenced table is still singular **`organization`**. One deployment serves **one business**; multiple **`organization`** rows mean **multiple store locations**, not unrelated SaaS tenants on one DB.
 4. **Roles** for POS (`owner` | `manager` | `cashier`) are stored in **`member.role`** (string). Configure **allowed organization roles** in the organization plugin so API and UI stay consistent with better-auth validation.
 5. **Active org context** comes from **`session.activeOrganizationId`** (required field when the organization plugin is enabled). Prefer **`auth.api.getSession` / client session** and better-auth’s **active organization** helpers over inventing a second “current org” store.
 
@@ -26,8 +26,8 @@ Official references:
 **In v1, one better-auth `organization` is exactly one retail site** (one storefront, one stock pool, one POS context). There is **no** `location_id` dimension on sales, inventory, or promotions—**`organization_id`** is the tenancy key.
 
 - **Address, phone, and default currency** live in the app-owned Drizzle table **`location`**, **1:1** with **`organization.id`** (`organization_id` as primary key → `organization.id`). This keeps the better-auth **`organization`** table plugin-canonical while still giving SQL-friendly columns for receipts and settings. See [lib/db/schema-app.ts](../lib/db/schema-app.ts).
-- **Shared branding and receipt-oriented copy** (display name, colors, optional HTTPS logo URL, etc.) live in **`store_branding`**, a **single global row** (`id = default`) used for login chrome and the org app shell. It is **not** per-organization today; if multi-org tenants need different brands per shop, add a per-org table later and migrate.
-- **RLS** (when enabled on Supabase) should still key off **`member.organizationId = row.organization_id`** for org-scoped tables. The **`location`** row shares the same `organization_id` as the org.
+- **Shared branding and receipt-oriented copy** (display name, colors, optional logo URL or upload path, etc.) live in **`store_branding`**, a **single global row** (`id = default`) used for login chrome and the org app shell. It is **not** per-organization today; if multiple brands per shop are needed, add a per-org table later and migrate.
+- **Optional Postgres RLS** (if added later) should key off **`member.organizationId = row.organization_id`** for org-scoped tables. The **`location`** row shares the same `organization_id` as the org. Today, access is enforced in **application code** ([docs/security/authorization.md](security/authorization.md)).
 - **Multi-branch under one legal entity** (several stores, shared catalog) is **out of scope** for v1. Until then, **a second store = a second better-auth organization** (separate slug, members, `location` row).
 
 Optional better-auth **teams** remain off unless you later map teams to branches; they are not required for v1.
@@ -71,20 +71,20 @@ Document in the UI that the admin sets an **initial password**; optional follow-
 **POS-specific columns** should not overload the auth model unnecessarily. **Current repo split:**
 
 - **`default_currency`** and **mailing address / phone** — on app table **`location`**, FK **`organization_id` → `organization.id`**, one row per org. Updated from org settings and setup wizard ([lib/db/schema-app.ts](../lib/db/schema-app.ts), `updateOrganizationStore`).
-- **Shared branding** — on **`store_branding`** (single row). Optional **`logo_storage_path`** column exists for a future private-Storage flow; today the UI may use **`logo_image_url`** (HTTPS). Receipt header/footer, colors, and legal/tax placeholders also live here when used.
+- **Shared branding** — on **`store_branding`** (single row). Optional **`logo_storage_path`** reserved for future private object keys; today the UI uses **`logo_image_url`** (https or **`/uploads/...`** from [docs/storage-uploads.md](storage-uploads.md)). Receipt header/footer, colors, and legal/tax placeholders also live here when used.
 - **`organization.logo` / `metadata`** — reserved for better-auth plugin defaults; do not duplicate full branding here unless you add an explicit sync hook later.
 
 **Removing members** — use organization plugin **remove member** / role update APIs so **`member`** rows stay authoritative.
 
 ---
 
-## RLS and Supabase
+## Authorization and optional RLS
 
-**Today:** the app primarily talks to Postgres through **server-side Drizzle** (connection string / pooler), with **membership enforced in application code**. Supabase **RLS** is **not** defined in-repo yet; treat it as **defense in depth** when you expose direct client reads/writes or use Supabase Realtime.
+**Today:** the app talks to Postgres through **server-side Drizzle** (`DATABASE_URL`), with **membership enforced in application code**. See **[docs/security/authorization.md](security/authorization.md)**.
 
-When you add RLS, resolve **“which orgs may this user touch?”** from better-auth data:
+If you add **Postgres RLS** later, resolve **which organizations may this user touch?** from better-auth data:
 
-- Resolve **`user.id`** for the current request (JWT claim, session variable, or equivalent).
+- Resolve **`user.id`** for the current request.
 - **Allow row access** when there exists a **`member`** row with `member.userId = current_user_id` and `member.organizationId = row.organization_id` (including for **`location`** rows keyed by `organization_id`).
 
 Avoid duplicating membership in a second table that could drift out of sync with **`member`**.
@@ -107,9 +107,9 @@ Avoid duplicating membership in a second table that could drift out of sync with
 - [x] POS roles assigned only through **`member.role`**.
 - [x] No parallel custom `organizations` / `user_roles` tables duplicating auth.
 
-Optional before exposing Supabase directly:
+Optional before exposing Postgres directly to clients:
 
-- [ ] **RLS** policies for org-scoped app tables + Storage, aligned with **`member`**.
+- [ ] **RLS** policies for org-scoped app tables, aligned with **`member`**.
 
 ---
 

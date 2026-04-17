@@ -1,6 +1,6 @@
 # Blank POS — Development Plan
 
-> **Stack:** Next.js · Supabase · better-auth · IndexedDB/SQLite (offline-first)
+> **Stack:** Next.js · PostgreSQL (`DATABASE_URL`) · Drizzle · better-auth · IndexedDB/SQLite (offline-first direction)
 > **Philosophy:** Simple now. Scalable later.
 
 ---
@@ -22,7 +22,7 @@
 
 ## 1. Project Overview
 
-**Blank POS** is a simple, extensible point-of-sale system. **v1:** one **better-auth organization** equals **one physical store**; site defaults and address live in a single app-owned **`location`** row (1:1 `organization_id`). A second storefront is a second organization. It supports product management, categorization, variable pricing, inventory tracking, recipe/composite product creation, costing, and promotions/coupon codes — all with offline-first capability and cloud sync via Supabase. **Multi-branch under one org** can be replanned later ([schema-better-auth-alignment.md](schema-better-auth-alignment.md)).
+**Blank POS** is a simple, extensible point-of-sale system. **v1:** one **better-auth organization** equals **one physical store location**; site defaults and address live in a single app-owned **`location`** row (1:1 `organization_id`). A second storefront is a second organization. It supports product management, categorization, variable pricing, inventory tracking, recipe/composite product creation, costing, and promotions/coupon codes — with offline-first direction and sync to the same app’s **Postgres** backend. **Multi-branch under one org** can be replanned later ([schema-better-auth-alignment.md](schema-better-auth-alignment.md)).
 
 ### Core Goals
 
@@ -41,8 +41,8 @@
 | Language | TypeScript | Type safety, better DX |
 | Styling | Tailwind CSS + shadcn/ui | Fast, consistent UI |
 | Auth | better-auth | Native organization/team support, flexible |
-| Database (cloud) | Supabase (PostgreSQL) | Realtime sync, Row-Level Security, free tier |
-| Database (local) | SQLite via `sql.js` or `PGlite` | Offline-first, syncs to Supabase when online |
+| Database (hosted) | PostgreSQL (Neon, RDS, Docker, etc.) | Standard `DATABASE_URL`; pooler URLs OK on serverless |
+| Database (local / offline) | SQLite via `sql.js` or `PGlite` | Offline-first; syncs to the hosted API when online |
 | Sync Layer | ElectricSQL or custom sync logic | Conflict resolution, local-first sync |
 | State Management | Zustand or Jotai | Lightweight, works well with offline state |
 | ORM | Drizzle ORM | Works with both SQLite and PostgreSQL |
@@ -66,8 +66,8 @@
 └──────────────────┼──────────────────────────┘
                    │ (when online)
 ┌──────────────────▼──────────────────────────┐
-│              Supabase                        │
-│  PostgreSQL · Auth · Realtime · Storage      │
+│         Next.js API + PostgreSQL             │
+│  Drizzle · better-auth · object storage      │
 └─────────────────────────────────────────────┘
 ```
 
@@ -95,7 +95,7 @@ location   -- v1: one row per organization (PK = organization_id → organizatio
 store_branding  -- single shared row (id = default): login/shell branding, receipt copy, optional logo URL
 ```
 
-**Tenancy:** When RLS is enabled, policies use **`member.organizationId`** matching row **`organization_id`**. **Cashiers** do not pick a branch; the active organization is the store.
+**Tenancy:** Access is enforced in **application code** today; optional Postgres RLS later may use **`member.organizationId`** matching row **`organization_id`**. **Cashiers** do not pick a branch; the active organization is the store.
 
 POS-specific **default currency** and **site address** for receipts: read from **`location`** (see [schema-better-auth-alignment.md](schema-better-auth-alignment.md)).
 
@@ -214,7 +214,7 @@ transaction_items
 - [ ] POS terminal screen (cart, price selection, checkout)
 - [ ] Basic transaction recording
 - [ ] Offline mode with local DB
-- [ ] Background sync to Supabase when online
+- [ ] Background sync to the hosted API when online
 
 ### v1.1 — Inventory & Reporting
 
@@ -251,12 +251,12 @@ Blank POS is designed to work reliably without internet.
 
 ### Local Database
 
-Use **PGlite** (PostgreSQL in the browser via WASM) or **SQLite via sql.js** as the local store. PGlite is preferred for Supabase compatibility since the schema is identical.
+Use **PGlite** (PostgreSQL in the browser via WASM) or **SQLite via sql.js** as the local store. PGlite is preferred when you want the same SQL dialect as the server Postgres schema.
 
 ### Sync Strategy
 
 ```
-Write → Local DB first → Queue sync operation → Push to Supabase when online
+Write → Local DB first → Queue sync operation → Push to server when online
 Read  → Always from Local DB (fast, consistent)
 ```
 
@@ -268,15 +268,15 @@ Read  → Always from Local DB (fast, consistent)
 
 ### Sync Triggers
 
-- App loads online → full pull from Supabase
+- App loads online → full pull from server
 - App regains connection → push queued local changes
 - Manual sync button available for managers
 
 ### Libraries to Consider
 
 - **ElectricSQL** — syncs Postgres to local SQLite automatically
-- **PowerSync** — similar, good Supabase support
-- Custom sync queue using Zustand + Supabase Realtime as fallback
+- **PowerSync** — similar, good Postgres sync support
+- Custom sync queue using Zustand + WebSocket or polling as fallback
 
 ---
 
@@ -315,9 +315,9 @@ Organization "Brew & Bean Main"  ← one physical store (address on org)
 | Void transactions | ✅ | ✅ | ❌ |
 | Manage users | ✅ | ❌ | ❌ |
 
-### Supabase RLS
+### Optional Postgres RLS
 
-Row-Level Security policies on Supabase will enforce that users only read/write data belonging to their **organization** (v1: org equals store). This is the primary data isolation layer.
+Row-Level Security policies on Postgres can enforce that roles only read/write rows for their **organization** (v1: org equals store). **Today**, isolation is enforced in **application code** ([docs/security/authorization.md](security/authorization.md)); RLS is optional defense in depth.
 
 ---
 
@@ -373,7 +373,7 @@ blank-pos/
 ├── lib/
 │   ├── db/
 │   │   ├── local.ts          # PGlite / SQLite setup
-│   │   ├── supabase.ts       # Supabase client
+│   │   ├── upload-client.ts  # optional: shared upload helpers
 │   │   └── sync.ts           # Sync engine
 │   ├── auth.ts               # better-auth config
 │   └── utils.ts
@@ -392,7 +392,7 @@ blank-pos/
 ### Phase 1 — Foundation (Weeks 1–2)
 
 - Initialize Next.js project with TypeScript, Tailwind, shadcn/ui
-- Set up Supabase project and local PGlite database
+- Set up hosted Postgres (`DATABASE_URL`) and local PGlite database
 - Configure better-auth with organization support
 - Generate better-auth + organization plugin schema; add app tables **`location`** (1:1 org) and **`store_branding`** ([schema-better-auth-alignment.md](schema-better-auth-alignment.md))
 - **First-run onboarding** in the browser: owner → shared branding → organization + location ([onboarding-first-run.md](onboarding-first-run.md)); README “First run” for clone → migrate → wizard
@@ -418,7 +418,7 @@ blank-pos/
 
 ### Phase 4 — Offline & Sync (Weeks 7–8)
 
-- Finalize local DB schema matching Supabase
+- Finalize local DB schema matching server Postgres
 - Implement sync queue and push/pull logic
 - Online/offline status indicator
 - Conflict resolution handling
@@ -435,7 +435,7 @@ blank-pos/
 ### Phase 6 — Polish & QA (Week 11–12)
 
 - Role-based UI (hide features by role)
-- Supabase RLS policy review
+- Optional Postgres RLS policy review
 - Performance audit
 - Error handling and loading states
 - User acceptance testing

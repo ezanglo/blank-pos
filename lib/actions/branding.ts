@@ -20,6 +20,16 @@ function assertOptionalHttpUrl(label: string, value: string | null | undefined) 
   }
 }
 
+function assertOptionalLogoOrImageUrl(value: string | null | undefined) {
+  if (value == null || value.trim() === "") return
+  const t = value.trim()
+  if (t.startsWith("/uploads/")) {
+    if (t.includes("..")) throw new Error("Logo image path is invalid.")
+    return
+  }
+  assertOptionalHttpUrl("Logo image URL", t)
+}
+
 function trimToNull(s: string | null | undefined) {
   const t = s?.trim()
   return t === "" || t == null ? null : t
@@ -51,7 +61,7 @@ function assertBrandingUrls(input: StoreBrandingWriteInput) {
   assertOptionalHttpUrl("Instagram URL", input.instagramUrl)
   assertOptionalHttpUrl("Facebook URL", input.facebookUrl)
   assertOptionalHttpUrl("Login background image URL", input.loginBackgroundImageUrl)
-  assertOptionalHttpUrl("Logo image URL", input.logoImageUrl)
+  assertOptionalLogoOrImageUrl(input.logoImageUrl)
 }
 
 function brandingRowValues(input: StoreBrandingWriteInput) {

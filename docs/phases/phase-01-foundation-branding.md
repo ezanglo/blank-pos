@@ -1,6 +1,6 @@
 # Phase 1 — Foundation, auth, tenancy, branding
 
-**Goal:** A secure multi-tenant shell: users authenticate, create an **organization** (v1: **org = one physical store**), capture **site details** in a Drizzle **`location`** row (1:1 with `organization.id`), and configure **shared store branding** in **`store_branding`** (login chrome, optional colors, receipt-oriented text, optional logo via HTTPS URL). The app uses **Next.js App Router**, **Drizzle**, **better-auth** with organizations; Postgres may be hosted on **Supabase**.
+**Goal:** A secure shell for **one install per business**: users authenticate, create an **organization** (v1: **organization = one store location / site**), capture **site details** in a Drizzle **`location`** row (1:1 with `organization.id`), and configure **shared store branding** in **`store_branding`** (login chrome, optional colors, receipt-oriented text, optional logo via URL or file upload). The app uses **Next.js App Router**, **Drizzle**, **better-auth** with organizations; Postgres is any standard **`DATABASE_URL`** (local, Docker, hosted, pooler).
 
 **Prerequisites:** Repo scaffold (Next 16, Tailwind 4, shadcn v4) per [package.json](../../package.json) and [components.json](../../components.json).
 
@@ -21,7 +21,7 @@
 | Org routes `/(protected)/(org)/[orgSlug]/…`, settings store + staff | Implemented |
 | Shared **`store_branding`**, per-org **`location`** | Implemented |
 | Branding settings UI | Implemented at **`/settings/branding`** (shared across orgs), not under `[orgSlug]` |
-| Supabase **RLS**, private **Storage**, **signed URLs** for logos | Not implemented (server uses Drizzle; optional Supabase env vars) |
+| **Image uploads** (`POST /api/upload`, local or S3-compatible cloud) | Implemented — see [docs/storage-uploads.md](../storage-uploads.md) |
 | **`--brand-primary` / `--brand-accent`** from `store_branding` on org shell | Implemented ([`OrgAppShell`](../../components/org-app-shell.tsx); invalid hex omitted) |
 | **`disableSignUp`** / hard-disable public email sign-up in better-auth | Implemented (`emailAndPassword.disableSignUp: true` in [lib/auth.ts](../../lib/auth.ts)) |
 | **CI** (`lint`, `typecheck`, `build` on push/PR) | Implemented ([`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)) |
@@ -40,16 +40,16 @@
 - [x] **Organization** (better-auth) with stable **`slug`** in URLs (`/{orgSlug}/…`).
 - [x] **Roles** (`owner` \| `manager` \| `cashier`) in **`member.role`**, configured in [lib/auth.ts](../../lib/auth.ts); enforced in server actions (UI matrix deepens in Phase 7).
 - [x] **Drizzle** migrations + [`.env.example`](../../.env.example)** documented vars.
-- [x] **Tooling:** ESLint, Prettier, `lib/env.ts` zod validation for core server env (Supabase keys optional until Storage/RLS).
+- [x] **Tooling:** ESLint, Prettier, `lib/env.ts` zod validation for core server env (`DATABASE_URL`, auth, `STORAGE_*`).
 - [x] **CI:** GitHub Actions runs **`pnpm install --frozen-lockfile`**, **`pnpm lint`**, **`pnpm typecheck`**, **`pnpm build`** with **`SKIP_ENV_VALIDATION=1`** on **`main`**, **`master`**, and PRs.
 - [x] **Error boundaries:** [`app/(protected)/(org)/[orgSlug]/error.tsx`](../../app/(protected)/(org)/[orgSlug]/error.tsx) and [`app/(protected)/error.tsx`](../../app/(protected)/error.tsx) with **Try again** + navigation.
 - [x] **Server logging:** [`lib/log-server.ts`](../../lib/log-server.ts) **`logAuthEvent`** used on bootstrap / staff / organization better-auth failures (JSON lines; sensitive keys stripped).
 
 ### Deferred (not in repo today; optional hardening)
 
-- [ ] **Private logo Storage** + **`logo_storage_path`** + **short-lived signed URLs** (today: optional **`logo_image_url`** HTTPS on `store_branding`).
+- [ ] **Private object storage** + **`logo_storage_path`** + **signed read URLs** if logos must not use public URLs (today: **`logo_image_url`** accepts https or same-origin **`/uploads/...`**).
 - [x] **Org-scoped layout** injecting **`--brand-primary` / `--brand-accent`** from **`store_branding`** on **`SidebarProvider`** ([lib/brand-color.ts](../../lib/brand-color.ts)). Components can adopt these tokens over time; WCAG contrast for primary buttons is a follow-up.
-- [ ] **Supabase RLS** (and Storage policies) aligned with **`member`**; manual cross-org SQL denial checks.
+- [ ] **Optional Postgres RLS** as defense in depth (not required today; access enforced in app code — [docs/security/authorization.md](../security/authorization.md)).
 
 ---
 
@@ -86,7 +86,7 @@
 
 ## Risks and mitigations (unchanged intent)
 
-- **Cross-org access:** until RLS exists, rely on **server actions** + membership checks (`getOrgForUser`, `member` queries). Add RLS when exposing direct Supabase reads/writes.
+- **Cross-location access:** rely on **server actions** + membership checks (`getOrgForUser`, `member` queries). Optional RLS later if you expose Postgres directly to clients.
 - **Storage path leaks:** when Storage ships, enforce `{organization_id}/` prefix and never trust client paths.
 - **Slug collisions:** unique index on `organization.slug` + UX retry.
 
@@ -96,4 +96,4 @@
 
 - [x] New developer can follow README **First run** and reach **`/{orgSlug}/dashboard`** via **`/setup`** on an empty DB.
 - [x] No secrets in repo; local **`pnpm lint`**, **`pnpm typecheck`**, **`pnpm build`** expected green; **CI** runs the same on push/PR ([`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)).
-- [ ] RLS smoke check (deferred until RLS ships).
+- [ ] Optional RLS smoke check if you add database-level policies later.

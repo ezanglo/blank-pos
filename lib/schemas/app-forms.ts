@@ -96,6 +96,26 @@ function optionalHttpUrlField() {
     }, "Use a valid http(s) URL or leave blank")
 }
 
+/** Logo: https URL, or same-origin uploaded path `/uploads/...`. */
+function optionalLogoImageUrlField() {
+  return z
+    .string()
+    .optional()
+    .refine((v) => {
+      const t = v?.trim()
+      if (!t) return true
+      if (t.startsWith("/uploads/")) {
+        return !t.includes("..") && t.length > "/uploads/".length
+      }
+      try {
+        const u = new URL(t)
+        return u.protocol === "http:" || u.protocol === "https:"
+      } catch {
+        return false
+      }
+    }, "Use a valid http(s) URL, a path starting with /uploads/, or leave blank")
+}
+
 /** Empty, Tailwind token (`red-500`), or hex (`#RGB` / `#RRGGBB`). */
 function optionalBrandColorField() {
   return z
@@ -122,7 +142,7 @@ function optionalEmailField() {
 /** First-run setup only; full branding lives in Settings. */
 export const setupBrandingSchema = z.object({
   displayName: z.string().min(1, "Display name is required"),
-  logoImageUrl: optionalHttpUrlField(),
+  logoImageUrl: optionalLogoImageUrlField(),
 })
 export type SetupBrandingFormValues = z.infer<typeof setupBrandingSchema>
 
@@ -144,8 +164,8 @@ export const brandingSettingsSchema = z.object({
   accentColor: optionalBrandColorField(),
   /** Optional absolute URL for the sign-in page hero (`/login`). */
   loginBackgroundImageUrl: optionalHttpUrlField(),
-  /** Optional HTTPS URL for store logo (header, login, receipts). */
-  logoImageUrl: optionalHttpUrlField(),
+  /** Optional logo URL (https) or uploaded path `/uploads/...`. */
+  logoImageUrl: optionalLogoImageUrlField(),
 })
 export type BrandingSettingsFormValues = z.infer<typeof brandingSettingsSchema>
 

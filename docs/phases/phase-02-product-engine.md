@@ -2,7 +2,7 @@
 
 **Goal:** Managers can maintain **categories**, **simple and composite products**, **multi-tier pricing** (org-scoped; v1 one store per org), **inventory items**, and **per-organization stock**. Composite products show **rolled-up cost** from ingredient `cost_per_unit` × quantity. All data is **org-scoped** (`organization_id`); there is **no** `location_id` in v1.
 
-**Prerequisites:** Phase 1 complete (auth, **`organization` + `member`**, org = store, roles on **`member.role`**, default currency + site fields on **`location`** (1:1 org), shared **`store_branding`** as needed; Drizzle migrations; **RLS optional** until direct Supabase access).
+**Prerequisites:** Phase 1 complete (auth, **`organization` + `member`**, org = store location, roles on **`member.role`**, default currency + site fields on **`location`** (1:1 org), shared **`store_branding`** as needed; Drizzle migrations).
 
 **References:** [blank-pos-dev-plan.md](../blank-pos-dev-plan.md) §4 (categories, products, prices, inventory, ingredients).
 

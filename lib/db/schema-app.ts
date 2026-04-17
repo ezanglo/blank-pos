@@ -29,9 +29,9 @@ export const storeBranding = pgTable("store_branding", {
   /** Shell / theme hints (#RGB or #RRGGBB). */
   primaryColor: text("primary_color"),
   accentColor: text("accent_color"),
-  /** Reserved for private Storage paths (e.g. Supabase); optional. */
+  /** Reserved for private object-storage keys; optional. */
   logoStoragePath: text("logo_storage_path"),
-  /** Optional HTTPS URL for logo (header, login, receipts). */
+  /** Optional logo URL: https or same-origin `/uploads/...` from app upload. */
   logoImageUrl: text("logo_image_url"),
   /** Optional HTTPS URL for sign-in page art. */
   loginBackgroundImageUrl: text("login_background_image_url"),

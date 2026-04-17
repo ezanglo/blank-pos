@@ -1,19 +1,22 @@
 "use client"
 
 import Image from "next/image"
-import { useWatch, type Control } from "react-hook-form"
+import { useWatch, type Control, type UseFormSetValue } from "react-hook-form"
 
+import { BrandingLogoUpload } from "@/components/branding/branding-logo-upload"
 import { BrandColorFormField, TextareaFormField, TextFormField } from "@/components/form"
 import { FieldGroup } from "@/components/ui/field"
 import { type BrandingSettingsFormValues } from "@/lib/schemas/app-forms"
 
 export function BrandingSettingsFields({
   control,
+  setValue,
 }: {
   control: Control<BrandingSettingsFormValues>
+  setValue: UseFormSetValue<BrandingSettingsFormValues>
 }) {
-  const logoPreview =
-    useWatch({ control, name: "logoImageUrl" })?.trim() || null
+  const loginBgPreview =
+    useWatch({ control, name: "loginBackgroundImageUrl" })?.trim() || null
 
   return (
     <FieldGroup>
@@ -39,27 +42,15 @@ export function BrandingSettingsFields({
         label="Tax / VAT ID"
         description="Optional. When you need a tax or VAT number on printed tickets or forms."
       />
+      <BrandingLogoUpload control={control} setValue={setValue} />
       <TextFormField
         control={control}
         name="logoImageUrl"
-        label="Logo image URL"
-        type="url"
-        placeholder="https://…"
-        description="Optional. Your logo on sign-in, in the app, and wherever your brand appears. Use a normal web link (https)."
+        label="Logo image URL (optional)"
+        type="text"
+        placeholder="https://… or /uploads/… after upload"
+        description="Upload a file above, or paste a public https link. Local dev uploads use paths under /uploads/."
       />
-      {logoPreview ? (
-        <div className="flex items-center gap-3 rounded-xl border p-3">
-          <Image
-            src={logoPreview}
-            alt=""
-            width={48}
-            height={48}
-            unoptimized
-            className="size-12 shrink-0 rounded-md border bg-muted object-contain p-1"
-          />
-          <p className="text-xs text-muted-foreground">Logo preview</p>
-        </div>
-      ) : null}
       <p className="mt-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
         Printed tickets (optional)
       </p>
@@ -160,6 +151,19 @@ export function BrandingSettingsFields({
         placeholder="https://…"
         description="Optional. Picture behind the sign-in page. Use a normal web link (https)."
       />
+      {loginBgPreview ? (
+        <div className="flex items-center gap-3 rounded-xl border p-3">
+          <Image
+            src={loginBgPreview}
+            alt=""
+            width={48}
+            height={48}
+            unoptimized
+            className="size-12 shrink-0 rounded-md border bg-muted object-contain p-1"
+          />
+          <p className="text-xs text-muted-foreground">Sign-in background preview</p>
+        </div>
+      ) : null}
     </FieldGroup>
   )
 }

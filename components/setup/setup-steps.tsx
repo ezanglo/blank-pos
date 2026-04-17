@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 
 import { setupPhaseSaveStoreBranding } from "@/lib/actions/branding"
+import { flushPendingImageUploads } from "@/lib/offline/pending-image-uploads"
 import { updateOrganizationStore } from "@/lib/actions/organization"
 import { bootstrapCreateOwner } from "@/lib/actions/setup"
 import { Button } from "@/components/ui/button"
@@ -254,11 +255,15 @@ export function SetupStoreBrandingStep({
     },
   })
 
-  async function onSubmit(values: SetupBrandingFormValues) {
+  async function onSubmit() {
     try {
+      await flushPendingImageUploads((_id, url) => {
+        form.setValue("logoImageUrl", url, { shouldValidate: true, shouldDirty: true })
+      })
+      const next = form.getValues()
       await setupPhaseSaveStoreBranding({
-        displayName: values.displayName.trim() || null,
-        logoImageUrl: values.logoImageUrl?.trim() || null,
+        displayName: next.displayName.trim() || null,
+        logoImageUrl: next.logoImageUrl?.trim() || null,
         tagline: null,
         receiptHeaderText: null,
         receiptFooterText: null,
@@ -296,7 +301,7 @@ export function SetupStoreBrandingStep({
         </CardHeader>
         <CardContent className="space-y-4">
           <RootFormError message={form.formState.errors.root?.message} />
-          <SetupBrandingFields control={form.control} />
+          <SetupBrandingFields control={form.control} setValue={form.setValue} />
         </CardContent>
         <CardFooter className="flex flex-wrap gap-2 border-t pt-6">
           <Button type="button" variant="outline" onClick={onBack}>
