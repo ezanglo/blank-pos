@@ -4,23 +4,24 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import * as React from "react"
 
-import { NavSecondary } from "@/components/nav-secondary"
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarSeparator,
 } from "@/components/ui/sidebar"
 import {
   BoxesIcon,
   LayoutDashboardIcon,
   MapPinIcon,
   PackageIcon,
-  Settings2Icon,
+  SettingsIcon,
   TagIcon,
   UsersIcon,
 } from "lucide-react"
@@ -41,7 +42,9 @@ export function AppSidebar({
   const dashboardActive =
     pathname === dashboardHref || pathname.startsWith(`${dashboardHref}/`)
 
-  const adminNav = [
+  type NavItem = { title: string; url: string; icon: React.ReactNode }
+
+  const catalogItems: NavItem[] = [
     {
       title: "Categories",
       url: `${base}/settings/categories`,
@@ -57,6 +60,9 @@ export function AppSidebar({
       url: `${base}/settings/inventory`,
       icon: <BoxesIcon className="size-4" />,
     },
+  ]
+
+  const businessItems: NavItem[] = [
     {
       title: "Locations",
       url: `${base}/settings/locations`,
@@ -68,16 +74,26 @@ export function AppSidebar({
       icon: <UsersIcon className="size-4" />,
     },
     {
-      title: "Business settings",
+      title: "Settings",
       url: `${base}/settings/business`,
-      icon: <Settings2Icon className="size-4" />,
+      icon: <SettingsIcon className="size-4" />,
     },
   ]
+
+  const navGroups: { label: string; items: NavItem[] }[] = [
+    { label: "Catalog", items: catalogItems },
+    { label: "Business", items: businessItems },
+  ]
+
+  function itemActive(url: string) {
+    return pathname === url || pathname.startsWith(`${url}/`)
+  }
 
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarContent>
         <SidebarGroup>
+          <SidebarGroupLabel>Overview</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
@@ -94,11 +110,29 @@ export function AppSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <NavSecondary
-          title="Administration"
-          items={adminNav}
-          className="mt-auto"
-        />
+        <SidebarSeparator />
+
+        {navGroups.map((group) => (
+          <SidebarGroup key={group.label}>
+            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {group.items.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      tooltip={item.title}
+                      isActive={itemActive(item.url)}
+                      render={<Link href={item.url} />}
+                    >
+                      {item.icon}
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
       <SidebarRail />
     </Sidebar>
