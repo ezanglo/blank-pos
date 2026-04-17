@@ -39,6 +39,8 @@ export const businessDetails = pgTable("business_details", {
   businessCategory: text("business_category"),
   teamScaleBand: text("team_scale_band"),
   expectedGoLive: text("expected_go_live"),
+  /** ISO 4217 code; default for new catalog prices when set. */
+  defaultCurrency: text("default_currency"),
   updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
     .notNull()
     .defaultNow(),

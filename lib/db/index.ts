@@ -1,20 +1,31 @@
 import { drizzle } from "drizzle-orm/postgres-js"
 import postgres from "postgres"
 
-import * as schema from "./schema"
 import { getServerEnv } from "../env"
+import * as schema from "./schema"
 
 export type AppDatabase = typeof schema
 
-let client: ReturnType<typeof postgres> | null = null
-let db: ReturnType<typeof drizzle<AppDatabase>> | null = null
+/**
+ * Next.js dev HMR reloads modules; module-level `let` would create new pools while old
+ * `postgres()` clients still hold DB connections until GC → "max client connections" errors.
+ * Reuse one pool per Node process via `globalThis`.
+ */
+const globalForDb = globalThis as unknown as {
+  blankPosDrizzle?: ReturnType<typeof drizzle<AppDatabase>>
+}
 
 export function getDb() {
-  if (db) return db
+  if (globalForDb.blankPosDrizzle) return globalForDb.blankPosDrizzle
   const env = getServerEnv()
-  client = postgres(env.DATABASE_URL, { prepare: false, max: 10 })
-  db = drizzle(client, { schema })
-  return db
+  const max = process.env.NODE_ENV === "production" ? 10 : 5
+  const client = postgres(env.DATABASE_URL, {
+    prepare: false,
+    max,
+    idle_timeout: 30,
+  })
+  globalForDb.blankPosDrizzle = drizzle(client, { schema })
+  return globalForDb.blankPosDrizzle
 }
 
 /** For scripts / CLI that need schema without full Next env. */

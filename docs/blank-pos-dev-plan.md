@@ -92,7 +92,7 @@ Core **users, sessions, accounts**, and **organization plugin** tables are **own
 location        -- many rows per organization_id (branch slug + name, is_default, default_currency, address_*, phone)
                 -- PK id; unique (organization_id, slug); see lib/db/schema-app.ts
 
-business_details  -- one row per organization (PK organization_id → organization.id): branding, legal, contact, optional onboarding fields (e.g. business_category)
+business_details  -- one row per organization (PK organization_id → organization.id): branding, legal, contact, optional onboarding fields (e.g. business_category); optional default_currency for catalog price defaults (see Phase 2 doc)
 user_profile      -- one row per user (PK user_id → user.id): optional person-level fields (phone, locale, etc.)
 ```
 
@@ -101,6 +101,10 @@ user_profile      -- one row per user (PK user_id → user.id): optional person-
 POS-specific **default currency** and **site address** for receipts: read from the active **`location`** row (see [schema-better-auth-alignment.md](schema-better-auth-alignment.md)).
 
 ### Products & Categories
+
+**Money:** Store monetary amounts as **integer minor units** (`bigint`), e.g. `amount_minor`, `cost_per_unit_minor`. Compute in **bigint** on the server; **do not** use floats for prices or costs. **UI** shows two decimal places. See [docs/phases/phase-02-product-engine.md](phases/phase-02-product-engine.md).
+
+**Catalog vs branches:** `products` are **org-scoped**. **Availability** defaults to all branches; optional **`product_locations`** restricts which `location` rows may sell the product. Price tiers remain **org-wide** in Phase 2 (no `location_id` on `product_prices` yet).
 
 ```sql
 categories
@@ -111,20 +115,32 @@ products
   id, organization_id  -- → organization.id
   name, description, category_id,
   sku, barcode, image_url, is_active, is_composite,
-  track_inventory, created_at, updated_at
+  track_inventory,
+  availability_mode,  -- e.g. all_locations | selected_locations_only
+  created_at, updated_at
+
+product_locations   -- optional rows when availability_mode = selected_locations_only
+  id, product_id, location_id  -- location.organization_id must match product's org
+
+product_category_variant   -- preset price labels per category (e.g. Small / Medium / Large)
+  id, category_id, label, sort_order, created_at
+  -- unique (category_id, label); sort_order drives ordering when linked from product_price
 
 product_prices
-  id, product_id, label, amount, currency
-  -- label: e.g. "Regular", "Wholesale", "Happy Hour"
-  -- v1: org-scoped tiers only (no per-location price rows yet; add location_id when multi-branch pricing ships)
+  id, product_id, label, amount_minor, currency
+  category_variant_id  -- nullable → product_category_variant.id; label snapshot at write time
+  is_default, sort_order  -- sort_order often mirrors variant.sort_order when linked
+  -- amount_minor: bigint, minor units (e.g. centavos)
+  -- Phase 2: org-scoped tiers only (no per-location price rows; add location_id when multi-branch pricing ships)
 ```
 
 ### Inventory
 
 ```sql
 inventory_items
-  id, organization_id, name, unit, cost_per_unit,
-  current_stock, reorder_point, created_at, updated_at
+  id, organization_id, name, unit, cost_per_unit_minor,  -- bigint minor units per inventory unit
+  reorder_point, created_at, updated_at
+  -- prefer inventory_stock for quantity; omit denormalized current_stock unless you add it deliberately
 
 inventory_stock
   id, inventory_item_id, organization_id, quantity, updated_at
@@ -138,9 +154,9 @@ inventory_movements
 
 ```sql
 product_ingredients
-  id, product_id, inventory_item_id, quantity
-  -- Defines the recipe/bill of materials for a composite product
-  -- Used to auto-deduct inventory on sale and compute COGS
+  id, product_id, inventory_item_id, quantity_fixed_scale
+  -- quantity_fixed_scale: integer at a documented scale (e.g. milli-units); avoid float
+  -- Defines the recipe/BOM for a composite product; used for COGS and Phase 5 deduct
 ```
 
 ### Promotions & Coupons
@@ -189,13 +205,13 @@ transaction_promotions
 transactions
   id, organization_id, user_id,
   status (open|completed|voided),
-  subtotal_amount, discount_amount, tax_amount, total_amount,
+  subtotal_amount_minor, discount_amount_minor, tax_amount_minor, total_amount_minor,  -- bigint minor units
   payment_method, notes, created_at
-  -- v1: no location_id; organization is the store
+  -- optional later: location_id for branch-scoped reporting
 
 transaction_items
   id, transaction_id, product_id, product_price_id,
-  quantity, unit_price, discount, subtotal
+  quantity, unit_price_minor, discount_minor, subtotal_minor  -- bigint; integer-safe line math
 ```
 
 ---

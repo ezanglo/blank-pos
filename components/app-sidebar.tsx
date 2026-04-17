@@ -16,9 +16,12 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import {
+  BoxesIcon,
   LayoutDashboardIcon,
   MapPinIcon,
+  PackageIcon,
   Settings2Icon,
+  TagIcon,
   UsersIcon,
 } from "lucide-react"
 
@@ -39,6 +42,21 @@ export function AppSidebar({
     pathname === dashboardHref || pathname.startsWith(`${dashboardHref}/`)
 
   const adminNav = [
+    {
+      title: "Categories",
+      url: `${base}/settings/categories`,
+      icon: <TagIcon className="size-4" />,
+    },
+    {
+      title: "Products",
+      url: `${base}/settings/products`,
+      icon: <PackageIcon className="size-4" />,
+    },
+    {
+      title: "Inventory",
+      url: `${base}/settings/inventory`,
+      icon: <BoxesIcon className="size-4" />,
+    },
     {
       title: "Locations",
       url: `${base}/settings/locations`,

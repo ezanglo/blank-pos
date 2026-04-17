@@ -25,7 +25,7 @@ Official references:
 **One better-auth `organization`** is one **business** (team, org-level profile, shared settings). **Branches** are rows in the app-owned **`location`** table: many per **`organization_id`**, each with **`slug`** (unique per org), **`name`**, **`is_default`**, address fields, and **`default_currency`**.
 
 - **Receipts / POS context** for a branch read from the **`location`** row selected by **`/{businessSlug}/l/{locationSlug}`**. See [`lib/db/schema-app.ts`](../lib/db/schema-app.ts).
-- **`business_details`** is **1:1 with `organization.id`**: primary key **`organization_id` → `organization.id`**, cascade on delete. Holds display/legal/contact, optional onboarding fields (`business_category`, `team_scale_band`, `expected_go_live`), shell colors, logo URLs, receipt copy. **`/login`** uses static **Blank POS** app branding, not this table.
+- **`business_details`** is **1:1 with `organization.id`**: primary key **`organization_id` → `organization.id`**, cascade on delete. Holds display/legal/contact, optional onboarding fields (`business_category`, `team_scale_band`, `expected_go_live`), shell colors, logo URLs, receipt copy. **`/login`** uses static **Blank POS** app branding, not this table. Optional **`default_currency`** (when added) is the **business-level default** for new catalog price rows; **branch receipts and POS** still use the active **`location.default_currency`** unless the app intentionally overrides in UI.
 - **`user_profile`** is **1:1 with `user.id`**: person-level optional fields (phone, locale, marketing intent); separate from **`member`**.
 
 Optional better-auth **teams** remain off unless you later map teams to branches.

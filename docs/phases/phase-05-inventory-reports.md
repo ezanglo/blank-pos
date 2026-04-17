@@ -29,7 +29,7 @@
 
 ## Workstream A — Schema and triggers
 
-- [ ] Ensure `inventory_movements` RLS matches **organization** visibility.
+- [ ] Ensure **`inventory_movements`** access is scoped by **application RBAC** to the organization (optional Postgres RLS later, aligned with [docs/security/authorization.md](../security/authorization.md)).
 - [ ] Add indexes for reporting queries: **`(organization_id, created_at)`** on `transactions`; `(transaction_id)` on `transaction_items`; **`(inventory_item_id, organization_id, created_at)`** on movements.
 - [ ] **Server-side hook** after sale completion: call `applyInventoryDeduction(txId)` once (Postgres function or application transaction).
 
