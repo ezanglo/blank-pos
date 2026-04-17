@@ -10,6 +10,8 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -20,7 +22,16 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { authClient } from "@/lib/auth-client"
-import { BadgeCheckIcon, ChevronsUpDownIcon, LogOutIcon } from "lucide-react"
+import { cn } from "@/lib/utils"
+import {
+  BadgeCheckIcon,
+  ChevronsUpDownIcon,
+  LogOutIcon,
+  MonitorIcon,
+  MoonIcon,
+  SunIcon,
+} from "lucide-react"
+import { useTheme } from "next-themes"
 
 function formatOrgRole(role: string) {
   const r = role.trim()
@@ -43,6 +54,66 @@ function accountSubtitle(user: {
     return `${brand} ${formatOrgRole(roleKey)}`
   }
   return user.email
+}
+
+function NavUserThemePicker() {
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = React.useState(false)
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const active: "light" | "dark" | "system" =
+    !mounted
+      ? "system"
+      : theme === "light" || theme === "dark" || theme === "system"
+        ? theme
+        : "system"
+
+  return (
+    <DropdownMenuGroup>
+      <DropdownMenuLabel className="px-3 py-2 text-xs font-medium text-muted-foreground">
+        Theme
+      </DropdownMenuLabel>
+      <DropdownMenuRadioGroup
+        className="grid grid-cols-3 gap-1 px-1.5 pb-2 **:data-[slot=dropdown-menu-radio-item-indicator]:hidden"
+        value={active}
+        onValueChange={(v) => setTheme(v)}
+      >
+        <DropdownMenuRadioItem
+          value="light"
+          className={cn(
+            "flex flex-col items-center justify-center gap-1 rounded-xl border border-transparent py-3 px-2 text-center font-normal",
+            active === "light" && "border-primary/35 bg-primary/10"
+          )}
+        >
+          <SunIcon className="size-4 opacity-90" aria-hidden />
+          <span className="text-xs">Light</span>
+        </DropdownMenuRadioItem>
+        <DropdownMenuRadioItem
+          value="dark"
+          className={cn(
+            "flex flex-col items-center justify-center gap-1 rounded-xl border border-transparent py-3 px-2 text-center font-normal",
+            active === "dark" && "border-primary/35 bg-primary/10"
+          )}
+        >
+          <MoonIcon className="size-4 opacity-90" aria-hidden />
+          <span className="text-xs">Dark</span>
+        </DropdownMenuRadioItem>
+        <DropdownMenuRadioItem
+          value="system"
+          className={cn(
+            "flex flex-col items-center justify-center gap-1 rounded-xl border border-transparent py-3 px-2 text-center font-normal",
+            active === "system" && "border-primary/35 bg-primary/10"
+          )}
+        >
+          <MonitorIcon className="size-4 opacity-90" aria-hidden />
+          <span className="text-xs">System</span>
+        </DropdownMenuRadioItem>
+      </DropdownMenuRadioGroup>
+    </DropdownMenuGroup>
+  )
 }
 
 function initialsFromName(name: string, email: string) {
@@ -107,6 +178,8 @@ export function NavUser({ user, variant = "sidebar" }: NavUserProps) {
           </div>
         </DropdownMenuLabel>
       </DropdownMenuGroup>
+      <DropdownMenuSeparator />
+      <NavUserThemePicker />
       <DropdownMenuSeparator />
       <DropdownMenuGroup>
         <DropdownMenuItem>
