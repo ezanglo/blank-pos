@@ -3,9 +3,13 @@ import { and, eq } from "drizzle-orm"
 import { getDb } from "@/lib/db"
 import { member, organization } from "@/lib/db/schema"
 
-export async function getOrgForUser(slug: string, userId: string) {
+export async function getOrgForUser(businessSlug: string, userId: string) {
   const db = getDb()
-  const [org] = await db.select().from(organization).where(eq(organization.slug, slug)).limit(1)
+  const [org] = await db
+    .select()
+    .from(organization)
+    .where(eq(organization.slug, businessSlug))
+    .limit(1)
   if (!org) return null
 
   const [m] = await db

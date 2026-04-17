@@ -1,4 +1,4 @@
-import type { StoreBranding } from "@/lib/db/schema-app"
+import type { BusinessDetails } from "@/lib/db/schema-app"
 import { type BrandingSettingsFormValues } from "@/lib/schemas/app-forms"
 
 export function emptyBrandingFormValues(
@@ -21,12 +21,15 @@ export function emptyBrandingFormValues(
     primaryColor: "",
     accentColor: "",
     logoImageUrl: "",
+    businessCategory: "",
+    teamScaleBand: "",
+    expectedGoLive: "",
     ...overrides,
   }
 }
 
-/** Maps a `store_branding` row into react-hook-form defaults. */
-export function storeBrandingRowToFormInitial(row: StoreBranding): BrandingSettingsFormValues {
+/** Maps a `business_details` row into react-hook-form defaults. */
+export function businessDetailsRowToFormInitial(row: BusinessDetails): BrandingSettingsFormValues {
   const d = emptyBrandingFormValues()
   return {
     displayName: row.displayName ?? d.displayName,
@@ -45,5 +48,8 @@ export function storeBrandingRowToFormInitial(row: StoreBranding): BrandingSetti
     primaryColor: row.primaryColor ?? d.primaryColor,
     accentColor: row.accentColor ?? d.accentColor,
     logoImageUrl: row.logoImageUrl ?? d.logoImageUrl,
+    businessCategory: row.businessCategory ?? d.businessCategory,
+    teamScaleBand: row.teamScaleBand ?? d.teamScaleBand,
+    expectedGoLive: row.expectedGoLive ?? d.expectedGoLive,
   }
 }

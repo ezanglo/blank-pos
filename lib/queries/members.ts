@@ -11,7 +11,7 @@ export async function listMembersForOrganization(organizationId: string) {
       userId: member.userId,
       role: member.role,
       name: user.name,
-      username: user.username,
+      email: user.email,
       joinedAt: member.createdAt,
     })
     .from(member)

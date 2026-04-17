@@ -2,9 +2,9 @@
 
 Detailed task breakdowns for Blank POS delivery. They follow the frozen stack and sequencing in the Cursor master plan (Next 16, Tailwind 4, shadcn v4, PostgreSQL via `DATABASE_URL`, Drizzle, better-auth, offline/sync direction, Zustand) and extend [blank-pos-dev-plan.md](../blank-pos-dev-plan.md).
 
-**Auth schema:** [schema-better-auth-alignment.md](../schema-better-auth-alignment.md) — use better-auth **`organization`** / **`member`** / **`session.activeOrganizationId`**; **v1 org = one physical store** with a 1:1 app **`location`** row (address, currency), not a multi-branch hierarchy; do not duplicate org membership tables.
+**Auth schema:** [schema-better-auth-alignment.md](../schema-better-auth-alignment.md) — use better-auth **`organization`** / **`member`** / **`session.activeOrganizationId`**; **many `location` rows per organization** (branches); org-level profile on **`business_details`**; do not duplicate org membership tables.
 
-**First-run UX:** [onboarding-first-run.md](../onboarding-first-run.md) — clone, env, migrate, then **browser-only** wizard (bootstrap owner → shared **`store_branding`** → org + **`location`**). **No public sign-up**; other users via **Settings → Staff** (`createUser` + `addMember`, username/password).
+**First-run UX:** [onboarding-first-run.md](../onboarding-first-run.md) — clone, env, migrate, then **`/signup`** and **`/onboarding`** (**`organization`** + **`business_details`** + **`location`** + presentation). Users with multiple branches use **`/choose-location`**. Additional users via **Settings → Staff** (`createUser` + **`addMember`**, real **email** + password).
 
 | Phase | Document |
 | --- | --- |

@@ -22,7 +22,7 @@
 
 ## 1. Project Overview
 
-**Blank POS** is a simple, extensible point-of-sale system. **v1:** one **better-auth organization** equals **one physical store location**; site defaults and address live in a single app-owned **`location`** row (1:1 `organization_id`). A second storefront is a second organization. It supports product management, categorization, variable pricing, inventory tracking, recipe/composite product creation, costing, and promotions/coupon codes — with offline-first direction and sync to the same app’s **Postgres** backend. **Multi-branch under one org** can be replanned later ([schema-better-auth-alignment.md](schema-better-auth-alignment.md)).
+**Blank POS** is a simple, extensible point-of-sale system. **v1:** one **better-auth organization** is one **business**; **branches** are **`location`** rows (many per `organization_id`, each with slug, address, default currency). A second legal entity is a second **`organization`**. It supports product management, categorization, variable pricing, inventory tracking, recipe/composite product creation, costing, and promotions/coupon codes — with offline-first direction and sync to the same app’s **Postgres** backend. See [schema-better-auth-alignment.md](schema-better-auth-alignment.md).
 
 ### Core Goals
 
@@ -92,10 +92,11 @@ Core **users, sessions, accounts**, and **organization plugin** tables are **own
 location        -- many rows per organization_id (branch slug + name, is_default, default_currency, address_*, phone)
                 -- PK id; unique (organization_id, slug); see lib/db/schema-app.ts
 
-store_branding  -- one row per organization (PK organization_id → organization.id): login/shell branding, receipt copy
+business_details  -- one row per organization (PK organization_id → organization.id): branding, legal, contact, optional onboarding fields (e.g. business_category)
+user_profile      -- one row per user (PK user_id → user.id): optional person-level fields (phone, locale, etc.)
 ```
 
-**Tenancy:** **`organization`** = store; **`location`** = branch. URLs use **`/{storeSlug}/l/{locationSlug}/…`** for branch-scoped UI. Access is enforced in **application code** today; optional Postgres RLS later aligns with **`member`** and **`location`**.
+**Tenancy:** **`organization`** = business (tenant); **`location`** = branch. URLs use **`/{businessSlug}/l/{locationSlug}/…`** for branch-scoped UI (`businessSlug` = `organization.slug`). Access is enforced in **application code** today; optional Postgres RLS later aligns with **`member`** and **`location`**.
 
 POS-specific **default currency** and **site address** for receipts: read from the active **`location`** row (see [schema-better-auth-alignment.md](schema-better-auth-alignment.md)).
 
@@ -203,8 +204,8 @@ transaction_items
 
 ### v1 — Core POS (MVP)
 
-- [ ] **First-run onboarding** (browser wizard: first user, org = store with address/currency, branding) — [onboarding-first-run.md](onboarding-first-run.md)
-- [ ] User auth: **username + password**; roles **owner / manager / cashier**; **no public registration** (bootstrap wizard + owner/manager **createUser** + **addMember**)
+- [x] **Signup + onboarding** (browser: **`/signup`**, **`/onboarding`**, org + branches + **`business_details`**) — [onboarding-first-run.md](onboarding-first-run.md)
+- [x] User auth: **email + password**; roles **owner / manager / cashier**; **public sign-up** enabled; staff via owner/manager **createUser** + **addMember** (real email)
 - [ ] Category management (CRUD, color/icon)
 - [ ] Product management (CRUD, assign category)
 - [ ] Multiple price tiers per product (org-scoped)
@@ -348,12 +349,11 @@ These are planned as future modules — keep them in mind when designing the sch
 ```
 blank-pos/
 ├── app/
-│   ├── login/                # Username sign-in (no public register)
-│   ├── setup/                # First-run wizard when user table is empty
-│   ├── (protected)/          # Session required
-│   │   └── (org)/             # Store + branch routes
-│   │       └── [storeSlug]/  # Store gate; index redirects to default branch
-│   │           ├── settings/ # Staff, branding (store-wide shell)
+│   ├── (auth)/               # login, signup (email/password)
+│   ├── (protected)/          # Session required: onboarding, choose-location, org shell
+│   │   └── (org)/            # Business + branch routes
+│   │       └── [businessSlug]/  # Org gate; index redirects to default branch
+│   │           ├── settings/ # Staff, branding (org-wide)
 │   │           └── l/[locationSlug]/  # Branch shell: dashboard, settings/store, …
 │   │   # (future under branch: pos/, products/, …)
 ├── components/
@@ -386,8 +386,8 @@ blank-pos/
 - Initialize Next.js project with TypeScript, Tailwind, shadcn/ui
 - Set up hosted Postgres (`DATABASE_URL`) and local PGlite database
 - Configure better-auth with organization support
-- Generate better-auth + organization plugin schema; add app tables **`location`** (1:1 org) and **`store_branding`** ([schema-better-auth-alignment.md](schema-better-auth-alignment.md))
-- **First-run onboarding** in the browser: owner → shared branding → organization + location ([onboarding-first-run.md](onboarding-first-run.md)); README “First run” for clone → migrate → wizard
+- Generate better-auth + organization plugin schema; add app tables **`location`**, **`business_details`**, **`user_profile`** ([schema-better-auth-alignment.md](schema-better-auth-alignment.md))
+- **Signup + onboarding** in the browser: `/signup`, then `/onboarding` → organization + locations + `business_details` ([onboarding-first-run.md](onboarding-first-run.md)); README “First run” for clone → migrate → signup
 
 ### Phase 2 — Product Engine (Weeks 3–4)
 

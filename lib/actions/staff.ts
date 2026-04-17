@@ -11,10 +11,6 @@ import { logAuthEvent } from "@/lib/log-server"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { getServerSession } from "@/lib/server-auth"
 
-function internalEmail(username: string) {
-  return `${username.toLowerCase()}@users.blankpos.local`
-}
-
 async function getMembership(organizationId: string, userId: string) {
   const db = getDb()
   const [row] = await db
@@ -26,7 +22,7 @@ async function getMembership(organizationId: string, userId: string) {
 
 export async function staffCreateUser(input: {
   organizationId: string
-  username: string
+  email: string
   password: string
   name: string
   role: "manager" | "cashier"
@@ -43,18 +39,17 @@ export async function staffCreateUser(input: {
     throw new Error("Only the owner can create managers.")
   }
 
-  const username = input.username.trim().toLowerCase()
-  if (username.length < 2) throw new Error("Username is too short.")
+  const email = input.email.trim().toLowerCase()
+  if (!email.includes("@")) throw new Error("Enter a valid email.")
   if (input.password.length < 8) throw new Error("Password must be at least 8 characters.")
 
   let newUserId: string
   try {
     const res = await auth.api.createUser({
       body: {
-        email: internalEmail(username),
+        email,
         password: input.password,
         name: input.name.trim(),
-        data: { username, displayUsername: username },
       },
     })
     const user = (res as { user?: { id: string } }).user
@@ -63,7 +58,7 @@ export async function staffCreateUser(input: {
   } catch (e) {
     logAuthEvent("error", "staff.create_user_failed", {
       organizationId: input.organizationId,
-      username,
+      email,
       message: e instanceof APIError ? e.message : e instanceof Error ? e.message : "unknown",
     })
     if (e instanceof APIError) throw new Error(e.message)
@@ -82,7 +77,7 @@ export async function staffCreateUser(input: {
   } catch (e) {
     logAuthEvent("error", "staff.add_member_failed", {
       organizationId: input.organizationId,
-      username,
+      email,
       newUserId,
       message: e instanceof APIError ? e.message : e instanceof Error ? e.message : "unknown",
     })
@@ -93,11 +88,11 @@ export async function staffCreateUser(input: {
   return { ok: true as const }
 }
 
-export async function staffRemoveMember(storeSlug: string, memberId: string) {
+export async function staffRemoveMember(businessSlug: string, memberId: string) {
   const session = await getServerSession()
   if (!session?.user) throw new Error("Unauthorized")
 
-  const ctx = await getOrgForUser(storeSlug, session.user.id)
+  const ctx = await getOrgForUser(businessSlug, session.user.id)
   if (!ctx || (ctx.member.role !== "owner" && ctx.member.role !== "manager")) {
     throw new Error("You do not have permission to manage staff.")
   }
@@ -131,7 +126,7 @@ export async function staffRemoveMember(storeSlug: string, memberId: string) {
   } catch (e) {
     logAuthEvent("error", "staff.remove_member_failed", {
       organizationId: ctx.organization.id,
-      storeSlug,
+      businessSlug,
       memberId,
       message: e instanceof APIError ? e.message : e instanceof Error ? e.message : "unknown",
     })

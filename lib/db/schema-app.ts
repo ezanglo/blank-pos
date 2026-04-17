@@ -8,13 +8,13 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core"
 
-import { organization } from "./auth-schema"
+import { organization, user } from "./auth-schema"
 
 /**
- * Branding and receipt-oriented copy for a store (better-auth `organization`).
+ * Org-level profile: branding, legal, contact, operations, and onboarding fields.
  * One row per organization; PK = organization_id.
  */
-export const storeBranding = pgTable("store_branding", {
+export const businessDetails = pgTable("business_details", {
   organizationId: text("organization_id")
     .primaryKey()
     .references(() => organization.id, { onDelete: "cascade" }),
@@ -36,18 +36,39 @@ export const storeBranding = pgTable("store_branding", {
   logoStoragePath: text("logo_storage_path"),
   logoImageUrl: text("logo_image_url"),
   loginBackgroundImageUrl: text("login_background_image_url"),
+  businessCategory: text("business_category"),
+  teamScaleBand: text("team_scale_band"),
+  expectedGoLive: text("expected_go_live"),
   updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
     .notNull()
     .defaultNow(),
 })
 
-export type StoreBranding = typeof storeBranding.$inferSelect
-export type NewStoreBranding = typeof storeBranding.$inferInsert
+export type BusinessDetails = typeof businessDetails.$inferSelect
+export type NewBusinessDetails = typeof businessDetails.$inferInsert
+
+/** Person-level fields separate from better-auth `user`. */
+export const userProfile = pgTable("user_profile", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  phone: text("phone"),
+  preferredLocale: text("preferred_locale"),
+  howHeard: text("how_heard"),
+  primaryGoal: text("primary_goal"),
+  updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+})
+
+export type UserProfile = typeof userProfile.$inferSelect
+export type NewUserProfile = typeof userProfile.$inferInsert
 
 /**
- * Physical branch for a store (`organization`). Many rows per organization_id.
+ * Physical branch for an organization. Postgres table remains `location`.
  */
-export const storeLocation = pgTable(
+export const businessLocation = pgTable(
   "location",
   {
     id: text("id").primaryKey(),
@@ -76,19 +97,26 @@ export const storeLocation = pgTable(
   ],
 )
 
-export type StoreLocation = typeof storeLocation.$inferSelect
-export type NewStoreLocation = typeof storeLocation.$inferInsert
+export type BusinessLocation = typeof businessLocation.$inferSelect
+export type NewBusinessLocation = typeof businessLocation.$inferInsert
 
-export const storeBrandingRelations = relations(storeBranding, ({ one }) => ({
+export const businessDetailsRelations = relations(businessDetails, ({ one }) => ({
   organization: one(organization, {
-    fields: [storeBranding.organizationId],
+    fields: [businessDetails.organizationId],
     references: [organization.id],
   }),
 }))
 
-export const storeLocationRelations = relations(storeLocation, ({ one }) => ({
+export const userProfileRelations = relations(userProfile, ({ one }) => ({
+  user: one(user, {
+    fields: [userProfile.userId],
+    references: [user.id],
+  }),
+}))
+
+export const businessLocationRelations = relations(businessLocation, ({ one }) => ({
   organization: one(organization, {
-    fields: [storeLocation.organizationId],
+    fields: [businessLocation.organizationId],
     references: [organization.id],
   }),
 }))

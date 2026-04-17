@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 
 import { BrandingSettingsFields } from "@/components/branding/branding-settings-fields"
-import { updateStoreBranding } from "@/lib/actions/branding"
+import { updateBusinessDetails } from "@/lib/actions/branding"
 import { flushPendingImageUploads } from "@/lib/offline/pending-image-uploads"
 import { Button } from "@/components/ui/button"
 import {
@@ -31,10 +31,10 @@ function RootFormError({ message }: { message?: string }) {
 }
 
 export function BrandingSettingsForm({
-  storeSlug,
+  businessSlug,
   initial,
 }: {
-  storeSlug: string
+  businessSlug: string
   initial: BrandingSettingsFormValues
 }) {
   const router = useRouter()
@@ -49,7 +49,7 @@ export function BrandingSettingsForm({
         form.setValue("logoImageUrl", url, { shouldValidate: true, shouldDirty: true })
       })
       const next = form.getValues()
-      await updateStoreBranding(storeSlug, {
+      await updateBusinessDetails(businessSlug, {
         displayName: next.displayName?.trim() || null,
         tagline: next.tagline?.trim() || null,
         receiptHeaderText: next.receiptHeaderText?.trim() || null,
@@ -66,6 +66,9 @@ export function BrandingSettingsForm({
         primaryColor: next.primaryColor?.trim() || null,
         accentColor: next.accentColor?.trim() || null,
         logoImageUrl: next.logoImageUrl?.trim() || null,
+        businessCategory: next.businessCategory?.trim() || null,
+        teamScaleBand: next.teamScaleBand?.trim() || null,
+        expectedGoLive: next.expectedGoLive?.trim() || null,
       })
       router.refresh()
     } catch (err) {

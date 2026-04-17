@@ -6,7 +6,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { HeaderLocationSwitcher } from "@/components/header-location-switcher"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import type { SidebarStoreNavItem } from "@/lib/types/nav"
+import type { SidebarBusinessNavItem } from "@/lib/types/nav"
 
 export type OrgAppShellUser = {
   name: string
@@ -19,9 +19,9 @@ export type OrgAppShellUser = {
 export type HeaderBranch = { slug: string; name: string }
 
 export function OrgAppShell({
-  storeSlug,
+  businessSlug,
   navLocationSlug,
-  sidebarStores,
+  sidebarBusinesses,
   headerBranches,
   brandPrimaryCss,
   brandAccentCss,
@@ -29,10 +29,10 @@ export function OrgAppShell({
   user,
   children,
 }: {
-  storeSlug: string
-  /** Location segment used for sidebar links (active branch or default on store-only routes). */
+  businessSlug: string
+  /** Location segment used for sidebar links (active branch or default on org-only routes). */
   navLocationSlug: string
-  sidebarStores: SidebarStoreNavItem[]
+  sidebarBusinesses: SidebarBusinessNavItem[]
   headerBranches: HeaderBranch[]
   brandPrimaryCss?: string | null
   brandAccentCss?: string | null
@@ -54,9 +54,9 @@ export function OrgAppShell({
     >
       <AppSidebar
         variant="inset"
-        storeSlug={storeSlug}
+        businessSlug={businessSlug}
         navLocationSlug={navLocationSlug}
-        sidebarStores={sidebarStores}
+        sidebarBusinesses={sidebarBusinesses}
         user={{
           name: user.name,
           email: user.email,
@@ -67,11 +67,11 @@ export function OrgAppShell({
       />
       <SidebarInset className="min-h-0 flex-1 overflow-hidden">
         <SiteHeader
-          storeSlug={storeSlug}
+          businessSlug={businessSlug}
           locationSwitcher={
             showLocationSwitcher ? (
               <HeaderLocationSwitcher
-                storeSlug={storeSlug}
+                businessSlug={businessSlug}
                 branches={headerBranches}
                 activeLocationSlug={navLocationSlug}
               />

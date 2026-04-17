@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm"
 
 import { getDb } from "@/lib/db"
 import { organization } from "@/lib/db/schema"
-import { storeLocation } from "@/lib/db/schema-app"
+import { businessLocation } from "@/lib/db/schema-app"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { normalizeSetupWebSlug } from "@/lib/setup-slug-normalize"
 import { getServerSession } from "@/lib/server-auth"
@@ -31,7 +31,7 @@ export async function checkSetupStoreSlugAvailable(
 }
 
 export async function checkSetupLocationSlugAvailable(
-  storeSlug: string,
+  businessSlug: string,
   rawLocationSlug: string,
 ): Promise<{ status: SetupSlugCheckStatus | "forbidden" }> {
   const session = await getServerSession()
@@ -40,15 +40,18 @@ export async function checkSetupLocationSlugAvailable(
   const slug = normalizeSetupWebSlug(rawLocationSlug)
   if (!slug) return { status: "invalid" }
 
-  const ctx = await getOrgForUser(storeSlug, session.user.id)
+  const ctx = await getOrgForUser(businessSlug, session.user.id)
   if (!ctx) return { status: "forbidden" }
 
   const db = getDb()
   const [row] = await db
-    .select({ id: storeLocation.id })
-    .from(storeLocation)
+    .select({ id: businessLocation.id })
+    .from(businessLocation)
     .where(
-      and(eq(storeLocation.organizationId, ctx.organization.id), eq(storeLocation.slug, slug)),
+      and(
+        eq(businessLocation.organizationId, ctx.organization.id),
+        eq(businessLocation.slug, slug),
+      ),
     )
     .limit(1)
 

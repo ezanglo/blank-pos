@@ -1,9 +1,12 @@
 import type { Metadata } from "next"
 
-import type { StoreBranding } from "@/lib/db/schema-app"
+import type { BusinessDetails } from "@/lib/db/schema-app"
 
-/** Shown in titles and Open Graph until `store_branding.display_name` is set. */
-const SITE_LABEL_FALLBACK = "Store"
+/** Shown in titles and Open Graph until `business_details.display_name` is set. */
+const SITE_LABEL_FALLBACK = "Business"
+
+/** Public app name for `/login` (static chrome; not per-store branding). */
+export const APP_PRODUCT_NAME = "Blank POS"
 
 export const DEFAULT_DESCRIPTION =
   "Multi-tenant store operations—organizations, staff roles, and branding—for point-of-sale workflows."
@@ -40,17 +43,17 @@ export const privateAppRobots: Metadata["robots"] = {
   googleBot: { index: false, follow: false },
 }
 
-function siteLabelFromBranding(branding: Pick<StoreBranding, "displayName"> | null): string {
+function siteLabelFromBranding(branding: Pick<BusinessDetails, "displayName"> | null): string {
   const name = branding?.displayName?.trim()
   return name && name.length > 0 ? name : SITE_LABEL_FALLBACK
 }
 
-function descriptionFromBranding(branding: Pick<StoreBranding, "tagline"> | null): string {
+function descriptionFromBranding(branding: Pick<BusinessDetails, "tagline"> | null): string {
   const tagline = branding?.tagline?.trim()
   return tagline && tagline.length > 0 ? tagline : DEFAULT_DESCRIPTION
 }
 
-export function buildRootMetadataFromBranding(branding: StoreBranding | null): Metadata {
+export function buildRootMetadataFromBranding(branding: BusinessDetails | null): Metadata {
   const label = siteLabelFromBranding(branding)
   const description = descriptionFromBranding(branding)
   return {
@@ -72,6 +75,35 @@ export function buildRootMetadataFromBranding(branding: StoreBranding | null): M
       card: "summary_large_image",
       title: label,
       description,
+    },
+    robots: privateAppRobots,
+  }
+}
+
+const AUTH_LAYOUT_DESCRIPTION =
+  "Sign in or create a Blank POS account with your email and password. Private workspace for your business."
+
+/** Shared metadata for `/login` and `/signup` under `(auth)` (noindex). */
+export function buildAuthLayoutMetadata(): Metadata {
+  const titleAbsolute = APP_PRODUCT_NAME
+
+  return {
+    title: {
+      absolute: titleAbsolute,
+    },
+    description: AUTH_LAYOUT_DESCRIPTION,
+    applicationName: APP_PRODUCT_NAME,
+    openGraph: {
+      type: "website",
+      locale: "en_US",
+      siteName: APP_PRODUCT_NAME,
+      title: titleAbsolute,
+      description: AUTH_LAYOUT_DESCRIPTION,
+    },
+    twitter: {
+      card: "summary",
+      title: titleAbsolute,
+      description: AUTH_LAYOUT_DESCRIPTION,
     },
     robots: privateAppRobots,
   }

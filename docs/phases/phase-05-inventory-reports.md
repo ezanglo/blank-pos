@@ -47,7 +47,7 @@
 
 - [ ] **Movements** log table with filters.
 - [ ] **Adjustments** flow separate from “stealth edits” to stock grid.
-- [ ] **Reports** pages under `(org)/[storeSlug]/l/[locationSlug]/reports/` (or store-level) with date pickers; add **`location_id`** filters when reporting is branch-specific.
+- [ ] **Reports** pages under `(org)/[businessSlug]/l/[locationSlug]/reports/` (or org-level) with date pickers; add **`location_id`** filters when reporting is branch-specific.
 - [ ] **Loading states** and empty states for reports.
 
 ---

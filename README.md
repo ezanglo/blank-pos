@@ -1,6 +1,6 @@
 # Blank POS
 
-Phase 1 foundation: **Next.js 16**, **better-auth** (username + organization + admin), **Drizzle** on **PostgreSQL**, store + multi-branch shell (`organization` = store, `location` = branch) and per-store branding.
+Phase 1 foundation: **Next.js 16**, **better-auth** (email/password + organization + admin), **Drizzle** on **PostgreSQL**, org shell with multi-branch **`location`** rows and per-organization **`business_details`** (branding, legal, onboarding fields). Public URL segment is **`businessSlug`** → routes **`/{businessSlug}/l/{locationSlug}/…`**.
 
 ## First run
 
@@ -9,7 +9,7 @@ Phase 1 foundation: **Next.js 16**, **better-auth** (username + organization + a
    - **`BETTER_AUTH_SECRET`** (32+ characters) and **`BETTER_AUTH_URL`** / **`NEXT_PUBLIC_APP_URL`** for local dev (typically `http://localhost:3000`).
    - **`STORAGE_MODE=local`** for local image uploads to `public/uploads/`, or configure **cloud** S3-compatible storage (required on Vercel). See [docs/storage-uploads.md](docs/storage-uploads.md).
 
-2. Apply migrations from the repo root (if you previously used the older single-location schema, **drop and recreate** the database first):
+2. Apply migrations from the repo root. If you are **upgrading from an older schema** (e.g. `store_branding`, username-only auth), **drop and recreate** the database (or `DROP SCHEMA public CASCADE; CREATE SCHEMA public;`) so the current baseline migration applies cleanly:
 
    ```bash
    pnpm db:migrate
@@ -21,9 +21,13 @@ Phase 1 foundation: **Next.js 16**, **better-auth** (username + organization + a
    pnpm dev
    ```
 
-4. Open `/` — with an empty `user` table you are redirected to **`/setup`**. Complete the wizard (**owner → store → first location → per-store branding**). You land on **`/{storeSlug}/l/{locationSlug}/dashboard`**.
+4. Open **`/`** — routing depends on session and data:
+   - **No users yet:** redirect to **`/signup`** to create the first account (email + password).
+   - **Signed in:** if you have **more than one** accessible branch → **`/choose-location`**; else if you can open a dashboard → **`/{businessSlug}/l/{locationSlug}/dashboard`**; else if onboarding is incomplete → **`/onboarding`**; otherwise **`/login`** as needed.
 
-5. Returning users sign in at **`/login`**. There is no public registration after the first user exists (`/setup` is blocked).
+5. **`/login`** — returning users sign in with **email + password**. **`/signup`** remains available for additional accounts on the same install (first user still typically creates the first organization from **`/onboarding`**).
+
+See [docs/onboarding-first-run.md](docs/onboarding-first-run.md) and [docs/schema-better-auth-alignment.md](docs/schema-better-auth-alignment.md) for the full model.
 
 ## Scripts
 
@@ -37,7 +41,7 @@ Phase 1 foundation: **Next.js 16**, **better-auth** (username + organization + a
 | `pnpm db:migrate` | Apply migrations via drizzle-kit             |
 | `pnpm auth:schema`| Regenerate `lib/db/auth-schema.ts` from CLI  |
 
-Regenerating the auth schema requires a live `DATABASE_URL` and uses [`lib/auth.config.ts`](lib/auth.config.ts) (CLI-only config).
+Regenerating the auth schema requires a live `DATABASE_URL` and uses [`lib/auth.config.ts`](lib/auth.config.ts) (CLI-only config; must stay aligned with [`lib/auth.ts`](lib/auth.ts)).
 
 ## CI
 

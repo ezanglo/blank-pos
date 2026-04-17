@@ -1,9 +1,9 @@
 "use server"
 
 import { getDb } from "@/lib/db"
-import { storeBranding } from "@/lib/db/schema-app"
-import { getStoreBrandingByOrganizationId } from "@/lib/queries/store-branding"
-import { userCanEditStoreBrandingForOrganization } from "@/lib/queries/stores"
+import { businessDetails } from "@/lib/db/schema-app"
+import { getBusinessDetailsByOrganizationId } from "@/lib/queries/business-details"
+import { userCanEditBusinessDetailsForOrganization } from "@/lib/queries/stores"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { getServerSession } from "@/lib/server-auth"
 
@@ -34,7 +34,7 @@ function trimToNull(s: string | null | undefined) {
   return t === "" || t == null ? null : t
 }
 
-export type StoreBrandingWriteInput = {
+export type BusinessDetailsWriteInput = {
   displayName?: string | null
   tagline?: string | null
   receiptHeaderText?: string | null
@@ -51,9 +51,12 @@ export type StoreBrandingWriteInput = {
   primaryColor?: string | null
   accentColor?: string | null
   logoImageUrl?: string | null
+  businessCategory?: string | null
+  teamScaleBand?: string | null
+  expectedGoLive?: string | null
 }
 
-function assertBrandingUrls(input: StoreBrandingWriteInput) {
+function assertBrandingUrls(input: BusinessDetailsWriteInput) {
   assertOptionalHttpUrl("Website URL", input.websiteUrl)
   assertOptionalHttpUrl("Menu URL", input.menuUrl)
   assertOptionalHttpUrl("Instagram URL", input.instagramUrl)
@@ -61,7 +64,7 @@ function assertBrandingUrls(input: StoreBrandingWriteInput) {
   assertOptionalLogoOrImageUrl(input.logoImageUrl)
 }
 
-function brandingRowValues(input: StoreBrandingWriteInput) {
+function businessDetailsRowValues(input: BusinessDetailsWriteInput) {
   const now = new Date()
   return {
     displayName: trimToNull(input.displayName),
@@ -80,86 +83,88 @@ function brandingRowValues(input: StoreBrandingWriteInput) {
     primaryColor: trimToNull(input.primaryColor),
     accentColor: trimToNull(input.accentColor),
     logoImageUrl: trimToNull(input.logoImageUrl),
+    businessCategory: trimToNull(input.businessCategory),
+    teamScaleBand: trimToNull(input.teamScaleBand),
+    expectedGoLive: trimToNull(input.expectedGoLive),
     updatedAt: now,
   }
 }
 
-async function upsertStoreBrandingForOrganization(
+async function upsertBusinessDetailsForOrganization(
   organizationId: string,
-  input: StoreBrandingWriteInput,
+  input: BusinessDetailsWriteInput,
 ) {
   assertBrandingUrls(input)
-  const row = brandingRowValues(input)
+  const row = businessDetailsRowValues(input)
   const db = getDb()
   await db
-    .insert(storeBranding)
+    .insert(businessDetails)
     .values({ organizationId, ...row })
     .onConflictDoUpdate({
-      target: storeBranding.organizationId,
+      target: businessDetails.organizationId,
       set: row,
     })
 }
 
 /**
- * Setup wizard: save branding for a store the user just created (must be a member).
- * Call after `organization.create` + first location exist.
+ * Onboarding: save presentation / legal fields for a business the user just created (must be a member).
  */
-export async function setupPhaseSaveStoreBranding(
-  storeSlug: string,
-  input: StoreBrandingWriteInput,
+export async function setupPhaseSaveBusinessDetails(
+  businessSlug: string,
+  input: BusinessDetailsWriteInput,
 ) {
   const session = await getServerSession()
   if (!session?.user?.id) throw new Error("Unauthorized")
 
-  const ctx = await getOrgForUser(storeSlug, session.user.id)
+  const ctx = await getOrgForUser(businessSlug, session.user.id)
   if (!ctx) throw new Error("Forbidden")
 
-  await upsertStoreBrandingForOrganization(ctx.organization.id, input)
+  await upsertBusinessDetailsForOrganization(ctx.organization.id, input)
   return { ok: true as const }
 }
 
-/** After `organization.create`, seed `store_branding` with display name = organization name. */
-export async function seedInitialStoreBrandingAfterOrgCreate(storeSlug: string) {
+/** After `organization.create`, seed `business_details` with display name = organization name. */
+export async function seedInitialBusinessDetailsAfterOrgCreate(businessSlug: string) {
   const session = await getServerSession()
   if (!session?.user?.id) throw new Error("Unauthorized")
 
-  const ctx = await getOrgForUser(storeSlug, session.user.id)
+  const ctx = await getOrgForUser(businessSlug, session.user.id)
   if (!ctx) throw new Error("Forbidden")
 
   const displayName = ctx.organization.name?.trim() || null
-  await upsertStoreBrandingForOrganization(ctx.organization.id, { displayName })
+  await upsertBusinessDetailsForOrganization(ctx.organization.id, { displayName })
   return { ok: true as const }
 }
 
-/** Updates branding for a specific store (owner/manager of that store). */
-export async function updateStoreBranding(storeSlug: string, input: StoreBrandingWriteInput) {
+/** Updates business details for a specific organization (owner/manager). */
+export async function updateBusinessDetails(businessSlug: string, input: BusinessDetailsWriteInput) {
   const session = await getServerSession()
   if (!session?.user?.id) throw new Error("Unauthorized")
 
-  const ctx = await getOrgForUser(storeSlug, session.user.id)
+  const ctx = await getOrgForUser(businessSlug, session.user.id)
   if (!ctx) throw new Error("Forbidden")
 
-  const allowed = await userCanEditStoreBrandingForOrganization(
+  const allowed = await userCanEditBusinessDetailsForOrganization(
     session.user.id,
     ctx.organization.id,
   )
   if (!allowed) throw new Error("Forbidden")
 
-  await upsertStoreBrandingForOrganization(ctx.organization.id, input)
+  await upsertBusinessDetailsForOrganization(ctx.organization.id, input)
 
   return { ok: true as const }
 }
 
-/** Read branding for settings form (server). */
-export async function getStoreBrandingForSessionStore(storeSlug: string) {
+/** Read business details for settings form (server). */
+export async function getBusinessDetailsForSessionBusiness(businessSlug: string) {
   const session = await getServerSession()
   if (!session?.user?.id) return null
-  const ctx = await getOrgForUser(storeSlug, session.user.id)
+  const ctx = await getOrgForUser(businessSlug, session.user.id)
   if (!ctx) return null
-  const allowed = await userCanEditStoreBrandingForOrganization(
+  const allowed = await userCanEditBusinessDetailsForOrganization(
     session.user.id,
     ctx.organization.id,
   )
   if (!allowed) return null
-  return getStoreBrandingByOrganizationId(ctx.organization.id)
+  return getBusinessDetailsByOrganizationId(ctx.organization.id)
 }

@@ -17,8 +17,8 @@ import {
 import { FieldGroup } from "@/components/ui/field"
 import { SelectFormField, TextFormField } from "@/components/form"
 import { type StoreSettingsFormValues, storeSettingsSchema } from "@/lib/schemas/app-forms"
-import { storeLocationToStoreSettingsFields } from "@/lib/store-location"
-import type { StoreLocation } from "@/lib/db/schema-app"
+import { businessLocationToStoreSettingsFields } from "@/lib/business-location"
+import type { BusinessLocation } from "@/lib/db/schema-app"
 
 function RootFormError({ message }: { message?: string }) {
   if (!message) return null
@@ -30,18 +30,18 @@ function RootFormError({ message }: { message?: string }) {
 }
 
 export function StoreSettingsForm({
-  storeSlug,
+  businessSlug,
   locationSlug,
   initialStoreName,
   initialLocation,
 }: {
-  storeSlug: string
+  businessSlug: string
   locationSlug: string
   initialStoreName: string
-  initialLocation: StoreLocation | null
+  initialLocation: BusinessLocation | null
 }) {
   const router = useRouter()
-  const locFields = storeLocationToStoreSettingsFields(initialLocation)
+  const locFields = businessLocationToStoreSettingsFields(initialLocation)
   const form = useForm<StoreSettingsFormValues>({
     resolver: standardSchemaResolver(storeSettingsSchema),
     defaultValues: {
@@ -52,7 +52,7 @@ export function StoreSettingsForm({
 
   async function onSubmit(values: StoreSettingsFormValues) {
     try {
-      await updateStoreAndLocationSettings(storeSlug, locationSlug, {
+      await updateStoreAndLocationSettings(businessSlug, locationSlug, {
         storeName: values.storeName,
         locationName: values.locationName,
         location: {
@@ -93,10 +93,10 @@ export function StoreSettingsForm({
               name="defaultCurrency"
               label="Currency"
               options={[
+                { value: "PHP", label: "PHP" },
                 { value: "USD", label: "USD" },
                 { value: "EUR", label: "EUR" },
                 { value: "GBP", label: "GBP" },
-                { value: "PHP", label: "PHP" },
               ]}
             />
             <TextFormField control={form.control} name="addressLine1" label="Address line 1" />

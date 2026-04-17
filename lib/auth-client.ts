@@ -1,4 +1,4 @@
-import { adminClient, organizationClient, usernameClient } from "better-auth/client/plugins"
+import { adminClient, organizationClient } from "better-auth/client/plugins"
 import { createAuthClient } from "better-auth/client"
 
 function clientBaseUrl() {
@@ -10,5 +10,5 @@ function clientBaseUrl() {
 
 export const authClient = createAuthClient({
   baseURL: clientBaseUrl(),
-  plugins: [usernameClient(), organizationClient(), adminClient()],
+  plugins: [organizationClient(), adminClient()],
 })

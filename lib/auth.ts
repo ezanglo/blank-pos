@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { nextCookies } from "better-auth/next-js"
-import { admin, createAccessControl, organization, username } from "better-auth/plugins"
+import { admin, createAccessControl, organization } from "better-auth/plugins"
 
 import { getDb } from "@/lib/db"
 import * as schema from "@/lib/db/schema"
@@ -29,12 +29,10 @@ export const auth = betterAuth({
   trustedOrigins: [env().BETTER_AUTH_URL],
   emailAndPassword: {
     enabled: true,
-    /** Blocks `POST /sign-up/email` and client `signUp.email`; Admin `createUser` + bootstrap still allowed. */
-    disableSignUp: true,
+    disableSignUp: false,
   },
   plugins: [
     nextCookies(),
-    username(),
     admin({
       defaultRole: "user",
       adminRoles: ["admin"],

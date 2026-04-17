@@ -6,8 +6,8 @@ import { usePathname } from "next/navigation"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 
-function titleForPath(pathname: string, storeSlug: string) {
-  const locPrefix = `/${storeSlug}/l/`
+function titleForPath(pathname: string, businessSlug: string) {
+  const locPrefix = `/${businessSlug}/l/`
   const locIdx = pathname.indexOf(locPrefix)
   const afterLoc = locIdx === -1 ? "" : pathname.slice(locIdx + locPrefix.length)
   const locSlash = afterLoc.indexOf("/")
@@ -23,14 +23,14 @@ function titleForPath(pathname: string, storeSlug: string) {
 }
 
 export function SiteHeader({
-  storeSlug,
+  businessSlug,
   locationSwitcher,
 }: {
-  storeSlug: string
+  businessSlug: string
   locationSwitcher: React.ReactNode
 }) {
   const pathname = usePathname()
-  const title = titleForPath(pathname, storeSlug)
+  const title = titleForPath(pathname, businessSlug)
 
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">

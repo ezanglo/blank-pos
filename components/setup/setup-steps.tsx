@@ -6,8 +6,8 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 
 import {
-  seedInitialStoreBrandingAfterOrgCreate,
-  setupPhaseSaveStoreBranding,
+  seedInitialBusinessDetailsAfterOrgCreate,
+  setupPhaseSaveBusinessDetails,
 } from "@/lib/actions/branding"
 import { flushPendingImageUploads } from "@/lib/offline/pending-image-uploads"
 import { createFirstLocationAfterOrgCreate } from "@/lib/actions/organization"
@@ -15,7 +15,6 @@ import {
   checkSetupLocationSlugAvailable,
   checkSetupStoreSlugAvailable,
 } from "@/lib/actions/setup-slugs"
-import { bootstrapCreateOwner } from "@/lib/actions/setup"
 import { normalizeSetupWebSlug } from "@/lib/setup-slug-normalize"
 import { Button } from "@/components/ui/button"
 import {
@@ -32,12 +31,10 @@ import { authClient } from "@/lib/auth-client"
 import {
   type SetupBrandingFormValues,
   type SetupFirstLocationFormValues,
-  type SetupOwnerFormValues,
-  type SetupStoreSiteFormValues,
+  type SetupStoreWithBrandingFormValues,
   setupBrandingSchema,
   setupFirstLocationSchema,
-  setupOwnerSchema,
-  setupStoreSiteSchema,
+  setupStoreWithBrandingSchema,
 } from "@/lib/schemas/app-forms"
 
 import { slugifyWebSegmentFromName } from "@/lib/slugify-web-segment"
@@ -57,102 +54,30 @@ function RootFormError({ message }: { message?: string }) {
   )
 }
 
-export function SetupOwnerStep({
-  onBack,
-  onDone,
-}: {
-  onBack: () => void
-  onDone: (ownerDisplayName: string) => void
-}) {
-  const form = useForm<SetupOwnerFormValues>({
-    resolver: standardSchemaResolver(setupOwnerSchema),
-    defaultValues: { username: "", password: "", ownerName: "" },
-  })
-
-  async function onSubmit(values: SetupOwnerFormValues) {
-    try {
-      await bootstrapCreateOwner({
-        username: values.username,
-        password: values.password,
-        name: values.ownerName,
-      })
-      const signIn = await authClient.signIn.username({
-        username: values.username,
-        password: values.password,
-      })
-      if (signIn.error) {
-        form.setError("root", { message: signIn.error.message ?? "Sign-in failed" })
-        return
-      }
-      onDone(values.ownerName)
-    } catch (err) {
-      form.setError("root", {
-        message: err instanceof Error ? err.message : "Something went wrong",
-      })
-    }
-  }
-
-  return (
-    <form onSubmit={form.handleSubmit(onSubmit)}>
-      <Card>
-        <CardHeader>
-          <CardTitle>Owner account</CardTitle>
-          <CardDescription>Create the first admin username and password.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <RootFormError message={form.formState.errors.root?.message} />
-          <FieldGroup>
-            <TextFormField
-              control={form.control}
-              name="username"
-              label="Username"
-              autoComplete="username"
-            />
-            <TextFormField
-              control={form.control}
-              name="password"
-              label="Password"
-              type="password"
-              autoComplete="new-password"
-            />
-            <TextFormField
-              control={form.control}
-              name="ownerName"
-              label="Display name"
-              autoComplete="name"
-            />
-          </FieldGroup>
-        </CardContent>
-        <CardFooter className="flex flex-wrap gap-2 border-t pt-6">
-          <Button type="button" variant="outline" onClick={onBack}>
-            Back
-          </Button>
-          <Button type="submit" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? "Working…" : "Create owner & sign in"}
-          </Button>
-        </CardFooter>
-      </Card>
-    </form>
-  )
-}
-
 export function SetupStoreStep({
-  resumeStoreSlug,
-  resumeStoreName,
+  resumeBusinessSlug,
+  resumeBusinessName,
   onBack,
   onDone,
 }: {
-  /** When set, the store already exists (user returned from the location step). */
-  resumeStoreSlug?: string | null
+  /** When set, the business already exists (user returned from the location step). */
+  resumeBusinessSlug?: string | null
   /** Organization display name (for resume / branding defaults); falls back to slug. */
-  resumeStoreName?: string | null
+  resumeBusinessName?: string | null
   onBack: () => void
-  onDone: (ctx: { storeSlug: string; storeName: string }) => void
+  onDone: (ctx: { businessSlug: string; storeName: string }) => void
 }) {
   const router = useRouter()
-  const form = useForm<SetupStoreSiteFormValues>({
-    resolver: standardSchemaResolver(setupStoreSiteSchema),
-    defaultValues: { storeName: "", slug: "" },
+  const form = useForm<SetupStoreWithBrandingFormValues>({
+    resolver: standardSchemaResolver(setupStoreWithBrandingSchema),
+    defaultValues: {
+      storeName: "",
+      slug: "",
+      logoImageUrl: "",
+      businessCategory: "",
+      teamScaleBand: "",
+      expectedGoLive: "",
+    },
   })
 
   const storeNameWatch = form.watch("storeName")
@@ -211,13 +136,13 @@ export function SetupStoreStep({
     slugAvailability === "invalid" ||
     slugAvailability === "checking"
 
-  if (resumeStoreSlug) {
+  if (resumeBusinessSlug) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Your store</CardTitle>
+          <CardTitle>Your business</CardTitle>
           <CardDescription>
-            <span className="text-foreground font-medium">/{resumeStoreSlug}</span> is already
+            <span className="text-foreground font-medium">/{resumeBusinessSlug}</span> is already
             created. Continue to your first location, or go back to the previous step.
           </CardDescription>
         </CardHeader>
@@ -229,8 +154,8 @@ export function SetupStoreStep({
             type="button"
             onClick={() =>
               onDone({
-                storeSlug: resumeStoreSlug,
-                storeName: resumeStoreName?.trim() || resumeStoreSlug,
+                businessSlug: resumeBusinessSlug,
+                storeName: resumeBusinessName?.trim() || resumeBusinessSlug,
               })
             }
           >
@@ -241,7 +166,7 @@ export function SetupStoreStep({
     )
   }
 
-  async function onSubmit(values: SetupStoreSiteFormValues) {
+  async function onSubmit(values: SetupStoreWithBrandingFormValues) {
     try {
       const slug = values.slug
       const res = await authClient.organization.create({
@@ -256,8 +181,33 @@ export function SetupStoreStep({
         })
         return
       }
-      await seedInitialStoreBrandingAfterOrgCreate(slug)
-      onDone({ storeSlug: slug, storeName: values.storeName.trim() })
+      await seedInitialBusinessDetailsAfterOrgCreate(slug)
+      await flushPendingImageUploads((_id, url) => {
+        form.setValue("logoImageUrl", url, { shouldValidate: true, shouldDirty: true })
+      })
+      const logoImageUrl = form.getValues("logoImageUrl")?.trim() || null
+      await setupPhaseSaveBusinessDetails(slug, {
+        displayName: values.storeName.trim() || null,
+        logoImageUrl,
+        businessCategory: values.businessCategory?.trim() || null,
+        teamScaleBand: values.teamScaleBand?.trim() || null,
+        expectedGoLive: values.expectedGoLive?.trim() || null,
+        tagline: null,
+        receiptHeaderText: null,
+        receiptFooterText: null,
+        legalName: null,
+        taxIdentifier: null,
+        websiteUrl: null,
+        menuUrl: null,
+        contactEmail: null,
+        publicPhone: null,
+        instagramUrl: null,
+        facebookUrl: null,
+        operatingHoursText: null,
+        primaryColor: null,
+        accentColor: null,
+      })
+      onDone({ businessSlug: slug, storeName: values.storeName.trim() })
       router.refresh()
     } catch (err) {
       form.setError("root", {
@@ -270,20 +220,20 @@ export function SetupStoreStep({
     <form onSubmit={form.handleSubmit(onSubmit)}>
       <Card>
         <CardHeader>
-          <CardTitle>Your store</CardTitle>
+          <CardTitle>Your business</CardTitle>
           <CardDescription>
-            Create the store (team and branding scope). We suggest a web link from the store name;
-            you can edit it. Availability is checked after you pause typing.
+            Name your business, choose its web link (we check availability after you pause typing),
+            and optionally add a logo and a few details. You can refine everything later in Settings.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <RootFormError message={form.formState.errors.root?.message} />
           <FieldGroup>
-            <TextFormField control={form.control} name="storeName" label="Store name" />
+            <TextFormField control={form.control} name="storeName" label="Business name" />
             <TextFormField
               control={form.control}
               name="slug"
-              label="Store web link"
+              label="Business web link"
               placeholder="e.g. acme-retail"
               autoComplete="off"
               description={
@@ -307,6 +257,10 @@ export function SetupStoreStep({
               </p>
             ) : null}
           </FieldGroup>
+          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+            Branding (optional)
+          </p>
+          <SetupBrandingFields control={form.control} setValue={form.setValue} hideDisplayName />
         </CardContent>
         <CardFooter className="flex flex-wrap gap-2 border-t pt-6">
           <Button type="button" variant="outline" onClick={onBack}>
@@ -322,11 +276,11 @@ export function SetupStoreStep({
 }
 
 export function SetupFirstLocationStep({
-  storeSlug,
+  businessSlug,
   onBack,
   onDone,
 }: {
-  storeSlug: string
+  businessSlug: string
   onBack: () => void
   onDone: (ctx: { locationSlug: string }) => void
 }) {
@@ -336,7 +290,7 @@ export function SetupFirstLocationStep({
     defaultValues: {
       locationName: "",
       locationSlug: "",
-      defaultCurrency: "USD",
+      defaultCurrency: "PHP",
       addressLine1: "",
       addressLine2: "",
       city: "",
@@ -388,7 +342,7 @@ export function SetupFirstLocationStep({
         if (!cancelled) setLocationSlugAvailability("invalid")
         return
       }
-      const res = await checkSetupLocationSlugAvailable(storeSlug, latest)
+      const res = await checkSetupLocationSlugAvailable(businessSlug, latest)
       if (cancelled) return
       if (res.status === "forbidden") {
         setLocationSlugAvailability("forbidden")
@@ -400,7 +354,7 @@ export function SetupFirstLocationStep({
       cancelled = true
       clearTimeout(timer)
     }
-  }, [locationSlugWatch, form, storeSlug])
+  }, [locationSlugWatch, form, businessSlug])
 
   const locationSlugSubmitBlocked =
     locationSlugAvailability === "taken" ||
@@ -411,7 +365,7 @@ export function SetupFirstLocationStep({
   async function onSubmit(values: SetupFirstLocationFormValues) {
     try {
       const locationSlug = values.locationSlug
-      await createFirstLocationAfterOrgCreate(storeSlug, {
+      await createFirstLocationAfterOrgCreate(businessSlug, {
         locationSlug,
         locationName: values.locationName,
         location: {
@@ -455,8 +409,8 @@ export function SetupFirstLocationStep({
               autoComplete="off"
               description={
                 suggestedLocationSlug
-                  ? `Suggested from name: /${storeSlug}/l/${suggestedLocationSlug} — you can change the last segment.`
-                  : `Opens under your store at /${storeSlug}/l/…`
+                  ? `Suggested from name: /${businessSlug}/l/${suggestedLocationSlug} — you can change the last segment.`
+                  : `Opens under your store at /${businessSlug}/l/…`
               }
             />
             {locationSlugAvailability === "checking" ? (
@@ -485,10 +439,10 @@ export function SetupFirstLocationStep({
               name="defaultCurrency"
               label="Currency"
               options={[
+                { value: "PHP", label: "PHP" },
                 { value: "USD", label: "USD" },
                 { value: "EUR", label: "EUR" },
                 { value: "GBP", label: "GBP" },
-                { value: "PHP", label: "PHP" },
               ]}
             />
             <TextFormField
@@ -520,15 +474,15 @@ export function SetupFirstLocationStep({
 }
 
 export function SetupStoreBrandingStep({
-  storeSlug,
+  businessSlug,
   locationSlug,
   defaultDisplayName,
   onBack,
   onDone,
 }: {
-  storeSlug: string
+  businessSlug: string
   locationSlug: string
-  /** Prefer store display name (matches seeded `store_branding.display_name`). */
+  /** Prefer store display name (matches seeded `business_details.display_name`). */
   defaultDisplayName: string
   onBack: () => void
   onDone: () => void
@@ -539,6 +493,9 @@ export function SetupStoreBrandingStep({
     defaultValues: {
       displayName: defaultDisplayName,
       logoImageUrl: "",
+      businessCategory: "",
+      teamScaleBand: "",
+      expectedGoLive: "",
     },
   })
 
@@ -548,9 +505,12 @@ export function SetupStoreBrandingStep({
         form.setValue("logoImageUrl", url, { shouldValidate: true, shouldDirty: true })
       })
       const next = form.getValues()
-      await setupPhaseSaveStoreBranding(storeSlug, {
+      await setupPhaseSaveBusinessDetails(businessSlug, {
         displayName: next.displayName.trim() || null,
         logoImageUrl: next.logoImageUrl?.trim() || null,
+        businessCategory: next.businessCategory?.trim() || null,
+        teamScaleBand: next.teamScaleBand?.trim() || null,
+        expectedGoLive: next.expectedGoLive?.trim() || null,
         tagline: null,
         receiptHeaderText: null,
         receiptFooterText: null,
@@ -566,7 +526,7 @@ export function SetupStoreBrandingStep({
         primaryColor: null,
         accentColor: null,
       })
-      router.replace(`/${storeSlug}/l/${locationSlug}/dashboard`)
+      router.replace(`/${businessSlug}/l/${locationSlug}/dashboard`)
       router.refresh()
       onDone()
     } catch (err) {

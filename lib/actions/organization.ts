@@ -8,14 +8,14 @@ import { headers } from "next/headers"
 
 import { auth } from "@/lib/auth"
 import { getDb } from "@/lib/db"
-import { storeLocation } from "@/lib/db/schema-app"
+import { businessLocation } from "@/lib/db/schema-app"
 import { logAuthEvent } from "@/lib/log-server"
 import { stripLocationKeysFromOrganizationMetadata } from "@/lib/org-metadata"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { getServerSession } from "@/lib/server-auth"
 
 export type OrganizationLocationInput = {
-  defaultCurrency: "USD" | "EUR" | "GBP" | "PHP"
+  defaultCurrency: "PHP" | "USD" | "EUR" | "GBP"
   addressLine1?: string
   addressLine2?: string
   city?: string
@@ -30,7 +30,7 @@ export type OrganizationLocationInput = {
  * omit it when the name was already set on create (separate store + location wizard steps).
  */
 export async function createFirstLocationAfterOrgCreate(
-  storeSlug: string,
+  businessSlug: string,
   input: {
     organizationName?: string
     locationSlug: string
@@ -41,7 +41,7 @@ export async function createFirstLocationAfterOrgCreate(
   const session = await getServerSession()
   if (!session?.user) throw new Error("Unauthorized")
 
-  const ctx = await getOrgForUser(storeSlug, session.user.id)
+  const ctx = await getOrgForUser(businessSlug, session.user.id)
   if (!ctx) throw new Error("Forbidden")
 
   const syncName = input.organizationName?.trim()
@@ -60,7 +60,7 @@ export async function createFirstLocationAfterOrgCreate(
       })
     } catch (e) {
       logAuthEvent("error", "organization.update_store_failed", {
-        orgSlug: storeSlug,
+        orgSlug: businessSlug,
         organizationId: ctx.organization.id,
         message: e instanceof APIError ? e.message : e instanceof Error ? e.message : "unknown",
       })
@@ -73,7 +73,7 @@ export async function createFirstLocationAfterOrgCreate(
   const now = new Date()
   const loc = input.location
 
-  await db.insert(storeLocation).values({
+  await db.insert(businessLocation).values({
     id: randomUUID(),
     organizationId: ctx.organization.id,
     slug: input.locationSlug,
@@ -94,7 +94,7 @@ export async function createFirstLocationAfterOrgCreate(
 }
 
 export async function updateStoreAndLocationSettings(
-  storeSlug: string,
+  businessSlug: string,
   locationSlug: string,
   input: {
     storeName: string
@@ -105,7 +105,7 @@ export async function updateStoreAndLocationSettings(
   const session = await getServerSession()
   if (!session?.user) throw new Error("Unauthorized")
 
-  const ctx = await getOrgForUser(storeSlug, session.user.id)
+  const ctx = await getOrgForUser(businessSlug, session.user.id)
   if (!ctx || (ctx.member.role !== "owner" && ctx.member.role !== "manager")) {
     throw new Error("Forbidden")
   }
@@ -125,7 +125,7 @@ export async function updateStoreAndLocationSettings(
     })
   } catch (e) {
     logAuthEvent("error", "organization.update_store_failed", {
-      orgSlug: storeSlug,
+      orgSlug: businessSlug,
       organizationId: ctx.organization.id,
       message: e instanceof APIError ? e.message : e instanceof Error ? e.message : "unknown",
     })
@@ -138,19 +138,19 @@ export async function updateStoreAndLocationSettings(
   const loc = input.location
 
   const [existing] = await db
-    .select({ id: storeLocation.id })
-    .from(storeLocation)
+    .select({ id: businessLocation.id })
+    .from(businessLocation)
     .where(
       and(
-        eq(storeLocation.organizationId, ctx.organization.id),
-        eq(storeLocation.slug, locationSlug),
+        eq(businessLocation.organizationId, ctx.organization.id),
+        eq(businessLocation.slug, locationSlug),
       ),
     )
     .limit(1)
   if (!existing) throw new Error("Location not found")
 
   await db
-    .update(storeLocation)
+    .update(businessLocation)
     .set({
       name: input.locationName.trim(),
       defaultCurrency: loc.defaultCurrency,
@@ -162,7 +162,7 @@ export async function updateStoreAndLocationSettings(
       phone: loc.phone?.trim() || null,
       updatedAt: now,
     })
-    .where(eq(storeLocation.id, existing.id))
+    .where(eq(businessLocation.id, existing.id))
 
   return { ok: true as const }
 }

@@ -4,10 +4,10 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
+import { BusinessSwitcher } from "@/components/business-switcher"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
-import { StoreSwitcher } from "@/components/store-switcher"
-import type { SidebarStoreNavItem } from "@/lib/types/nav"
+import type { SidebarBusinessNavItem } from "@/lib/types/nav"
 import {
   Sidebar,
   SidebarContent,
@@ -31,15 +31,15 @@ export type AppSidebarUser = {
 }
 
 export function AppSidebar({
-  storeSlug,
+  businessSlug,
   navLocationSlug,
-  sidebarStores,
+  sidebarBusinesses,
   user: userProp,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
-  storeSlug: string
+  businessSlug: string
   navLocationSlug: string
-  sidebarStores: SidebarStoreNavItem[]
+  sidebarBusinesses: SidebarBusinessNavItem[]
   user?: AppSidebarUser
 }) {
   const pathname = usePathname()
@@ -49,7 +49,7 @@ export function AppSidebar({
     avatar: "",
   }
 
-  const base = `/${storeSlug}`
+  const base = `/${businessSlug}`
   const locBase = `${base}/l/${navLocationSlug}`
   const dashboardHref = `${locBase}/dashboard`
   const dashboardActive =
@@ -76,7 +76,7 @@ export function AppSidebar({
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <StoreSwitcher stores={sidebarStores} />
+        <BusinessSwitcher businesses={sidebarBusinesses} />
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>

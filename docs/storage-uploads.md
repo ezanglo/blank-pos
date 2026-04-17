@@ -1,6 +1,6 @@
 # Image uploads and object storage
 
-Blank POS stores **image URLs as text** in Postgres (for example `store_branding.logo_image_url`). **Binary files are never stored in the database.**
+Blank POS stores **image URLs as text** in Postgres (for example `business_details.logo_image_url`). **Binary files are never stored in the database.**
 
 ## API
 

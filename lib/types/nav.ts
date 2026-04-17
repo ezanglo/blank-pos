@@ -1,5 +1,5 @@
-/** Sidebar store switcher item (client + server safe). */
-export type SidebarStoreNavItem = {
+/** Sidebar business switcher item (client + server safe). */
+export type SidebarBusinessNavItem = {
   organizationId: string
   slug: string
   label: string

@@ -24,7 +24,7 @@ type MemberRow = {
   userId: string
   role: string | null
   name: string
-  username: string | null
+  email: string
 }
 
 function RootFormError({ message }: { message?: string }) {
@@ -37,13 +37,13 @@ function RootFormError({ message }: { message?: string }) {
 }
 
 export function StaffPanel({
-  storeSlug,
+  businessSlug,
   organizationId,
   currentUserId,
   currentRole,
   members,
 }: {
-  storeSlug: string
+  businessSlug: string
   organizationId: string
   currentUserId: string
   currentRole: string
@@ -56,7 +56,7 @@ export function StaffPanel({
   const form = useForm<StaffCreateFormValues>({
     resolver: standardSchemaResolver(staffCreateSchema),
     defaultValues: {
-      username: "",
+      email: "",
       password: "",
       name: "",
       role: "cashier",
@@ -75,12 +75,12 @@ export function StaffPanel({
     try {
       await staffCreateUser({
         organizationId,
-        username: values.username,
+        email: values.email,
         password: values.password,
         name: values.name,
         role: effectiveRole,
       })
-      form.reset({ username: "", password: "", name: "", role: "cashier" })
+      form.reset({ email: "", password: "", name: "", role: "cashier" })
       router.refresh()
     } catch (err) {
       form.setError("root", {
@@ -93,7 +93,7 @@ export function StaffPanel({
     setListError(null)
     setRemovingId(memberId)
     try {
-      await staffRemoveMember(storeSlug, memberId)
+      await staffRemoveMember(businessSlug, memberId)
       router.refresh()
     } catch (err) {
       setListError(err instanceof Error ? err.message : "Could not remove")
@@ -114,7 +114,7 @@ export function StaffPanel({
         <Card>
           <CardHeader>
             <CardTitle>Add staff</CardTitle>
-            <CardDescription>Create sign-ins with username and password. No email invites.</CardDescription>
+            <CardDescription>Create sign-ins with a real email and temporary password.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <RootFormError message={form.formState.errors.root?.message} />
@@ -122,8 +122,9 @@ export function StaffPanel({
               <div className="grid gap-4 sm:grid-cols-2">
                 <TextFormField
                   control={form.control}
-                  name="username"
-                  label="Username"
+                  name="email"
+                  label="Email"
+                  type="email"
                   autoComplete="off"
                 />
                 <TextFormField
@@ -159,7 +160,7 @@ export function StaffPanel({
           </CardContent>
           <CardFooter>
             <Button type="submit" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? "Working…" : "Create user & add to store"}
+              {form.formState.isSubmitting ? "Working…" : "Create user & add to business"}
             </Button>
           </CardFooter>
         </Card>
@@ -168,7 +169,7 @@ export function StaffPanel({
       <Card>
         <CardHeader>
           <CardTitle>Team</CardTitle>
-          <CardDescription>Members who can sign in to this store.</CardDescription>
+          <CardDescription>Members who can sign in to this business.</CardDescription>
         </CardHeader>
         <CardContent>
           <ul className="divide-y rounded-xl border">
@@ -179,9 +180,7 @@ export function StaffPanel({
               >
                 <div>
                   <span className="font-medium">{m.name}</span>
-                  {m.username ? (
-                    <span className="text-muted-foreground ml-2">@{m.username}</span>
-                  ) : null}
+                  <span className="text-muted-foreground ml-2">{m.email}</span>
                   <span className="text-muted-foreground ml-2 capitalize">
                     ({m.role ?? "member"})
                   </span>

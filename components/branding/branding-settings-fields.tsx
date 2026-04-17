@@ -38,6 +38,22 @@ export function BrandingSettingsFields({
         label="Tax / VAT ID"
         description="Optional. When you need a tax or VAT number on printed tickets or forms."
       />
+      <p className="mt-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        Operations
+      </p>
+      <TextFormField
+        control={control}
+        name="businessCategory"
+        label="Business category"
+        placeholder="e.g. retail, food & beverage"
+      />
+      <TextFormField control={control} name="teamScaleBand" label="Team scale" placeholder="e.g. solo, multi-location" />
+      <TextFormField
+        control={control}
+        name="expectedGoLive"
+        label="Expected go-live"
+        placeholder="Date or short note"
+      />
       <BrandingLogoUpload control={control} setValue={setValue} />
       <TextFormField
         control={control}

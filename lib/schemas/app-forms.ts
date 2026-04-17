@@ -4,17 +4,23 @@ import { resolveBrandColorToCss } from "@/lib/brand-color"
 import { SETUP_WEB_SLUG_REGEX } from "@/lib/setup-slug-normalize"
 
 export const loginSchema = z.object({
-  username: z.string().min(1, "Username is required"),
+  email: z.string().min(1, "Email is required").email("Enter a valid email"),
   password: z.string().min(1, "Password is required"),
 })
 export type LoginFormValues = z.infer<typeof loginSchema>
 
-export const setupOwnerSchema = z.object({
-  username: z.string().min(2, "Username is too short"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  ownerName: z.string().min(1, "Display name is required"),
-})
-export type SetupOwnerFormValues = z.infer<typeof setupOwnerSchema>
+export const signUpSchema = z
+  .object({
+    name: z.string().min(1, "Name is required"),
+    email: z.string().min(1, "Email is required").email("Enter a valid email"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string().min(1, "Confirm your password"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  })
+export type SignUpFormValues = z.infer<typeof signUpSchema>
 
 /** Store display name + editable web slug (defaults from name in the UI). */
 export const setupStoreSiteSchema = z.object({
@@ -31,9 +37,18 @@ export const setupStoreSiteSchema = z.object({
 })
 export type SetupStoreSiteFormValues = z.infer<typeof setupStoreSiteSchema>
 
+/** Store + org web slug + first-pass branding (onboarding store step). `business_details.display_name` uses `storeName`. */
+export const setupStoreWithBrandingSchema = setupStoreSiteSchema.extend({
+  logoImageUrl: optionalLogoImageUrlField(),
+  businessCategory: z.string().optional(),
+  teamScaleBand: z.string().optional(),
+  expectedGoLive: z.string().optional(),
+})
+export type SetupStoreWithBrandingFormValues = z.infer<typeof setupStoreWithBrandingSchema>
+
 /** Branch defaults saved on the `location` table (many per store). */
 export const setupLocationSchema = z.object({
-  defaultCurrency: z.enum(["USD", "EUR", "GBP", "PHP"]),
+  defaultCurrency: z.enum(["PHP", "USD", "EUR", "GBP"]),
   addressLine1: z.string().optional(),
   addressLine2: z.string().optional(),
   city: z.string().optional(),
@@ -61,7 +76,7 @@ export type SetupFirstLocationFormValues = z.infer<typeof setupFirstLocationSche
 export const storeSettingsSchema = z.object({
   storeName: z.string().min(1, "Store name is required"),
   locationName: z.string().min(1, "Location name is required"),
-  defaultCurrency: z.enum(["USD", "EUR", "GBP", "PHP"]),
+  defaultCurrency: z.enum(["PHP", "USD", "EUR", "GBP"]),
   addressLine1: z.string().optional(),
   addressLine2: z.string().optional(),
   city: z.string().optional(),
@@ -133,6 +148,9 @@ function optionalEmailField() {
 export const setupBrandingSchema = z.object({
   displayName: z.string().min(1, "Display name is required"),
   logoImageUrl: optionalLogoImageUrlField(),
+  businessCategory: z.string().optional(),
+  teamScaleBand: z.string().optional(),
+  expectedGoLive: z.string().optional(),
 })
 export type SetupBrandingFormValues = z.infer<typeof setupBrandingSchema>
 
@@ -154,11 +172,14 @@ export const brandingSettingsSchema = z.object({
   accentColor: optionalBrandColorField(),
   /** Optional logo URL (https) or uploaded path `/uploads/...`. */
   logoImageUrl: optionalLogoImageUrlField(),
+  businessCategory: z.string().optional(),
+  teamScaleBand: z.string().optional(),
+  expectedGoLive: z.string().optional(),
 })
 export type BrandingSettingsFormValues = z.infer<typeof brandingSettingsSchema>
 
 export const staffCreateSchema = z.object({
-  username: z.string().min(2, "Username is too short"),
+  email: z.string().min(1, "Email is required").email("Enter a valid email"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   name: z.string().min(1, "Display name is required"),
   role: z.enum(["manager", "cashier"]),

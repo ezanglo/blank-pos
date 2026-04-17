@@ -6,32 +6,32 @@ import { loadOrgShellData } from "@/lib/org-shell"
 import { requireSession } from "@/lib/server-auth"
 
 export async function OrgAppShellLoader({
-  storeSlug,
+  businessSlug,
   locationSlug,
   showLocationSwitcher,
   children,
 }: {
-  storeSlug: string
+  businessSlug: string
   locationSlug: string | null
   showLocationSwitcher: boolean
   children: React.ReactNode
 }) {
   const session = await requireSession()
-  const data = await loadOrgShellData(storeSlug, session.user.id, locationSlug)
+  const data = await loadOrgShellData(businessSlug, session.user.id, locationSlug)
   if (!data) notFound()
 
   const navLocationSlug = locationSlug ?? data.defaultLocationSlug
   const branches = data.locations.map((l) => ({ slug: l.slug, name: l.name }))
-  const brandPrimaryCss = resolveBrandColorToCss(data.branding?.primaryColor ?? null)
-  const brandAccentCss = resolveBrandColorToCss(data.branding?.accentColor ?? null)
-  const shellDisplayName = data.branding?.displayName?.trim() || data.organizationName
+  const brandPrimaryCss = resolveBrandColorToCss(data.businessDetails?.primaryColor ?? null)
+  const brandAccentCss = resolveBrandColorToCss(data.businessDetails?.accentColor ?? null)
+  const shellDisplayName = data.businessDetails?.displayName?.trim() || data.organizationName
 
   return (
     <div className="h-dvh overflow-hidden bg-background text-foreground">
       <OrgAppShell
-        storeSlug={data.storeSlug}
+        businessSlug={data.businessSlug}
         navLocationSlug={navLocationSlug}
-        sidebarStores={data.sidebarStores}
+        sidebarBusinesses={data.sidebarBusinesses}
         headerBranches={branches}
         brandPrimaryCss={brandPrimaryCss}
         brandAccentCss={brandAccentCss}

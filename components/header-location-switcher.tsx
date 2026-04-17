@@ -17,13 +17,13 @@ import { MapPinIcon } from "lucide-react"
 
 export type HeaderBranch = { slug: string; name: string }
 
-/** Branch switcher for the header (current store only). */
+/** Branch switcher for the header (current business only). */
 export function HeaderLocationSwitcher({
-  storeSlug,
+  businessSlug,
   branches,
   activeLocationSlug,
 }: {
-  storeSlug: string
+  businessSlug: string
   branches: HeaderBranch[]
   activeLocationSlug: string | null
 }) {
@@ -31,14 +31,14 @@ export function HeaderLocationSwitcher({
   const router = useRouter()
 
   const restAfterLocation = React.useMemo(() => {
-    const prefix = `/${storeSlug}/l/`
+    const prefix = `/${businessSlug}/l/`
     const idx = pathname.indexOf(prefix)
     if (idx === -1) return "/dashboard"
     const after = pathname.slice(idx + prefix.length)
     const slash = after.indexOf("/")
     const tail = slash === -1 ? "" : after.slice(slash)
     return tail || "/dashboard"
-  }, [pathname, storeSlug])
+  }, [pathname, businessSlug])
 
   const active = branches.find((b) => b.slug === activeLocationSlug) ?? branches[0]
   if (!active) return null
@@ -61,7 +61,7 @@ export function HeaderLocationSwitcher({
             <DropdownMenuItem
               key={b.slug}
               onClick={() => {
-                router.push(`/${storeSlug}/l/${b.slug}${restAfterLocation}`)
+                router.push(`/${businessSlug}/l/${b.slug}${restAfterLocation}`)
                 router.refresh()
               }}
             >

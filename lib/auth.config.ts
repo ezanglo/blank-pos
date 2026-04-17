@@ -1,10 +1,13 @@
 /**
  * Used by `@better-auth/cli generate` only.
  * Run: `DATABASE_URL=... BETTER_AUTH_SECRET=... pnpm auth:schema`
+ *
+ * Keep plugin and `emailAndPassword` settings aligned with [lib/auth.ts](./auth.ts)
+ * so generated `lib/db/auth-schema.ts` matches runtime auth.
  */
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
-import { admin, createAccessControl, organization, username } from "better-auth/plugins"
+import { admin, createAccessControl, organization } from "better-auth/plugins"
 import { drizzle } from "drizzle-orm/postgres-js"
 import postgres from "postgres"
 
@@ -32,9 +35,13 @@ export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
   emailAndPassword: {
     enabled: true,
-    disableSignUp: true,
+    disableSignUp: false,
   },
   plugins: [
+    admin({
+      defaultRole: "user",
+      adminRoles: ["admin"],
+    }),
     organization({
       roles: {
         owner: orgAc.newRole({
@@ -60,7 +67,5 @@ export const auth = betterAuth({
         }),
       },
     }),
-    username(),
-    admin(),
   ],
 })

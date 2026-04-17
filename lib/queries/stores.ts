@@ -2,9 +2,9 @@ import { and, asc, eq, inArray } from "drizzle-orm"
 
 import { getDb } from "@/lib/db"
 import { member, organization } from "@/lib/db/schema"
-import { storeBranding } from "@/lib/db/schema-app"
+import { businessDetails } from "@/lib/db/schema-app"
 
-export type StoreSummaryForUser = {
+export type BusinessSummaryForUser = {
   organizationId: string
   name: string
   slug: string
@@ -13,7 +13,7 @@ export type StoreSummaryForUser = {
   logoImageUrl: string | null
 }
 
-export async function listStoresForUser(userId: string): Promise<StoreSummaryForUser[]> {
+export async function listBusinessesForUser(userId: string): Promise<BusinessSummaryForUser[]> {
   const db = getDb()
   const rows = await db
     .select({
@@ -21,20 +21,20 @@ export async function listStoresForUser(userId: string): Promise<StoreSummaryFor
       name: organization.name,
       slug: organization.slug,
       role: member.role,
-      brandingDisplayName: storeBranding.displayName,
-      logoImageUrl: storeBranding.logoImageUrl,
+      brandingDisplayName: businessDetails.displayName,
+      logoImageUrl: businessDetails.logoImageUrl,
     })
     .from(member)
     .innerJoin(organization, eq(member.organizationId, organization.id))
-    .leftJoin(storeBranding, eq(storeBranding.organizationId, organization.id))
+    .leftJoin(businessDetails, eq(businessDetails.organizationId, organization.id))
     .where(eq(member.userId, userId))
     .orderBy(asc(member.createdAt))
 
   return rows
 }
 
-/** Owner or manager of the given store may edit that store's branding. */
-export async function userCanEditStoreBrandingForOrganization(
+/** Owner or manager of the given organization may edit that business's details. */
+export async function userCanEditBusinessDetailsForOrganization(
   userId: string,
   organizationId: string,
 ): Promise<boolean> {

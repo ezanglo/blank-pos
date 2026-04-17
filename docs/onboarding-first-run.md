@@ -1,104 +1,64 @@
-# First-run onboarding (clone → browser setup)
+# First-run and post-signup onboarding
 
-This describes the **guided setup** so someone can **clone the repo**, configure environment variables, run migrations, start the app, and **finish initial configuration entirely in the UI**—no manual SQL or seed scripts required for the happy path.
+This describes how someone can **clone the repo**, configure **`.env`**, run **migrations**, start the app, and complete **signup + onboarding** in the browser—no manual SQL for the happy path.
 
 It belongs to **Phase 1**; see [phases/phase-01-foundation-branding.md](phases/phase-01-foundation-branding.md) for scope and deferred items.
 
-**Auth model (v1):** There is **no public user registration**. Only the **bootstrap wizard** creates the first user. Every **other** account is created by an **owner/manager** from **Settings → Staff** with a **username + password** you choose (see [schema-better-auth-alignment.md](schema-better-auth-alignment.md) — Admin + Username plugins, **`createUser`** + **`addMember`**). **No email invite flow.**
+**Auth model (v1):** **Email + password** for **`/signup`** and **`/login`**. The **first user** (and any later user) self-registers at **`/signup`**. **Staff** are created by **owner/manager** from **Settings → Staff** with a **real email** + temporary password ([`lib/actions/staff.ts`](../lib/actions/staff.ts) — Admin **`createUser`** + **`addMember`**). **No email invite flow** yet.
 
 ---
 
 ## Goals
 
-- Create the **first user** (bootstrap **owner**).
-- Create the **first store** (**`organization`**) via **`authClient.organization.create`** (store slug is **suggested** from the store name, editable, with debounced availability checks). Server **`seedInitialStoreBrandingAfterOrgCreate`** inserts **`store_branding`** with **display name = organization name**. Then the **first branch** (**`location`**) in a separate step via **`createFirstLocationAfterOrgCreate`** (location slug suggested from name, editable, debounced check within the store; currency, address).
-- Save **per-store branding** on **`store_branding`** (`organization_id` PK) via **`setupPhaseSaveStoreBranding(storeSlug, …)`** after the store exists.
-- After completion, land on **`/{storeSlug}/l/{locationSlug}/dashboard`** with organization session context set.
+- **Empty `user` table:** landing **`/`** sends visitors to **`/signup`** so the install can bootstrap without SQL.
+- **After signup / login:** resolve **dashboard**, **`/choose-location`** (multiple accessible branches), or **`/onboarding`** (no membership yet, or org exists with **zero** `location` rows) via [`lib/dashboard-path.ts`](../lib/dashboard-path.ts) and [`lib/actions/nav.ts`](../lib/actions/nav.ts).
+- **Onboarding** (signed-in): create **`organization`** (business slug), optional branding on the same step (**`setupPhaseSaveBusinessDetails`** after seed), first **`location`** via **`createFirstLocationAfterOrgCreate`**, then open **`/{businessSlug}/l/{locationSlug}/dashboard`**. (Person-level **`user_profile`** is deferred in the UI; the table remains for later settings.)
 
 ---
 
-## What still happens outside the browser (unavoidable, keep minimal)
+## Outside the browser (minimal checklist)
 
-Document these clearly in the root **README** (copy-paste checklist):
+Documented in the root **README**:
 
-1. **Create or point to a PostgreSQL database** — local install, Docker, Neon, RDS, or any host that gives you a standard `DATABASE_URL` compatible with Drizzle.
-2. **Copy `.env.example` → `.env`** and fill: `DATABASE_URL`, `BETTER_AUTH_SECRET` (32+ chars), `BETTER_AUTH_URL` / `NEXT_PUBLIC_APP_URL`, and **`STORAGE_*`** / **`STORAGE_MODE`** for image uploads (see [storage-uploads.md](storage-uploads.md)).
-3. **Run migrations** once (`pnpm db:migrate`) so tables exist **before** the first user exists.
-
-Everything **after** step 3 should be doable from the **frontend wizard**.
+1. **PostgreSQL** and **`DATABASE_URL`**.
+2. **`.env`** from [`.env.example`](../.env.example): `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` / `NEXT_PUBLIC_APP_URL`, **`STORAGE_*`** ([storage-uploads.md](storage-uploads.md)).
+3. **`pnpm db:migrate`** before first use. If upgrading from an older schema, **reset the database** and re-run migrations (see README).
 
 ---
 
-## Entry and routing
+## Routes (implemented)
 
-- **Detection:** If there are **zero users** in the auth `user` table (server-checked), **`/`** redirects to **`/setup`** ([app/page.tsx](../app/page.tsx)).
-- **If users exist:** **`/setup`** is for **signed-in** users only. Anonymous visitors are sent to **`/login`**. If the session already has a resolvable branch dashboard, **`/setup`** redirects there; if the user is still mid-wizard (no org yet, or a store without any **`location`**), the layout allows **`/setup`** to render ([app/setup/layout.tsx](../app/setup/layout.tsx), [lib/dashboard-path.ts](../lib/dashboard-path.ts) **`userShouldContinueSetupWizard`**).
-- **After setup complete:** returning users use **`/login`** only. **Do not** ship a public **`/register`** route in v1. Authenticated app routes live under **`(protected)`** ([app/(protected)/](../app/(protected)/)).
+| Route | Purpose |
+|-------|---------|
+| **`/`** | If no users → **`/signup`**; if signed in → **`/choose-location`** when needed, else dashboard, else **`/onboarding`**, else **`/login`** ([`app/page.tsx`](../app/page.tsx)). |
+| **`/signup`** | Public registration ([`app/(auth)/signup/`](../app/(auth)/signup/)). |
+| **`/login`** | Email sign-in ([`app/(auth)/login/`](../app/(auth)/login/)). |
+| **`/onboarding`** | Signed-in wizard when user cannot open a branch yet ([`app/(protected)/onboarding/`](../app/(protected)/onboarding/)). |
+| **`/choose-location`** | When user has **>1** accessible branch; pick org + branch, **`organization.setActive`**, then dashboard ([`app/(protected)/choose-location/`](../app/(protected)/choose-location/)). |
 
-Avoid leaking precise user counts to anonymous clients if you care about user enumeration; the repo uses **server-only** `count(users) === 0` for routing.
-
----
-
-## Wizard steps (actual order in repo)
-
-Single linear wizard in [components/setup/setup-wizard.tsx](../components/setup/setup-wizard.tsx). Persist sensitive steps in **session** (user is created and signed in before the store exists).
-
-1. **Welcome** — Short copy; continue to owner step.
-2. **Bootstrap owner** — **`username`**, **`password`**, **display name**. Server **`bootstrapCreateOwner`** (gated `count(user) === 0`) then **`authClient.signIn.username`** so the session exists.
-3. **Store** — **Store name** and editable **store web slug** (suggested from name; debounced **`checkSetupStoreSlugAvailable`** in [lib/actions/setup-slugs.ts](../lib/actions/setup-slugs.ts)). Client **`authClient.organization.create`**, then **`seedInitialStoreBrandingAfterOrgCreate`** ([lib/actions/branding.ts](../lib/actions/branding.ts)); suggestion helper in [lib/slugify-web-segment.ts](../lib/slugify-web-segment.ts).
-4. **First location** — **Location name**, editable **location slug** (suggested; **`checkSetupLocationSlugAvailable`**), **default currency**, address fields, phone. Server **`createFirstLocationAfterOrgCreate(storeSlug, …)`** ([lib/actions/organization.ts](../lib/actions/organization.ts)).
-5. **Branding (this store)** — Display name and optional **logo** (refines the row from step 3). **`setupPhaseSaveStoreBranding(storeSlug, …)`** ([lib/actions/branding.ts](../lib/actions/branding.ts)). Redirect to **`/{storeSlug}/l/{locationSlug}/dashboard`**.
-
-Optional **step 0** “Verify connectivity” only if it reduces support burden; keep lightweight.
+Shared step UI lives under [`components/setup/setup-steps.tsx`](../components/setup/setup-steps.tsx) (reused by [`components/onboarding/onboarding-wizard.tsx`](../components/onboarding/onboarding-wizard.tsx)); there is **no** `/setup` app route.
 
 ---
 
-## Staff after bootstrap (same Phase 1 surface)
+## Onboarding steps (order in repo)
 
-**`/{storeSlug}/settings/staff`**:
-
-- Form: **`username`**, **`password`**, **`name`**, **`role`** (`manager` \| `cashier`; only **owner** creates **managers**).
-- **Server-only:** `createUser` (Admin plugin) then **`addMember`** ([lib/actions/staff.ts](../lib/actions/staff.ts)).
-- List members, change role, remove member (per better-auth org APIs), **never** expose a public registration URL.
+1. **Business + branding** — name, web slug, optional logo / category / team scale / go-live; **`authClient.organization.create`**, **`seedInitialBusinessDetailsAfterOrgCreate`**, **`setupPhaseSaveBusinessDetails`** ([`lib/actions/branding.ts`](../lib/actions/branding.ts)); slug checks in [`lib/actions/setup-slugs.ts`](../lib/actions/setup-slugs.ts).
+2. **First location** — name, slug, currency, address → **`createFirstLocationAfterOrgCreate(businessSlug, …)`** ([`lib/actions/organization.ts`](../lib/actions/organization.ts)), then redirect to **`/{businessSlug}/l/{locationSlug}/dashboard`**.
 
 ---
 
-## Server rules (security and integrity)
+## Staff (after the first business exists)
 
-- **Bootstrap gate:** Create-first-user paths must **refuse** when `count(user) > 0`.
-- **Staff create:** Only **`member.role`** in `owner` (and `manager` where allowed) may call the create-user server action; always validate on server.
-- **Organization create:** Only authenticated users; wizard store step runs after session exists.
-- **Rate limiting** on bootstrap and staff-create (middleware or server) remains recommended for production.
+**`/{businessSlug}/settings/staff`**:
 
-**Future:** **`organizationHooks.afterCreateOrganization`** could seed rows (e.g. default branding); today **`location`** is written in the wizard on the **First location** step via **`createFirstLocationAfterOrgCreate`**, and **`store_branding`** in the branding step.
-
----
-
-## README contract (for contributors)
-
-Root **README** “First run” should list:
-
-- Prerequisite: Node / pnpm, PostgreSQL (any standard `DATABASE_URL`).
-- Env var names (see [`.env.example`](../.env.example)).
-- Commands: `pnpm install`, `pnpm db:migrate`, `pnpm dev`.
-- URLs: **`/`** → **`/setup`** on empty DB; **`/login`** for return visits.
-- **Auth:** “No public sign-up; add staff under **Settings → Staff** after login.”
-
----
-
-## Acceptance criteria
-
-- [x] Fresh DB + env → migrations → `pnpm dev` → complete wizard → **`/{storeSlug}/l/{locationSlug}/dashboard`** without SQL.
-- [x] With users present: anonymous **`/setup`** blocked (→ **`/login`**); signed-in incomplete onboarding can finish **`/setup`**; **`/register`** absent; **`/login`** + username/password works.
-- [x] Owner can add a second user from **Settings → Staff**; new user can log in and sees stores per **`member`** rows.
-- [x] README first-run order matches wizard: **owner → store → first location → branding**.
+- Form: **email**, **password**, **name**, **role** (`manager` | `cashier`; only **owner** creates **managers**).
+- Server: **`staffCreateUser`** → **`createUser`** + **`addMember`** ([`lib/actions/staff.ts`](../lib/actions/staff.ts)).
 
 ---
 
 ## Related docs
 
-- [schema-better-auth-alignment.md](schema-better-auth-alignment.md) — store vs branch, `member.role`, **`location`**, **`store_branding`**.
-- [blank-pos-dev-plan.md](blank-pos-dev-plan.md) §9 — route groups under `app/` as implemented.
-- [storage-uploads.md](storage-uploads.md) — image uploads and `STORAGE_*` env.
+- [schema-better-auth-alignment.md](schema-better-auth-alignment.md) — tenancy, tables, checklist.
+- [blank-pos-dev-plan.md](blank-pos-dev-plan.md) — product §9 route tree (high level).
+- [storage-uploads.md](storage-uploads.md) — uploads env.
 - [security/authorization.md](security/authorization.md) — app-layer access control.
-- [phases/phase-01-foundation-branding.md](phases/phase-01-foundation-branding.md) — implemented vs deferred.
