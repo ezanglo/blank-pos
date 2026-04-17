@@ -85,7 +85,7 @@ CREATE TABLE "verification" (
 );
 --> statement-breakpoint
 CREATE TABLE "store_branding" (
-	"id" text PRIMARY KEY DEFAULT 'default' NOT NULL,
+	"organization_id" text PRIMARY KEY NOT NULL,
 	"display_name" text,
 	"tagline" text,
 	"receipt_header_text" text,
@@ -108,8 +108,12 @@ CREATE TABLE "store_branding" (
 );
 --> statement-breakpoint
 CREATE TABLE "location" (
-	"organization_id" text PRIMARY KEY NOT NULL,
-	"default_currency" text DEFAULT 'USD' NOT NULL,
+	"id" text PRIMARY KEY NOT NULL,
+	"organization_id" text NOT NULL,
+	"slug" text NOT NULL,
+	"name" text NOT NULL,
+	"is_default" boolean DEFAULT false NOT NULL,
+	"default_currency" text DEFAULT 'PHP' NOT NULL,
 	"address_line_1" text,
 	"address_line_2" text,
 	"city" text,
@@ -126,6 +130,7 @@ ALTER TABLE "invitation" ADD CONSTRAINT "invitation_inviter_id_user_id_fk" FOREI
 ALTER TABLE "member" ADD CONSTRAINT "member_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "member" ADD CONSTRAINT "member_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "store_branding" ADD CONSTRAINT "store_branding_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "location" ADD CONSTRAINT "location_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "account_userId_idx" ON "account" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "invitation_organizationId_idx" ON "invitation" USING btree ("organization_id");--> statement-breakpoint
@@ -133,4 +138,6 @@ CREATE INDEX "invitation_email_idx" ON "invitation" USING btree ("email");--> st
 CREATE INDEX "member_organizationId_idx" ON "member" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "member_userId_idx" ON "member" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "session_userId_idx" ON "session" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");
+CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");--> statement-breakpoint
+CREATE INDEX "location_organizationId_idx" ON "location" USING btree ("organization_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "location_organization_slug_unique" ON "location" USING btree ("organization_id","slug");

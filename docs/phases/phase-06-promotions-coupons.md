@@ -1,18 +1,18 @@
 # Phase 6 — Promotions and coupons (v1.2)
 
-**Goal:** Owners/managers configure **promotions** (automatic or coupon-triggered; **v1: org-wide only**, no `promotion_locations`) with **stacking rules**; cashiers **apply coupon codes** (typed or scanned); POS **evaluates automatic promos** on cart changes; checkout persists **discounts** on transactions and **audit rows** in `transaction_promotions`. Receipts show **discount breakdown**.
+**Goal:** Owners/managers configure **promotions** (automatic or coupon-triggered; **v1.2: store-wide default**, optional **`promotion_locations`** when promos should vary by branch) with **stacking rules**; cashiers **apply coupon codes** (typed or scanned); POS **evaluates automatic promos** on cart changes; checkout persists **discounts** on transactions and **audit rows** in `transaction_promotions`. Receipts show **discount breakdown**.
 
 **Prerequisites:** Phase 3 checkout and Phase 5 reporting baseline; clear transaction totals fields in use.
 
-**References:** [blank-pos-dev-plan.md](../blank-pos-dev-plan.md) §4 (promotions, coupon_codes, transaction_promotions), promotion logic notes; `promotion_locations` deferred until multi-site.
+**References:** [blank-pos-dev-plan.md](../blank-pos-dev-plan.md) §4 (promotions, coupon_codes, transaction_promotions), promotion logic notes; **`promotion_locations`** optional once catalog/promos need per-**`location`** rules.
 
 ---
 
 ## Outcomes (exit criteria)
 
-- [ ] Schema: `promotions`, `coupon_codes`, `transaction_promotions`; **`promotion_locations` deferred** until multi-site ([schema-better-auth-alignment.md](../schema-better-auth-alignment.md)). Add `promotion_rules` JSON for `buy_x_get_y` if needed (or defer with feature flag—**document** which `type` values ship in v1.2).
+- [ ] Schema: `promotions`, `coupon_codes`, `transaction_promotions`; optional **`promotion_locations`** when promos are branch-specific ([schema-better-auth-alignment.md](../schema-better-auth-alignment.md)). Add `promotion_rules` JSON for `buy_x_get_y` if needed (or defer with feature flag—**document** which `type` values ship in v1.2).
 - [ ] **Admin UI:** create/edit promotion; set `trigger` (`automatic` | `coupon`), `applies_to` (`cart` | `product` | `category`), `type` (`percentage` | `fixed_amount` | optional `buy_x_get_y`), schedule (`starts_at`, `ends_at`), `is_active`, usage limits.
-- [ ] **Scope:** v1 promotions always apply to the **whole organization** (one store).
+- [ ] **Scope:** default promotions apply to the **whole store** (`organization_id`); narrow to branches via **`promotion_locations`** when implemented.
 - [ ] **Coupon codes:** CRUD, limits, expiry, `is_active`, case-insensitive match policy documented.
 - [ ] **POS evaluation engine:** pure function `evaluatePromotions(cart, context)` returning applied promos + amounts; unit-tested.
 - [ ] **Stacking rules:** e.g. “max one automatic cart promo” + “coupon stack allowed or not”—implement explicit config on promotion or org-level setting; **document default** (recommend: **no stacking** except explicit allowlist).
@@ -38,7 +38,7 @@
 
 ## Workstream B — Evaluation rules (engineering spec)
 
-- [ ] **Eligibility:** schedule, active flag, cart contents match `applies_to` and `target_id` (no location dimension in v1).
+- [ ] **Eligibility:** schedule, active flag, cart contents match `applies_to` and `target_id`; optional **`location_id`** filter when `promotion_locations` exists.
 - [ ] **Automatic:** select best single promo or multi per stacking rules; deterministic tie-break (highest value or explicit priority field—**add `priority int` to promotions** if needed).
 - [ ] **Coupon:** user enters code → validate → attach to cart until cleared or checkout.
 - [ ] **Conflicts:** if product matches multiple promos, document resolution order (`priority` desc).

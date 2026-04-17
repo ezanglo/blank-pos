@@ -1,11 +1,10 @@
 "use server"
 
-import { eq } from "drizzle-orm"
-
 import { getDb } from "@/lib/db"
-import { member } from "@/lib/db/schema"
 import { storeBranding } from "@/lib/db/schema-app"
-import { STORE_BRANDING_ID, userCanEditStoreBranding } from "@/lib/queries/store-branding"
+import { getStoreBrandingByOrganizationId } from "@/lib/queries/store-branding"
+import { userCanEditStoreBrandingForOrganization } from "@/lib/queries/stores"
+import { getOrgForUser } from "@/lib/queries/organization"
 import { getServerSession } from "@/lib/server-auth"
 
 function assertOptionalHttpUrl(label: string, value: string | null | undefined) {
@@ -51,7 +50,6 @@ export type StoreBrandingWriteInput = {
   operatingHoursText?: string | null
   primaryColor?: string | null
   accentColor?: string | null
-  loginBackgroundImageUrl?: string | null
   logoImageUrl?: string | null
 }
 
@@ -60,7 +58,6 @@ function assertBrandingUrls(input: StoreBrandingWriteInput) {
   assertOptionalHttpUrl("Menu URL", input.menuUrl)
   assertOptionalHttpUrl("Instagram URL", input.instagramUrl)
   assertOptionalHttpUrl("Facebook URL", input.facebookUrl)
-  assertOptionalHttpUrl("Login background image URL", input.loginBackgroundImageUrl)
   assertOptionalLogoOrImageUrl(input.logoImageUrl)
 }
 
@@ -82,57 +79,87 @@ function brandingRowValues(input: StoreBrandingWriteInput) {
     operatingHoursText: trimToNull(input.operatingHoursText),
     primaryColor: trimToNull(input.primaryColor),
     accentColor: trimToNull(input.accentColor),
-    loginBackgroundImageUrl: trimToNull(input.loginBackgroundImageUrl),
     logoImageUrl: trimToNull(input.logoImageUrl),
     updatedAt: now,
   }
 }
 
-async function upsertStoreBranding(input: StoreBrandingWriteInput) {
+async function upsertStoreBrandingForOrganization(
+  organizationId: string,
+  input: StoreBrandingWriteInput,
+) {
   assertBrandingUrls(input)
   const row = brandingRowValues(input)
   const db = getDb()
   await db
     .insert(storeBranding)
-    .values({ id: STORE_BRANDING_ID, ...row })
+    .values({ organizationId, ...row })
     .onConflictDoUpdate({
-      target: storeBranding.id,
+      target: storeBranding.organizationId,
       set: row,
     })
 }
 
 /**
- * Saves shared `store_branding` before the user belongs to any organization (setup wizard only).
- * Once they join an org, use `updateStoreBranding` instead.
+ * Setup wizard: save branding for a store the user just created (must be a member).
+ * Call after `organization.create` + first location exist.
  */
-export async function setupPhaseSaveStoreBranding(input: StoreBrandingWriteInput) {
+export async function setupPhaseSaveStoreBranding(
+  storeSlug: string,
+  input: StoreBrandingWriteInput,
+) {
   const session = await getServerSession()
   if (!session?.user?.id) throw new Error("Unauthorized")
 
-  const db = getDb()
-  const [existingMembership] = await db
-    .select({ id: member.id })
-    .from(member)
-    .where(eq(member.userId, session.user.id))
-    .limit(1)
-  if (existingMembership) {
-    const allowed = await userCanEditStoreBranding(session.user.id)
-    if (!allowed) throw new Error("Forbidden")
-  }
+  const ctx = await getOrgForUser(storeSlug, session.user.id)
+  if (!ctx) throw new Error("Forbidden")
 
-  await upsertStoreBranding(input)
+  await upsertStoreBrandingForOrganization(ctx.organization.id, input)
   return { ok: true as const }
 }
 
-/** Updates the single `store_branding` row (shared store branding). */
-export async function updateStoreBranding(input: StoreBrandingWriteInput) {
+/** After `organization.create`, seed `store_branding` with display name = organization name. */
+export async function seedInitialStoreBrandingAfterOrgCreate(storeSlug: string) {
   const session = await getServerSession()
   if (!session?.user?.id) throw new Error("Unauthorized")
 
-  const allowed = await userCanEditStoreBranding(session.user.id)
+  const ctx = await getOrgForUser(storeSlug, session.user.id)
+  if (!ctx) throw new Error("Forbidden")
+
+  const displayName = ctx.organization.name?.trim() || null
+  await upsertStoreBrandingForOrganization(ctx.organization.id, { displayName })
+  return { ok: true as const }
+}
+
+/** Updates branding for a specific store (owner/manager of that store). */
+export async function updateStoreBranding(storeSlug: string, input: StoreBrandingWriteInput) {
+  const session = await getServerSession()
+  if (!session?.user?.id) throw new Error("Unauthorized")
+
+  const ctx = await getOrgForUser(storeSlug, session.user.id)
+  if (!ctx) throw new Error("Forbidden")
+
+  const allowed = await userCanEditStoreBrandingForOrganization(
+    session.user.id,
+    ctx.organization.id,
+  )
   if (!allowed) throw new Error("Forbidden")
 
-  await upsertStoreBranding(input)
+  await upsertStoreBrandingForOrganization(ctx.organization.id, input)
 
   return { ok: true as const }
+}
+
+/** Read branding for settings form (server). */
+export async function getStoreBrandingForSessionStore(storeSlug: string) {
+  const session = await getServerSession()
+  if (!session?.user?.id) return null
+  const ctx = await getOrgForUser(storeSlug, session.user.id)
+  if (!ctx) return null
+  const allowed = await userCanEditStoreBrandingForOrganization(
+    session.user.id,
+    ctx.organization.id,
+  )
+  if (!allowed) return null
+  return getStoreBrandingByOrganizationId(ctx.organization.id)
 }

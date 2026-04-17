@@ -93,11 +93,11 @@ export async function staffCreateUser(input: {
   return { ok: true as const }
 }
 
-export async function staffRemoveMember(orgSlug: string, memberId: string) {
+export async function staffRemoveMember(storeSlug: string, memberId: string) {
   const session = await getServerSession()
   if (!session?.user) throw new Error("Unauthorized")
 
-  const ctx = await getOrgForUser(orgSlug, session.user.id)
+  const ctx = await getOrgForUser(storeSlug, session.user.id)
   if (!ctx || (ctx.member.role !== "owner" && ctx.member.role !== "manager")) {
     throw new Error("You do not have permission to manage staff.")
   }
@@ -131,7 +131,7 @@ export async function staffRemoveMember(orgSlug: string, memberId: string) {
   } catch (e) {
     logAuthEvent("error", "staff.remove_member_failed", {
       organizationId: ctx.organization.id,
-      orgSlug,
+      storeSlug,
       memberId,
       message: e instanceof APIError ? e.message : e instanceof Error ? e.message : "unknown",
     })

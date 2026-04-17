@@ -91,7 +91,7 @@ export const verification = pgTable(
  * better-auth `organization` plugin — canonical columns only.
  * @see https://www.better-auth.com/docs/plugins/organization#schema
  *
- * App-owned address/currency live in `location` (1:1), not here. Keep `metadata` as a JSON string
+ * App-owned branches live in `location` (many per org), not here. Keep `metadata` as a JSON string
  * only for optional plugin `additionalFields` / small org-level extras.
  */
 export const organization = pgTable("organization", {

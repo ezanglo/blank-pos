@@ -1,7 +1,6 @@
 "use client"
 
-import Image from "next/image"
-import { useWatch, type Control, type UseFormSetValue } from "react-hook-form"
+import { type Control, type UseFormSetValue } from "react-hook-form"
 
 import { BrandingLogoUpload } from "@/components/branding/branding-logo-upload"
 import { BrandColorFormField, TextareaFormField, TextFormField } from "@/components/form"
@@ -15,9 +14,6 @@ export function BrandingSettingsFields({
   control: Control<BrandingSettingsFormValues>
   setValue: UseFormSetValue<BrandingSettingsFormValues>
 }) {
-  const loginBgPreview =
-    useWatch({ control, name: "loginBackgroundImageUrl" })?.trim() || null
-
   return (
     <FieldGroup>
       <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
@@ -127,7 +123,7 @@ export function BrandingSettingsFields({
       />
 
       <p className="mt-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        Colors and sign-in
+        Colors
       </p>
       <div className="grid gap-6 sm:grid-cols-2">
         <BrandColorFormField
@@ -143,27 +139,6 @@ export function BrandingSettingsFields({
           description="Click the color square for the palette, or type a token / hex."
         />
       </div>
-      <TextFormField
-        control={control}
-        name="loginBackgroundImageUrl"
-        label="Sign-in page image URL"
-        type="url"
-        placeholder="https://…"
-        description="Optional. Picture behind the sign-in page. Use a normal web link (https)."
-      />
-      {loginBgPreview ? (
-        <div className="flex items-center gap-3 rounded-xl border p-3">
-          <Image
-            src={loginBgPreview}
-            alt=""
-            width={48}
-            height={48}
-            unoptimized
-            className="size-12 shrink-0 rounded-md border bg-muted object-contain p-1"
-          />
-          <p className="text-xs text-muted-foreground">Sign-in background preview</p>
-        </div>
-      ) : null}
     </FieldGroup>
   )
 }

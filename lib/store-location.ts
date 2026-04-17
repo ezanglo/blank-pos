@@ -5,9 +5,17 @@ export function storeLocationToStoreSettingsFields(
   row: StoreLocation | null,
 ): Pick<
   StoreSettingsFormValues,
-  "defaultCurrency" | "addressLine1" | "addressLine2" | "city" | "region" | "postalCode" | "phone"
+  | "defaultCurrency"
+  | "addressLine1"
+  | "addressLine2"
+  | "city"
+  | "region"
+  | "postalCode"
+  | "phone"
+  | "locationName"
 > {
   return {
+    locationName: row?.name ?? "",
     defaultCurrency: (row?.defaultCurrency ?? "USD") as StoreSettingsFormValues["defaultCurrency"],
     addressLine1: row?.addressLine1 ?? "",
     addressLine2: row?.addressLine2 ?? "",

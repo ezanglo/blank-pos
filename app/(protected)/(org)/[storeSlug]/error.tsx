@@ -7,7 +7,7 @@ import { useParams } from "next/navigation"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-export default function OrgSlugError({
+export default function StoreSlugError({
   error,
   reset,
 }: {
@@ -15,10 +15,10 @@ export default function OrgSlugError({
   reset: () => void
 }) {
   const params = useParams()
-  const orgSlug = typeof params?.orgSlug === "string" ? params.orgSlug : ""
+  const storeSlug = typeof params?.storeSlug === "string" ? params.storeSlug : ""
 
   useEffect(() => {
-    console.error("[org-error]", error.message, error.digest ?? "")
+    console.error("[store-error]", error.message, error.digest ?? "")
   }, [error])
 
   return (
@@ -29,9 +29,9 @@ export default function OrgSlugError({
         <Button type="button" onClick={() => reset()}>
           Try again
         </Button>
-        {orgSlug ? (
+        {storeSlug ? (
           <Link
-            href={`/${orgSlug}/dashboard`}
+            href={`/${storeSlug}`}
             className={cn(buttonVariants({ variant: "outline" }))}
           >
             Back to dashboard

@@ -37,13 +37,13 @@ function RootFormError({ message }: { message?: string }) {
 }
 
 export function StaffPanel({
-  orgSlug,
+  storeSlug,
   organizationId,
   currentUserId,
   currentRole,
   members,
 }: {
-  orgSlug: string
+  storeSlug: string
   organizationId: string
   currentUserId: string
   currentRole: string
@@ -93,7 +93,7 @@ export function StaffPanel({
     setListError(null)
     setRemovingId(memberId)
     try {
-      await staffRemoveMember(orgSlug, memberId)
+      await staffRemoveMember(storeSlug, memberId)
       router.refresh()
     } catch (err) {
       setListError(err instanceof Error ? err.message : "Could not remove")

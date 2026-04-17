@@ -4,7 +4,7 @@ import { standardSchemaResolver } from "@hookform/resolvers/standard-schema"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 
-import { updateOrganizationStore } from "@/lib/actions/organization"
+import { updateStoreAndLocationSettings } from "@/lib/actions/organization"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -30,12 +30,14 @@ function RootFormError({ message }: { message?: string }) {
 }
 
 export function StoreSettingsForm({
-  orgSlug,
-  initialName,
+  storeSlug,
+  locationSlug,
+  initialStoreName,
   initialLocation,
 }: {
-  orgSlug: string
-  initialName: string
+  storeSlug: string
+  locationSlug: string
+  initialStoreName: string
   initialLocation: StoreLocation | null
 }) {
   const router = useRouter()
@@ -43,15 +45,16 @@ export function StoreSettingsForm({
   const form = useForm<StoreSettingsFormValues>({
     resolver: standardSchemaResolver(storeSettingsSchema),
     defaultValues: {
-      name: initialName,
+      storeName: initialStoreName,
       ...locFields,
     },
   })
 
   async function onSubmit(values: StoreSettingsFormValues) {
     try {
-      await updateOrganizationStore(orgSlug, {
-        name: values.name,
+      await updateStoreAndLocationSettings(storeSlug, locationSlug, {
+        storeName: values.storeName,
+        locationName: values.locationName,
         location: {
           defaultCurrency: values.defaultCurrency,
           addressLine1: values.addressLine1 || undefined,
@@ -76,14 +79,15 @@ export function StoreSettingsForm({
         <CardHeader>
           <CardTitle>Location</CardTitle>
           <CardDescription>
-            The name staff see for this shop, the address you keep on file, and the money type you
-            use here.
+            Store name, this branch’s display name, address on file, and currency for this
+            location.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <RootFormError message={form.formState.errors.root?.message} />
           <FieldGroup>
-            <TextFormField control={form.control} name="name" label="Location name" />
+            <TextFormField control={form.control} name="storeName" label="Store name" />
+            <TextFormField control={form.control} name="locationName" label="Location name" />
             <SelectFormField
               control={form.control}
               name="defaultCurrency"

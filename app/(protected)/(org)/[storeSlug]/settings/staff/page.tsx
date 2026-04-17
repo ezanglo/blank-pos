@@ -1,22 +1,21 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
+import { StaffPanel } from "@/components/settings/staff-panel"
 import { listMembersForOrganization } from "@/lib/queries/members"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { requireSession } from "@/lib/server-auth"
-
-import { StaffPanel } from "@/components/settings/staff-panel"
 
 export const dynamic = "force-dynamic"
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ orgSlug: string }>
+  params: Promise<{ storeSlug: string }>
 }): Promise<Metadata> {
-  const { orgSlug } = await params
+  const { storeSlug } = await params
   const session = await requireSession()
-  const ctx = await getOrgForUser(orgSlug, session.user.id)
+  const ctx = await getOrgForUser(storeSlug, session.user.id)
   if (!ctx) {
     return { title: "Staff" }
   }
@@ -29,12 +28,12 @@ export async function generateMetadata({
 export default async function StaffSettingsPage({
   params,
 }: {
-  params: Promise<{ orgSlug: string }>
+  params: Promise<{ storeSlug: string }>
 }) {
-  const { orgSlug } = await params
+  const { storeSlug } = await params
   const session = await requireSession()
 
-  const ctx = await getOrgForUser(orgSlug, session.user.id)
+  const ctx = await getOrgForUser(storeSlug, session.user.id)
   if (!ctx) notFound()
   if (ctx.member.role !== "owner" && ctx.member.role !== "manager") notFound()
 
@@ -44,7 +43,7 @@ export default async function StaffSettingsPage({
     <div className="space-y-2">
       <h1 className="text-2xl font-semibold tracking-tight">Staff</h1>
       <StaffPanel
-        orgSlug={orgSlug}
+        storeSlug={storeSlug}
         organizationId={ctx.organization.id}
         currentUserId={session.user.id}
         currentRole={ctx.member.role}

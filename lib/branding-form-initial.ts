@@ -20,7 +20,6 @@ export function emptyBrandingFormValues(
     operatingHoursText: "",
     primaryColor: "",
     accentColor: "",
-    loginBackgroundImageUrl: "",
     logoImageUrl: "",
     ...overrides,
   }
@@ -45,7 +44,6 @@ export function storeBrandingRowToFormInitial(row: StoreBranding): BrandingSetti
     operatingHoursText: row.operatingHoursText ?? d.operatingHoursText,
     primaryColor: row.primaryColor ?? d.primaryColor,
     accentColor: row.accentColor ?? d.accentColor,
-    loginBackgroundImageUrl: row.loginBackgroundImageUrl ?? d.loginBackgroundImageUrl,
     logoImageUrl: row.logoImageUrl ?? d.logoImageUrl,
   }
 }

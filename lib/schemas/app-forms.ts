@@ -1,6 +1,7 @@
 import { z } from "zod"
 
 import { resolveBrandColorToCss } from "@/lib/brand-color"
+import { SETUP_WEB_SLUG_REGEX } from "@/lib/setup-slug-normalize"
 
 export const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -15,24 +16,22 @@ export const setupOwnerSchema = z.object({
 })
 export type SetupOwnerFormValues = z.infer<typeof setupOwnerSchema>
 
-const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
-
-/** POS web app identity: display name and URL segment (one store site per organization in v1). */
+/** Store display name + editable web slug (defaults from name in the UI). */
 export const setupStoreSiteSchema = z.object({
-  storeName: z.string().min(1, "Location name is required"),
+  storeName: z.string().min(1, "Store name is required"),
   slug: z
     .string()
     .transform((s) => s.trim().toLowerCase())
     .pipe(
       z
         .string()
-        .min(2, "Slug is too short")
-        .regex(slugRegex, "Use lowercase letters, numbers, and hyphens only"),
+        .min(2, "Store link is too short")
+        .regex(SETUP_WEB_SLUG_REGEX, "Use lowercase letters, numbers, and hyphens only"),
     ),
 })
 export type SetupStoreSiteFormValues = z.infer<typeof setupStoreSiteSchema>
 
-/** Physical site defaults saved on the `location` table (1:1 with organization). */
+/** Branch defaults saved on the `location` table (many per store). */
 export const setupLocationSchema = z.object({
   defaultCurrency: z.enum(["USD", "EUR", "GBP", "PHP"]),
   addressLine1: z.string().optional(),
@@ -44,33 +43,24 @@ export const setupLocationSchema = z.object({
 })
 export type SetupLocationFormValues = z.infer<typeof setupLocationSchema>
 
-/**
- * Create organization (store site) and its linked `location` row in one step (post-branding setup).
- * Defined as one object (not merge/extend) so Zod 4 output types work with react-hook-form resolvers.
- */
-export const setupOrgLocationSchema = z.object({
-  storeName: z.string().min(1, "Location name is required"),
-  slug: z
+/** First branch after the store exists; location slug is editable (suggested from name in UI). */
+export const setupFirstLocationSchema = setupLocationSchema.extend({
+  locationName: z.string().min(1, "Location name is required"),
+  locationSlug: z
     .string()
     .transform((s) => s.trim().toLowerCase())
     .pipe(
       z
         .string()
-        .min(2, "Slug is too short")
-        .regex(slugRegex, "Use lowercase letters, numbers, and hyphens only"),
+        .min(2, "Location link is too short")
+        .regex(SETUP_WEB_SLUG_REGEX, "Use lowercase letters, numbers, and hyphens only"),
     ),
-  defaultCurrency: z.enum(["USD", "EUR", "GBP", "PHP"]),
-  addressLine1: z.string().optional(),
-  addressLine2: z.string().optional(),
-  city: z.string().optional(),
-  region: z.string().optional(),
-  postalCode: z.string().optional(),
-  phone: z.string().optional(),
 })
-export type SetupOrgLocationFormValues = z.infer<typeof setupOrgLocationSchema>
+export type SetupFirstLocationFormValues = z.infer<typeof setupFirstLocationSchema>
 
 export const storeSettingsSchema = z.object({
-  name: z.string().min(1, "Location name is required"),
+  storeName: z.string().min(1, "Store name is required"),
+  locationName: z.string().min(1, "Location name is required"),
   defaultCurrency: z.enum(["USD", "EUR", "GBP", "PHP"]),
   addressLine1: z.string().optional(),
   addressLine2: z.string().optional(),
@@ -162,8 +152,6 @@ export const brandingSettingsSchema = z.object({
   operatingHoursText: z.string().optional(),
   primaryColor: optionalBrandColorField(),
   accentColor: optionalBrandColorField(),
-  /** Optional absolute URL for the sign-in page hero (`/login`). */
-  loginBackgroundImageUrl: optionalHttpUrlField(),
   /** Optional logo URL (https) or uploaded path `/uploads/...`. */
   logoImageUrl: optionalLogoImageUrlField(),
 })

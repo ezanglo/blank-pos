@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation"
 
-import { getDashboardPathForUser } from "@/lib/dashboard-path"
+import {
+  getDashboardPathForUser,
+  userShouldContinueSetupWizard,
+} from "@/lib/dashboard-path"
 import { requireSession } from "@/lib/server-auth"
 import { getUserCount } from "@/lib/user-count"
 
@@ -14,8 +17,13 @@ export default async function HomePage() {
 
   const path = await getDashboardPathForUser(
     session.user.id,
-    session.session.activeOrganizationId
+    session.session.activeOrganizationId,
   )
   if (path) redirect(path)
+  if (
+    await userShouldContinueSetupWizard(session.user.id, session.session.activeOrganizationId)
+  ) {
+    redirect("/setup")
+  }
   redirect("/login")
 }

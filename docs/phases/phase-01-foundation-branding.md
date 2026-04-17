@@ -1,12 +1,12 @@
 # Phase 1 — Foundation, auth, tenancy, branding
 
-**Goal:** A secure shell for **one install per business**: users authenticate, create an **organization** (v1: **organization = one store location / site**), capture **site details** in a Drizzle **`location`** row (1:1 with `organization.id`), and configure **shared store branding** in **`store_branding`** (login chrome, optional colors, receipt-oriented text, optional logo via URL or file upload). The app uses **Next.js App Router**, **Drizzle**, **better-auth** with organizations; Postgres is any standard **`DATABASE_URL`** (local, Docker, hosted, pooler).
+**Goal:** A secure shell for **one install per business**: users authenticate, create a **store** (**better-auth `organization`**) with **multiple branches** (**`location`** rows: slug, name, address, default currency), and configure **per-store branding** in **`store_branding`** (PK `organization_id`, login chrome, optional colors, receipt-oriented text, optional logo). Branch-scoped UI lives under **`/{storeSlug}/l/{locationSlug}/…`**. The app uses **Next.js App Router**, **Drizzle**, **better-auth** with organizations; Postgres is any standard **`DATABASE_URL`** (local, Docker, hosted, pooler).
 
 **Prerequisites:** Repo scaffold (Next 16, Tailwind 4, shadcn v4) per [package.json](../../package.json) and [components.json](../../components.json).
 
 **References:** [blank-pos-dev-plan.md](../blank-pos-dev-plan.md) (§2, §4, §7, §9), [schema-better-auth-alignment.md](../schema-better-auth-alignment.md), [onboarding-first-run.md](../onboarding-first-run.md).
 
-**Note:** Earlier drafts of this phase assumed **`organization_branding`** (per org) and **site fields on `organization.additionalFields`**. The **implemented** model uses **`location`** + **`store_branding`** instead; this file matches the repo.
+**Note:** Earlier drafts assumed **`organization_branding`** or a global-only `store_branding`. The **implemented** model uses **per-organization `store_branding`** and **many `location` rows per store**.
 
 ---
 
@@ -15,17 +15,18 @@
 | Area | State |
 |------|--------|
 | Auth (username + org + admin plugins), Drizzle adapter, org/member roles | Implemented |
-| First-run `/setup` wizard, `/` → setup when no users, `/setup` blocked when users exist | Implemented |
+| First-run `/setup` wizard, `/` → setup when no users; `/setup` for signed-in users mid-onboarding | Implemented |
 | `/login` username/password, no `/register` | Implemented |
 | Staff: server `createUser` + `addMember` | Implemented |
-| Org routes `/(protected)/(org)/[orgSlug]/…`, settings store + staff | Implemented |
-| Shared **`store_branding`**, per-org **`location`** | Implemented |
-| Branding settings UI | Implemented at **`/settings/branding`** (shared across orgs), not under `[orgSlug]` |
+| Store routes `/(protected)/(org)/[storeSlug]/…`, branch routes `…/l/[locationSlug]/…` | Implemented |
+| **`store_branding`** per **`organization_id`**, **`location`** many per store | Implemented |
+| Branding settings UI | Implemented at **`/{storeSlug}/settings/branding`** |
 | **Image uploads** (`POST /api/upload`, local or S3-compatible cloud) | Implemented — see [docs/storage-uploads.md](../storage-uploads.md) |
 | **`--brand-primary` / `--brand-accent`** from `store_branding` on org shell | Implemented ([`OrgAppShell`](../../components/org-app-shell.tsx); invalid hex omitted) |
 | **`disableSignUp`** / hard-disable public email sign-up in better-auth | Implemented (`emailAndPassword.disableSignUp: true` in [lib/auth.ts](../../lib/auth.ts)) |
 | **CI** (`lint`, `typecheck`, `build` on push/PR) | Implemented ([`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)) |
-| **Org / protected error UI** + **server auth logs** | Implemented ([`error.tsx`](../../app/(protected)/(org)/[orgSlug]/error.tsx), [`log-server.ts`](../../lib/log-server.ts)) |
+| **Store / protected error UI** + **server auth logs** | Implemented ([`error.tsx`](../../app/(protected)/(org)/[storeSlug]/error.tsx), [`log-server.ts`](../../lib/log-server.ts)) |
+| **Sidebar store switcher** + **header branch switcher** | Implemented |
 
 ---
 
@@ -33,16 +34,16 @@
 
 ### Implemented
 
-- [x] **First-run onboarding:** empty `user` table → **[onboarding-first-run.md](../onboarding-first-run.md)** wizard: **bootstrap owner** → **shared branding step** → **organization + `location`** (name, slug, currency, address), then `/{orgSlug}/dashboard` without SQL.
+- [x] **First-run onboarding:** empty `user` table → **[onboarding-first-run.md](../onboarding-first-run.md)** wizard: **bootstrap owner** → **store** → **first `location`** → **branding for that store**, then **`/{storeSlug}/l/{locationSlug}/dashboard`** without SQL.
 - [x] **No public registration:** no `/register`; **`/login`** uses **username + password** ([Username plugin](https://www.better-auth.com/docs/plugins/username)); **`emailAndPassword.disableSignUp`** blocks **`signUp.email`** / **`POST …/sign-up/email`** while keeping Admin **`createUser`** for bootstrap and staff.
-- [x] **Staff provisioning:** owner/manager uses **`/{orgSlug}/settings/staff`** with server **`createUser`** (Admin) + **`addMember`** ([schema-better-auth-alignment.md](../schema-better-auth-alignment.md)); no email invites.
-- [x] **`/setup`** inaccessible once `count(user) > 0` (layout guard).
-- [x] **Organization** (better-auth) with stable **`slug`** in URLs (`/{orgSlug}/…`).
+- [x] **Staff provisioning:** owner/manager uses **`/{storeSlug}/settings/staff`** with server **`createUser`** (Admin) + **`addMember`** ([schema-better-auth-alignment.md](../schema-better-auth-alignment.md)); no email invites.
+- [x] **`/setup`:** with users present, **anonymous** visits redirect to **`/login`**; **signed-in** users who still need the wizard (no org membership, or a store with zero **`location`** rows) can open **`/setup`**; fully onboarded users redirect to the branch dashboard ([`app/setup/layout.tsx`](../../app/setup/layout.tsx)).
+- [x] **Organization** (better-auth) with stable **`slug`** in URLs (`/{storeSlug}/…`); **location** slug under `/l/{locationSlug}/`.
 - [x] **Roles** (`owner` \| `manager` \| `cashier`) in **`member.role`**, configured in [lib/auth.ts](../../lib/auth.ts); enforced in server actions (UI matrix deepens in Phase 7).
 - [x] **Drizzle** migrations + [`.env.example`](../../.env.example)** documented vars.
 - [x] **Tooling:** ESLint, Prettier, `lib/env.ts` zod validation for core server env (`DATABASE_URL`, auth, `STORAGE_*`).
 - [x] **CI:** GitHub Actions runs **`pnpm install --frozen-lockfile`**, **`pnpm lint`**, **`pnpm typecheck`**, **`pnpm build`** with **`SKIP_ENV_VALIDATION=1`** on **`main`**, **`master`**, and PRs.
-- [x] **Error boundaries:** [`app/(protected)/(org)/[orgSlug]/error.tsx`](../../app/(protected)/(org)/[orgSlug]/error.tsx) and [`app/(protected)/error.tsx`](../../app/(protected)/error.tsx) with **Try again** + navigation.
+- [x] **Error boundaries:** [`app/(protected)/(org)/[storeSlug]/error.tsx`](../../app/(protected)/(org)/[storeSlug]/error.tsx) and [`app/(protected)/error.tsx`](../../app/(protected)/error.tsx) with **Try again** + navigation.
 - [x] **Server logging:** [`lib/log-server.ts`](../../lib/log-server.ts) **`logAuthEvent`** used on bootstrap / staff / organization better-auth failures (JSON lines; sensitive keys stripped).
 
 ### Deferred (not in repo today; optional hardening)
@@ -53,11 +54,11 @@
 
 ---
 
-## Architecture decisions (v1 — current repo)
+## Architecture decisions (current repo)
 
-- **Org = one storefront.** A second physical store is a **second organization** (new slug), not a second row in a multi-site `locations` hierarchy.
-- **Site + default currency:** stored on app table **`location`** (`organization_id` PK/FK → `organization.id`, 1:1). The better-auth **`organization`** row stays plugin-canonical (`id`, `name`, `slug`, `logo`, `metadata`, …) — see [lib/db/auth-schema.ts](../../lib/db/auth-schema.ts).
-- **Branding / receipt copy / shell colors (shared):** single-row **`store_branding`** (`id = default`). Used for login page, org shell labels, and settings under **`/settings/branding`**. Per-org branding remains a **future** option if product needs differ per shop.
+- **Organization = store.** A second legal/store entity is a **second `organization`** (new slug, own members and branding). A second **branch** under the same store is another **`location`** row (new `slug` under the same `organization_id`).
+- **Branch address + default currency:** on **`location`** (`id` PK, `organization_id`, `slug`, `name`, `is_default`, …). The better-auth **`organization`** row stays plugin-canonical — see [lib/db/auth-schema.ts](../../lib/db/auth-schema.ts).
+- **Branding / receipt copy / shell colors:** **`store_branding`** keyed by **`organization_id`**. **`/login`** uses static **Blank POS** app chrome (not per-store branding); per-store branding appears after sign-in in the org shell.
 - **Auth plugins:** **Organization** + **Username** + **Admin** (bootstrap + staff `createUser`).
 - **Tax:** not implemented; optional placeholders exist on `store_branding` for later receipts.
 
@@ -67,33 +68,34 @@
 
 | Route | Role |
 |-------|------|
-| `/` | Redirects to `/setup` if no users; else session → dashboard or `/login` ([app/page.tsx](../../app/page.tsx)) |
-| `/setup` | First-run wizard ([app/setup/](../../app/setup/)); blocked when users exist |
+| `/` | Redirects to `/setup` if no users; else session → dashboard, **`/setup`** if onboarding incomplete, or `/login` ([app/page.tsx](../../app/page.tsx)) |
+| `/setup` | First-run wizard ([app/setup/](../../app/setup/)); anonymous blocked when users exist; signed-in incomplete onboarding allowed |
 | `/login` | Username sign-in ([app/login/](../../app/login/)) |
-| `/(protected)/(org)/[orgSlug]/dashboard` | Org home |
-| `/(protected)/(org)/[orgSlug]/settings/store` | Shop name, slug context, address, currency (`location`) |
-| `/(protected)/(org)/[orgSlug]/settings/staff` | Staff CRUD |
-| `/(protected)/settings/branding` | Shared `store_branding` (owner/manager of any org) |
+| `/(protected)/(org)/[storeSlug]` | Redirects to default branch dashboard |
+| `/(protected)/(org)/[storeSlug]/l/[locationSlug]/dashboard` | Branch home |
+| `/(protected)/(org)/[storeSlug]/l/[locationSlug]/settings/store` | Branch name, address, currency |
+| `/(protected)/(org)/[storeSlug]/settings/staff` | Staff CRUD (store-wide) |
+| `/(protected)/(org)/[storeSlug]/settings/branding` | Store `store_branding` (owner/manager of this store) |
 
 ---
 
 ## Dependencies for later phases
 
-- Phase 2 needs: stable **`organization.id`**, role checks on server, **default currency** from **`location.default_currency`** (and address from `location` for receipts if needed).
-- Phase 3 may want: branding tokens + signed logo helper — either extend **`store_branding`** or introduce per-org branding + Storage.
+- Phase 2 needs: stable **`organization.id`**, **`location.id`** for branch-scoped data, role checks on server, **default currency** from **`location.default_currency`** (and address from `location` for receipts if needed).
+- Phase 3 may want: branding tokens + signed logo helper.
 
 ---
 
 ## Risks and mitigations (unchanged intent)
 
-- **Cross-location access:** rely on **server actions** + membership checks (`getOrgForUser`, `member` queries). Optional RLS later if you expose Postgres directly to clients.
+- **Cross-branch access:** rely on **server actions** + **`getLocationForUserByStoreAndLocationSlug`**. Optional RLS later if you expose Postgres directly to clients.
 - **Storage path leaks:** when Storage ships, enforce `{organization_id}/` prefix and never trust client paths.
-- **Slug collisions:** unique index on `organization.slug` + UX retry.
+- **Slug collisions:** unique index on `organization.slug` and on `(organization_id, location.slug)` + UX retry.
 
 ---
 
 ## Definition of done (contributor)
 
-- [x] New developer can follow README **First run** and reach **`/{orgSlug}/dashboard`** via **`/setup`** on an empty DB.
+- [x] New developer can follow README **First run** and reach **`/{storeSlug}/l/{locationSlug}/dashboard`** via **`/setup`** on an empty DB.
 - [x] No secrets in repo; local **`pnpm lint`**, **`pnpm typecheck`**, **`pnpm build`** expected green; **CI** runs the same on push/PR ([`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)).
 - [ ] Optional RLS smoke check if you add database-level policies later.

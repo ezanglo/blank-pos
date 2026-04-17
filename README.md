@@ -1,6 +1,6 @@
 # Blank POS
 
-Phase 1 foundation: **Next.js 16**, **better-auth** (username + organization + admin), **Drizzle** on **PostgreSQL**, org shell (organization = store location in v1) and shared branding.
+Phase 1 foundation: **Next.js 16**, **better-auth** (username + organization + admin), **Drizzle** on **PostgreSQL**, store + multi-branch shell (`organization` = store, `location` = branch) and per-store branding.
 
 ## First run
 
@@ -9,7 +9,7 @@ Phase 1 foundation: **Next.js 16**, **better-auth** (username + organization + a
    - **`BETTER_AUTH_SECRET`** (32+ characters) and **`BETTER_AUTH_URL`** / **`NEXT_PUBLIC_APP_URL`** for local dev (typically `http://localhost:3000`).
    - **`STORAGE_MODE=local`** for local image uploads to `public/uploads/`, or configure **cloud** S3-compatible storage (required on Vercel). See [docs/storage-uploads.md](docs/storage-uploads.md).
 
-2. Apply migrations from the repo root:
+2. Apply migrations from the repo root (if you previously used the older single-location schema, **drop and recreate** the database first):
 
    ```bash
    pnpm db:migrate
@@ -21,7 +21,7 @@ Phase 1 foundation: **Next.js 16**, **better-auth** (username + organization + a
    pnpm dev
    ```
 
-4. Open `/` — with an empty `user` table you are redirected to **`/setup`**. Complete the wizard (**owner account → shared branding → shop / org + address & currency**). You land on `/{orgSlug}/dashboard`.
+4. Open `/` — with an empty `user` table you are redirected to **`/setup`**. Complete the wizard (**owner → store → first location → per-store branding**). You land on **`/{storeSlug}/l/{locationSlug}/dashboard`**.
 
 5. Returning users sign in at **`/login`**. There is no public registration after the first user exists (`/setup` is blocked).
 

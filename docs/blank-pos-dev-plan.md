@@ -86,18 +86,18 @@ Core **users, sessions, accounts**, and **organization plugin** tables are **own
 - **`invitation`** — may exist from plugin migrations; **v1 does not use invites** for staff. Add users via **Admin `createUser`** + **`addMember`** ([schema-better-auth-alignment.md](schema-better-auth-alignment.md)).
 - **`session`** — includes **`activeOrganizationId`** for the current org context.
 
-**App-owned (FK to `organization.id` everywhere below as `organization_id`):**
+**App-owned:**
 
 ```sql
-location   -- v1: one row per organization (PK = organization_id → organization.id)
-           -- default_currency, address_*, phone (see lib/db/schema-app.ts)
+location        -- many rows per organization_id (branch slug + name, is_default, default_currency, address_*, phone)
+                -- PK id; unique (organization_id, slug); see lib/db/schema-app.ts
 
-store_branding  -- single shared row (id = default): login/shell branding, receipt copy, optional logo URL
+store_branding  -- one row per organization (PK organization_id → organization.id): login/shell branding, receipt copy
 ```
 
-**Tenancy:** Access is enforced in **application code** today; optional Postgres RLS later may use **`member.organizationId`** matching row **`organization_id`**. **Cashiers** do not pick a branch; the active organization is the store.
+**Tenancy:** **`organization`** = store; **`location`** = branch. URLs use **`/{storeSlug}/l/{locationSlug}/…`** for branch-scoped UI. Access is enforced in **application code** today; optional Postgres RLS later aligns with **`member`** and **`location`**.
 
-POS-specific **default currency** and **site address** for receipts: read from **`location`** (see [schema-better-auth-alignment.md](schema-better-auth-alignment.md)).
+POS-specific **default currency** and **site address** for receipts: read from the active **`location`** row (see [schema-better-auth-alignment.md](schema-better-auth-alignment.md)).
 
 ### Products & Categories
 
@@ -115,7 +115,7 @@ products
 product_prices
   id, product_id, label, amount, currency
   -- label: e.g. "Regular", "Wholesale", "Happy Hour"
-  -- v1: org-scoped tiers only (no per-location price rows; organization = one site)
+  -- v1: org-scoped tiers only (no per-location price rows yet; add location_id when multi-branch pricing ships)
 ```
 
 ### Inventory
@@ -351,19 +351,11 @@ blank-pos/
 │   ├── login/                # Username sign-in (no public register)
 │   ├── setup/                # First-run wizard when user table is empty
 │   ├── (protected)/          # Session required
-│   │   ├── (org)/
-│   │   │   └── [orgSlug]/    # Org-scoped shell (dashboard, settings/store, settings/staff, …)
-│   │   └── settings/
-│   │       └── branding/     # Shared store_branding (owner/manager)
-│   │   # (within [orgSlug]/ as implemented:)
-│   │   #   dashboard/
-│   │   #   pos/                # POS terminal (future)
-│   │   #   products/           # Product & category management
-│   │   #   inventory/
-│   │   #   promotions/
-│   │   #   transactions/
-│   │   #   reports/
-│   │   #   settings/store, settings/staff
+│   │   └── (org)/             # Store + branch routes
+│   │       └── [storeSlug]/  # Store gate; index redirects to default branch
+│   │           ├── settings/ # Staff, branding (store-wide shell)
+│   │           └── l/[locationSlug]/  # Branch shell: dashboard, settings/store, …
+│   │   # (future under branch: pos/, products/, …)
 ├── components/
 │   ├── pos/                  # Cart, numpad, product grid, coupon input
 │   ├── products/

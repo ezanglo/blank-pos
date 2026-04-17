@@ -1,5 +1,5 @@
 {
-  "id": "72850f95-3828-495d-955a-36dce8ad6bcf",
+  "id": "fd27e78d-4b64-4bc0-bb35-3671a935674d",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -700,12 +700,11 @@
       "name": "store_branding",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
+        "organization_id": {
+          "name": "organization_id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true,
-          "default": "'default'"
+          "notNull": true
         },
         "display_name": {
           "name": "display_name",
@@ -824,7 +823,21 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "store_branding_organization_id_organization_id_fk": {
+          "name": "store_branding_organization_id_organization_id_fk",
+          "tableFrom": "store_branding",
+          "tableTo": "organization",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -835,18 +848,43 @@
       "name": "location",
       "schema": "",
       "columns": {
-        "organization_id": {
-          "name": "organization_id",
+        "id": {
+          "name": "id",
           "type": "text",
           "primaryKey": true,
           "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_default": {
+          "name": "is_default",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "default_currency": {
           "name": "default_currency",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "default": "'USD'"
+          "default": "'PHP'"
         },
         "address_line_1": {
           "name": "address_line_1",
@@ -899,7 +937,44 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "location_organizationId_idx": {
+          "name": "location_organizationId_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "location_organization_slug_unique": {
+          "name": "location_organization_slug_unique",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "slug",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "location_organization_id_organization_id_fk": {
           "name": "location_organization_id_organization_id_fk",

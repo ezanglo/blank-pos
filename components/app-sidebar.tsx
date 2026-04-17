@@ -6,10 +6,8 @@ import { usePathname } from "next/navigation"
 
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
-import {
-  LocationSwitcher,
-  type SidebarLocation,
-} from "@/components/location-switcher"
+import { StoreSwitcher } from "@/components/store-switcher"
+import type { SidebarStoreNavItem } from "@/lib/types/nav"
 import {
   Sidebar,
   SidebarContent,
@@ -22,29 +20,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { LayoutDashboardIcon, StoreIcon, UsersIcon } from "lucide-react"
-
-// Demo data when the shell does not pass org props (e.g. `/dashboard`).
-const defaultLocations: SidebarLocation[] = [
-  {
-    storeName: "Demo Store",
-    locationName: "Main floor",
-    logo: <StoreIcon className="size-4" />,
-  },
-  {
-    storeName: "Demo Store",
-    locationName: "Pop-up kiosk",
-    logo: <StoreIcon className="size-4" />,
-  },
-]
-
-const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-}
+import { LayoutDashboardIcon, PaintbrushIcon, StoreIcon, UsersIcon } from "lucide-react"
 
 export type AppSidebarUser = {
   name: string
@@ -55,45 +31,52 @@ export type AppSidebarUser = {
 }
 
 export function AppSidebar({
-  orgSlug,
-  locations,
+  storeSlug,
+  navLocationSlug,
+  sidebarStores,
   user: userProp,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
-  orgSlug?: string
-  locations?: SidebarLocation[]
+  storeSlug: string
+  navLocationSlug: string
+  sidebarStores: SidebarStoreNavItem[]
   user?: AppSidebarUser
 }) {
   const pathname = usePathname()
-  const locationsResolved = locations?.length ? locations : defaultLocations
-  const user = userProp ?? data.user
+  const user = userProp ?? {
+    name: "",
+    email: "",
+    avatar: "",
+  }
 
-  const basePath = orgSlug ? `/${orgSlug}` : null
-  const dashboardHref = basePath ? `${basePath}/dashboard` : "#"
+  const base = `/${storeSlug}`
+  const locBase = `${base}/l/${navLocationSlug}`
+  const dashboardHref = `${locBase}/dashboard`
   const dashboardActive =
-    !!basePath &&
-    (pathname === dashboardHref || pathname.startsWith(`${dashboardHref}/`))
+    pathname === dashboardHref || pathname.startsWith(`${dashboardHref}/`)
 
-  const adminNav =
-    basePath === null
-      ? []
-      : [
-          {
-            title: "Location",
-            url: `${basePath}/settings/store`,
-            icon: <StoreIcon className="size-4" />,
-          },
-          {
-            title: "Staff",
-            url: `${basePath}/settings/staff`,
-            icon: <UsersIcon className="size-4" />,
-          },
-        ]
+  const adminNav = [
+    {
+      title: "Location",
+      url: `${locBase}/settings/store`,
+      icon: <StoreIcon className="size-4" />,
+    },
+    {
+      title: "Staff",
+      url: `${base}/settings/staff`,
+      icon: <UsersIcon className="size-4" />,
+    },
+    {
+      title: "Branding",
+      url: `${base}/settings/branding`,
+      icon: <PaintbrushIcon className="size-4" />,
+    },
+  ]
 
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <LocationSwitcher locations={locationsResolved} />
+        <StoreSwitcher stores={sidebarStores} />
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
@@ -113,11 +96,7 @@ export function AppSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <NavSecondary
-          title="Administration"
-          items={adminNav}
-          className="mt-auto"
-        />
+        <NavSecondary title="Administration" items={adminNav} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />

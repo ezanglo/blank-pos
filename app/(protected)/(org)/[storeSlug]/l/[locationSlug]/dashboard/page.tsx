@@ -4,7 +4,7 @@ import { notFound } from "next/navigation"
 import { ChartAreaInteractive } from "@/components/chart-area-interactive"
 import { DataTable } from "@/components/data-table"
 import { SectionCards } from "@/components/section-cards"
-import { getOrgForUser } from "@/lib/queries/organization"
+import { getLocationForUserByStoreAndLocationSlug } from "@/lib/queries/location"
 import { requireSession } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"
@@ -12,30 +12,30 @@ export const dynamic = "force-dynamic"
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ orgSlug: string }>
+  params: Promise<{ storeSlug: string; locationSlug: string }>
 }): Promise<Metadata> {
-  const { orgSlug } = await params
+  const { storeSlug, locationSlug } = await params
   const session = await requireSession()
-  const ctx = await getOrgForUser(orgSlug, session.user.id)
-  if (!ctx) {
+  const row = await getLocationForUserByStoreAndLocationSlug(storeSlug, locationSlug, session.user.id)
+  if (!row) {
     return { title: "Dashboard" }
   }
   return {
-    title: ctx.organization.name,
-    description: `Dashboard for ${ctx.organization.name}.`,
+    title: row.location.name,
+    description: `Dashboard for ${row.location.name}.`,
   }
 }
 
-export default async function OrgDashboardPage({
+export default async function StoreLocationDashboardPage({
   params,
 }: {
-  params: Promise<{ orgSlug: string }>
+  params: Promise<{ storeSlug: string; locationSlug: string }>
 }) {
-  const { orgSlug } = await params
+  const { storeSlug, locationSlug } = await params
   const session = await requireSession()
 
-  const ctx = await getOrgForUser(orgSlug, session.user.id)
-  if (!ctx) notFound()
+  const row = await getLocationForUserByStoreAndLocationSlug(storeSlug, locationSlug, session.user.id)
+  if (!row) notFound()
 
   return (
     <>

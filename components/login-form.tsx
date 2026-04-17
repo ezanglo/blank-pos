@@ -16,7 +16,6 @@ import {
 import { Field, FieldDescription, FieldGroup } from "@/components/ui/field"
 import { getPostLoginRedirect } from "@/lib/actions/nav"
 import { authClient } from "@/lib/auth-client"
-import type { LoginBranding } from "@/lib/queries/login-branding"
 import { type LoginFormValues, loginSchema } from "@/lib/schemas/app-forms"
 import { cn } from "@/lib/utils"
 
@@ -29,11 +28,7 @@ function RootFormError({ message }: { message?: string }) {
   )
 }
 
-export function LoginForm({
-  className,
-  branding = null,
-  ...props
-}: React.ComponentProps<"div"> & { branding?: LoginBranding | null }) {
+export function LoginForm({ className, ...props }: React.ComponentProps<"div">) {
   const router = useRouter()
 
   const form = useForm<LoginFormValues>({
@@ -62,19 +57,9 @@ export function LoginForm({
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <Card>
           <CardHeader className="text-center">
-            {branding?.logoImageUrl?.trim() ? (
-              <div className="mb-3 flex justify-center">
-                {/* eslint-disable-next-line @next/next/no-img-element -- branding HTTPS URL */}
-                <img
-                  src={branding.logoImageUrl.trim()}
-                  alt=""
-                  className="h-10 max-w-[160px] object-contain"
-                />
-              </div>
-            ) : null}
             <CardTitle className="text-xl">Welcome back</CardTitle>
             <CardDescription>
-              Sign in with your staff username and password.
+              Enter your Blank POS staff username and password.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -108,8 +93,8 @@ export function LoginForm({
         </Card>
       </form>
       <FieldDescription className="max-w-md px-6 text-center text-balance">
-        This sign-in is for staff only. It is not a public page and should be
-        used on store devices or trusted networks inside your organization.
+        This sign-in is for staff only. It is not a public page and should be used on store devices
+        or trusted networks.
       </FieldDescription>
     </div>
   )

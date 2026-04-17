@@ -2,14 +2,14 @@ import type { Metadata, Viewport } from "next"
 import { Geist_Mono, Inter } from "next/font/google"
 
 import { ThemeProvider } from "@/components/theme-provider"
-import { getStoreBranding } from "@/lib/queries/store-branding"
+import { getAnyStoreBrandingForPublicSite } from "@/lib/queries/store-branding"
 import { buildRootMetadataFromBranding } from "@/lib/seo"
 import { cn } from "@/lib/utils"
 import "./globals.css"
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
-    const branding = await getStoreBranding()
+    const branding = await getAnyStoreBrandingForPublicSite()
     return buildRootMetadataFromBranding(branding)
   } catch {
     return buildRootMetadataFromBranding(null)

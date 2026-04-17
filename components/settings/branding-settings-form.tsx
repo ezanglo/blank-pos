@@ -30,7 +30,13 @@ function RootFormError({ message }: { message?: string }) {
   )
 }
 
-export function BrandingSettingsForm({ initial }: { initial: BrandingSettingsFormValues }) {
+export function BrandingSettingsForm({
+  storeSlug,
+  initial,
+}: {
+  storeSlug: string
+  initial: BrandingSettingsFormValues
+}) {
   const router = useRouter()
   const form = useForm<BrandingSettingsFormValues>({
     resolver: standardSchemaResolver(brandingSettingsSchema),
@@ -43,7 +49,7 @@ export function BrandingSettingsForm({ initial }: { initial: BrandingSettingsFor
         form.setValue("logoImageUrl", url, { shouldValidate: true, shouldDirty: true })
       })
       const next = form.getValues()
-      await updateStoreBranding({
+      await updateStoreBranding(storeSlug, {
         displayName: next.displayName?.trim() || null,
         tagline: next.tagline?.trim() || null,
         receiptHeaderText: next.receiptHeaderText?.trim() || null,
@@ -59,7 +65,6 @@ export function BrandingSettingsForm({ initial }: { initial: BrandingSettingsFor
         operatingHoursText: next.operatingHoursText?.trim() || null,
         primaryColor: next.primaryColor?.trim() || null,
         accentColor: next.accentColor?.trim() || null,
-        loginBackgroundImageUrl: next.loginBackgroundImageUrl?.trim() || null,
         logoImageUrl: next.logoImageUrl?.trim() || null,
       })
       router.refresh()
@@ -76,9 +81,8 @@ export function BrandingSettingsForm({ initial }: { initial: BrandingSettingsFor
         <CardHeader>
           <CardTitle>Branding</CardTitle>
           <CardDescription>
-            Your store’s shared look and message: name, logo, colors, sign-in page, how to reach you,
-            hours, and optional lines for printed tickets—all shared across shops. For one shop’s name
-            or address, use Location in that shop.
+            This store’s look and message: name, logo, colors, contact lines, hours, and optional
+            receipt copy. Branch address and currency live under Location for each branch.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

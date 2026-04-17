@@ -1,6 +1,6 @@
 # Phase 4 — Offline-first and sync
 
-**Goal:** The POS remains usable **offline**: reads and writes go to **PGlite** (or similar) in the browser; a **custom sync engine** pushes/pulls changes to the **hosted Postgres API** (same app / `DATABASE_URL` backend) when online. **Conflict rules** match the master plan: append-only sales; **last-write-wins** on mutable catalog/inventory with `updated_at`; stock scoped by **organization** (v1: org = one site). **Branding** and org settings sync so UI stays correct offline.
+**Goal:** The POS remains usable **offline**: reads and writes go to **PGlite** (or similar) in the browser; a **custom sync engine** pushes/pulls changes to the **hosted Postgres API** (same app / `DATABASE_URL` backend) when online. **Conflict rules** match the master plan: append-only sales; **last-write-wins** on mutable catalog/inventory with `updated_at`; stock scoped by **store (`organization_id`) and eventually `location_id`** for multi-branch. **Branding** and org/branch settings sync so UI stays correct offline.
 
 **Prerequisites:** Phase 3 checkout path working **online** with transactions persisted server-side. Refactor if needed so domain writes go through a **single “data port”** layer.
 
@@ -45,7 +45,7 @@
 - [ ] **Conflict resolution implementation:**
   - [ ] **Transactions:** append-only; server accepts client-generated UUIDs; reject duplicate ids.
   - [ ] **Catalog/inventory:** compare `updated_at`; winner writes; loser surfaces **soft conflict** log optional in MVP.
-  - [ ] **Stock:** **organization-scoped**; LWW on `inventory_stock.updated_at` with caution—document that concurrent stock edits are rare in MVP.
+  - [ ] **Stock:** **organization-scoped** (and **`location_id`** when inventory is per-branch); LWW on `inventory_stock.updated_at` with caution—document that concurrent stock edits are rare in MVP.
 
 ---
 
