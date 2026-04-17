@@ -1,13 +1,24 @@
 "use client"
 
-import { useCallback, useMemo, useState } from "react"
-import type { ColumnDef } from "@tanstack/react-table"
-import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import {
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  type ColumnDef,
+  type VisibilityState,
+} from "@tanstack/react-table"
+import { ChevronDownIcon, PencilIcon, PlusIcon, TableIcon, Trash2Icon } from "lucide-react"
 import { useRouter } from "next/navigation"
 
-import { AdminSettingsTable } from "@/components/admin/admin-settings-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
@@ -19,6 +30,14 @@ import {
 } from "@/components/ui/dialog"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import {
   Select,
   SelectContent,
@@ -316,12 +335,48 @@ export function CatalogProductsPanel({
     }
   }
 
+  const [query, setQuery] = useState("")
+  const [categoryFilterId, setCategoryFilterId] = useState("")
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+
+  const categoriesSorted = useMemo(
+    () => [...categories].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name)),
+    [categories],
+  )
+
+  useEffect(() => {
+    if (categoryFilterId && !categories.some((c) => c.id === categoryFilterId)) {
+      setCategoryFilterId("")
+    }
+  }, [categories, categoryFilterId])
+
+  const categoryFilterLabel = useMemo(() => {
+    if (!categoryFilterId) return "All categories"
+    const c = categoriesSorted.find((x) => x.id === categoryFilterId)
+    return c?.name ?? "All categories"
+  }, [categoryFilterId, categoriesSorted])
+
+  const displayProducts = useMemo(() => {
+    let list = products
+    if (categoryFilterId) {
+      list = list.filter((r) => r.product.categoryId === categoryFilterId)
+    }
+    const q = query.trim().toLowerCase()
+    if (!q) return list
+    return list.filter((r) =>
+      `${r.product.name} ${r.product.sku ?? ""} ${r.priceCount} ${r.categoryName} ${formatLocationCell(r)} ${r.firstIngredientPreview ?? ""} ${r.ingredientCount} ${r.product.trackInventory ? "track" : ""}`
+        .toLowerCase()
+        .includes(q),
+    )
+  }, [products, query, categoryFilterId])
+
   const columns = useMemo<ColumnDef<ProductListRow>[]>(
     () => [
       {
         id: "name",
         header: "Product",
         accessorFn: (r) => r.product.name,
+        enableSorting: false,
         cell: ({ row }) => (
           <span className="flex flex-wrap items-center gap-2">
             <span>{row.original.product.name}</span>
@@ -338,14 +393,36 @@ export function CatalogProductsPanel({
         id: "category",
         header: "Category",
         accessorFn: (r) => r.categoryName,
+        enableSorting: false,
         cell: ({ row }) => row.original.categoryName,
+      },
+      {
+        id: "prices",
+        header: "Prices",
+        accessorFn: (r) => r.priceCount,
+        enableSorting: false,
+        cell: ({ row }) => {
+          const n = row.original.priceCount
+          return (
+            <Badge
+              variant="secondary"
+              className="cursor-pointer border-transparent bg-emerald-600 text-white hover:bg-emerald-700"
+              render={<button type="button" />}
+              onClick={() => void openPricesManager(row.original)}
+              aria-label={`Open variant prices, ${n} prices`}
+            >
+              {n} prices
+            </Badge>
+          )
+        },
       },
       {
         id: "location",
         header: "Location",
         accessorFn: (r) => formatLocationCell(r),
+        enableSorting: false,
         cell: ({ row }) => (
-          <span className="max-w-[14rem] truncate text-sm" title={formatLocationCell(row.original)}>
+          <span className="max-w-56 truncate text-sm" title={formatLocationCell(row.original)}>
             {formatLocationCell(row.original)}
           </span>
         ),
@@ -354,9 +431,8 @@ export function CatalogProductsPanel({
         id: "ingredients",
         header: "Ingredients",
         accessorFn: (r) =>
-          r.product.isComposite
-            ? `${r.firstIngredientPreview ?? ""} ${r.ingredientCount}`.trim()
-            : "",
+          r.product.isComposite ? `${r.firstIngredientPreview ?? ""} ${r.ingredientCount}`.trim() : "",
+        enableSorting: false,
         cell: ({ row }) => {
           const r = row.original
           if (!r.product.isComposite) {
@@ -381,30 +457,14 @@ export function CatalogProductsPanel({
         id: "trackInventory",
         header: "Track inventory",
         accessorFn: (r) => (r.product.trackInventory ? "Yes" : "No"),
+        enableSorting: false,
         cell: ({ row }) => (row.original.product.trackInventory ? "Yes" : "No"),
-      },
-      {
-        id: "prices",
-        header: "Prices",
-        accessorFn: (r) => r.priceCount,
-        cell: ({ row }) => {
-          const n = row.original.priceCount
-          return (
-            <Badge
-              variant="secondary"
-              className="cursor-pointer border-transparent bg-emerald-600 text-white hover:bg-emerald-700"
-              render={<button type="button" />}
-              onClick={() => void openPricesManager(row.original)}
-              aria-label={`Open variant prices, ${n} prices`}
-            >
-              {n} prices
-            </Badge>
-          )
-        },
       },
       {
         id: "actions",
         header: "",
+        enableSorting: false,
+        enableHiding: false,
         cell: ({ row }) => (
           <div className="flex justify-end gap-1">
             <Button
@@ -432,6 +492,37 @@ export function CatalogProductsPanel({
     [loadDetail, openPricesManager],
   )
 
+  const table = useReactTable({
+    data: displayProducts,
+    columns,
+    state: { columnVisibility },
+    onColumnVisibilityChange: setColumnVisibility,
+    getRowId: (row) => row.product.id,
+    getCoreRowModel: getCoreRowModel(),
+    enableSorting: false,
+  })
+
+  const rows = table.getRowModel().rows
+
+  const productColumnMenuLabel = (columnId: string) => {
+    switch (columnId) {
+      case "name":
+        return "Product"
+      case "category":
+        return "Category"
+      case "prices":
+        return "Prices"
+      case "location":
+        return "Location"
+      case "ingredients":
+        return "Ingredients"
+      case "trackInventory":
+        return "Track inventory"
+      default:
+        return columnId
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -448,20 +539,115 @@ export function CatalogProductsPanel({
         </p>
       ) : null}
 
-      <AdminSettingsTable
-        columns={columns}
-        data={products}
-        searchPlaceholder="Search products…"
-        searchText={(r) =>
-          `${r.product.name} ${r.product.sku ?? ""} ${r.priceCount} ${formatLocationCell(r)} ${r.firstIngredientPreview ?? ""} ${r.ingredientCount} ${r.product.trackInventory ? "track" : ""}`
-        }
-        toolbarRight={
-          <Button type="button" onClick={openCreate}>
-            <PlusIcon className="size-4" />
-            Add product
-          </Button>
-        }
-      />
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2">
+            <Input
+              placeholder="Search products…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label="Search products"
+              className="min-w-0 max-w-sm flex-1"
+            />
+            {categories.length > 0 ? (
+              <Select
+                value={categoryFilterId || "__all__"}
+                onValueChange={(v) => setCategoryFilterId(!v || v === "__all__" ? "" : v)}
+              >
+                <SelectTrigger
+                  size="default"
+                  className="h-9 max-w-56 min-w-36 shrink-0"
+                  aria-label="Filter by category"
+                >
+                  <SelectValue>{categoryFilterLabel}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All categories</SelectItem>
+                  {categoriesSorted.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={<Button type="button" variant="outline" size="sm" className="gap-1.5" />}
+              >
+                <TableIcon className="size-4" />
+                <span className="hidden lg:inline">Customize Columns</span>
+                <span className="lg:hidden">Columns</span>
+                <ChevronDownIcon className="size-4 opacity-60" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {table
+                  .getAllColumns()
+                  .filter((column) => typeof column.accessorFn !== "undefined" && column.getCanHide())
+                  .map((column) => (
+                    <DropdownMenuCheckboxItem
+                      key={column.id}
+                      checked={column.getIsVisible()}
+                      onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                    >
+                      {productColumnMenuLabel(column.id)}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button type="button" onClick={openCreate}>
+              <PlusIcon className="size-4" />
+              Add product
+            </Button>
+          </div>
+        </div>
+        <div className="overflow-hidden rounded-lg border">
+          <Table>
+            <TableHeader className="sticky top-0 z-10 bg-muted">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id} colSpan={header.colSpan}>
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {rows.length ? (
+                rows.map((row) => (
+                  <TableRow key={row.id}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={Math.max(1, table.getVisibleLeafColumns().length)}
+                    className="text-muted-foreground h-24 text-center"
+                  >
+                    No results.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        <p className="text-muted-foreground text-sm">
+          {displayProducts.length === 0
+            ? "0 products"
+            : query.trim()
+              ? `${displayProducts.length} match${displayProducts.length === 1 ? "" : "es"}`
+              : `${displayProducts.length} product${displayProducts.length === 1 ? "" : "s"}`}
+        </p>
+      </div>
 
       <Dialog
         open={formOpen}
