@@ -125,7 +125,7 @@ export async function createProduct(businessSlug: string, raw: z.input<typeof ca
         description: input.description?.trim() || null,
         sku,
         barcode,
-        imageUrl: null,
+        imageUrl: input.imageUrl ?? null,
         isActive: input.isActive ?? true,
         isComposite: input.isComposite ?? false,
         trackInventory: input.trackInventory ?? false,
@@ -239,6 +239,7 @@ export async function updateProduct(businessSlug: string, raw: z.input<typeof ca
           description: input.description?.trim() || null,
           sku,
           barcode,
+          imageUrl: input.imageUrl ?? null,
           isActive: input.isActive ?? true,
           isComposite: input.isComposite ?? false,
           trackInventory: input.trackInventory ?? false,
@@ -335,6 +336,7 @@ export type ProductDetailDTO = {
     description: string | null
     sku: string | null
     barcode: string | null
+    imageUrl: string | null
     isActive: boolean
     isComposite: boolean
     trackInventory: boolean
@@ -367,6 +369,7 @@ export async function getProductDetailForEdit(
       description: d.product.description,
       sku: d.product.sku,
       barcode: d.product.barcode,
+      imageUrl: d.product.imageUrl,
       isActive: d.product.isActive,
       isComposite: d.product.isComposite,
       trackInventory: d.product.trackInventory,

@@ -2,34 +2,17 @@
 
 import Image from "next/image"
 import { useCallback, useEffect, useRef, useState } from "react"
-import {
-  type Control,
-  type FieldValues,
-  type Path,
-  type UseFormSetValue,
-  useWatch,
-} from "react-hook-form"
-
 import { Button } from "@/components/ui/button"
 import { flushPendingImageUploads } from "@/lib/offline/pending-image-uploads"
 import { uploadImageFile } from "@/lib/upload-image-client"
 
-type LogoForm = FieldValues & { logoImageUrl?: string | undefined }
-
-type BrandingLogoUploadProps<T extends LogoForm> = {
-  control: Control<T>
-  setValue: UseFormSetValue<T>
-  /** Field name for logo URL (default `logoImageUrl`). */
-  name?: Path<T>
+type ProductImageUploadProps = {
+  value: string
+  onChange: (url: string) => void
 }
 
-export function BrandingLogoUpload<T extends LogoForm>({
-  control,
-  setValue,
-  name = "logoImageUrl" as Path<T>,
-}: BrandingLogoUploadProps<T>) {
-  const fieldName = name
-  const logoUrl = useWatch({ control, name: fieldName })?.trim() || null
+export function ProductImageUpload({ value, onChange }: ProductImageUploadProps) {
+  const trimmed = value.trim()
   const [pendingPreview, setPendingPreview] = useState<string | null>(null)
   const [pendingHint, setPendingHint] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -50,10 +33,10 @@ export function BrandingLogoUpload<T extends LogoForm>({
 
   const syncFlush = useCallback(async () => {
     await flushPendingImageUploads((_id, url) => {
-      setValue(fieldName, url as never, { shouldValidate: true, shouldDirty: true })
+      onChange(url)
       clearPreview()
     })
-  }, [clearPreview, fieldName, setValue])
+  }, [clearPreview, onChange])
 
   useEffect(() => {
     function onOnline() {
@@ -73,12 +56,12 @@ export function BrandingLogoUpload<T extends LogoForm>({
       const result = await uploadImageFile(file)
       if (result.status === "uploaded") {
         clearPreview()
-        setValue(fieldName, result.url as never, { shouldValidate: true, shouldDirty: true })
+        onChange(result.url)
       } else {
         clearPreview()
         previewRevokeRef.current = result.previewObjectUrl
         setPendingPreview(result.previewObjectUrl)
-        setPendingHint("Logo will upload automatically when you are back online.")
+        setPendingHint("Image will upload automatically when you are back online.")
       }
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed")
@@ -87,7 +70,7 @@ export function BrandingLogoUpload<T extends LogoForm>({
     }
   }
 
-  const displaySrc = pendingPreview || logoUrl
+  const displaySrc = pendingPreview || trimmed || null
 
   return (
     <div className="space-y-2">
@@ -107,23 +90,23 @@ export function BrandingLogoUpload<T extends LogoForm>({
           disabled={isUploading}
           onClick={() => fileInputRef.current?.click()}
         >
-          {isUploading ? "Uploading…" : "Upload logo file"}
+          {isUploading ? "Uploading…" : "Upload image file"}
         </Button>
-        {pendingHint ? <p className="text-xs text-muted-foreground">{pendingHint}</p> : null}
+        {pendingHint ? <p className="text-muted-foreground text-xs">{pendingHint}</p> : null}
       </div>
       {uploadError ? <p className="text-destructive text-xs">{uploadError}</p> : null}
       {displaySrc ? (
-        <div className="flex items-center gap-3 rounded-xl border p-3">
+        <div className="flex items-start gap-3 rounded-xl border p-3">
           <Image
             src={displaySrc}
             alt=""
-            width={48}
-            height={48}
-            className="size-12 shrink-0 rounded-md border bg-muted object-contain p-1"
+            width={96}
+            height={96}
+            className="border-border size-24 shrink-0 rounded-lg border bg-muted object-cover"
             referrerPolicy="no-referrer"
           />
-          <p className="text-xs text-muted-foreground">
-            {pendingPreview ? "Preview (pending upload)" : "Logo preview"}
+          <p className="text-muted-foreground pt-1 text-xs">
+            {pendingPreview ? "Preview (pending upload)" : "Product image preview"}
           </p>
         </div>
       ) : null}

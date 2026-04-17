@@ -53,12 +53,38 @@ export const catalogProductIngredientInputSchema = z.object({
   quantity: z.string().trim().min(1, "Quantity is required."),
 })
 
+function isValidProductImageUrl(s: string): boolean {
+  if (s.length > 2000) return false
+  if (s.startsWith("/uploads/")) {
+    return !s.includes("..") && s.length > "/uploads/".length
+  }
+  try {
+    const u = new URL(s)
+    return u.protocol === "http:" || u.protocol === "https:"
+  } catch {
+    return false
+  }
+}
+
+/** Same-origin upload path or public http(s) URL; empty or omitted becomes null. */
+export const catalogProductImageUrlSchema = z
+  .union([z.string(), z.null(), z.undefined()])
+  .transform((s) => {
+    if (s == null || s === undefined) return null
+    const t = String(s).trim()
+    return t === "" ? null : t
+  })
+  .refine((s) => s === null || isValidProductImageUrl(s), {
+    message: "Use a valid http(s) URL, a path starting with /uploads/, or leave blank.",
+  })
+
 export const catalogProductCreateSchema = z.object({
   name: z.string().trim().min(1, "Name is required.").max(200),
   description: z.string().trim().max(4000).optional().nullable(),
   categoryId: z.string().min(1),
   sku: z.string().trim().max(120).optional().nullable(),
   barcode: z.string().trim().max(120).optional().nullable(),
+  imageUrl: catalogProductImageUrlSchema.optional(),
   isActive: z.boolean().optional(),
   isComposite: z.boolean().optional(),
   trackInventory: z.boolean().optional(),

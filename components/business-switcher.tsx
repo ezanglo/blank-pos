@@ -17,6 +17,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import Image from "next/image"
+
 import { authClient } from "@/lib/auth-client"
 import type { SidebarBusinessNavItem } from "@/lib/types/nav"
 import { cn } from "@/lib/utils"
@@ -31,7 +33,11 @@ export function BusinessMark({
   fallbackIconClassName?: string
 }) {
   if (logoUrl) {
-    return <img src={logoUrl} alt="" className="size-full object-cover" />
+    return (
+      <div className="relative size-full">
+        <Image src={logoUrl} alt="" fill className="object-cover" sizes="40px" referrerPolicy="no-referrer" />
+      </div>
+    )
   }
   return <StoreIcon className={cn("size-4", fallbackIconClassName)} />
 }
