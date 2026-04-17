@@ -188,7 +188,7 @@ export function HeaderLocationSwitcher({
                 onClick={() => {
                   setMenuOpen(false)
                   setSearch("")
-                  router.push(`/${businessSlug}/settings/locations?add=1`)
+                  router.push(`/${businessSlug}/business/locations?add=1`)
                 }}
               >
                 <PlusIcon className="size-4 shrink-0" aria-hidden />

@@ -1,77 +1,22 @@
-import type { Metadata } from "next"
-import { notFound } from "next/navigation"
-import { Suspense } from "react"
-
-import { LocationsAdminPanel, type LocationAdminRow } from "@/components/settings/locations-admin-panel"
-import { listLocationsForOrganization } from "@/lib/queries/location"
-import { getOrgForUser } from "@/lib/queries/organization"
-import { requireSession } from "@/lib/server-auth"
+import { redirect } from "next/navigation"
 
 export const dynamic = "force-dynamic"
 
-export async function generateMetadata({
+export default async function LegacyBusinessLocationsRedirect({
   params,
+  searchParams,
 }: {
   params: Promise<{ businessSlug: string }>
-}): Promise<Metadata> {
-  const { businessSlug } = await params
-  const session = await requireSession()
-  const ctx = await getOrgForUser(businessSlug, session.user.id)
-  if (!ctx) {
-    return { title: "Locations" }
-  }
-  return {
-    title: `Locations · ${ctx.organization.name}`,
-    description: `Manage branches for ${ctx.organization.name}.`,
-  }
-}
-
-function toRow(loc: {
-  id: string
-  slug: string
-  name: string
-  isDefault: boolean
-  defaultCurrency: string
-  addressLine1: string | null
-  addressLine2: string | null
-  city: string | null
-  region: string | null
-  postalCode: string | null
-  phone: string | null
-}): LocationAdminRow {
-  return {
-    id: loc.id,
-    slug: loc.slug,
-    name: loc.name,
-    isDefault: loc.isDefault,
-    defaultCurrency: loc.defaultCurrency,
-    addressLine1: loc.addressLine1,
-    addressLine2: loc.addressLine2,
-    city: loc.city,
-    region: loc.region,
-    postalCode: loc.postalCode,
-    phone: loc.phone,
-  }
-}
-
-export default async function LocationsSettingsPage({
-  params,
-}: {
-  params: Promise<{ businessSlug: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   const { businessSlug } = await params
-  const session = await requireSession()
-
-  const ctx = await getOrgForUser(businessSlug, session.user.id)
-  if (!ctx) notFound()
-  if (ctx.member.role !== "owner" && ctx.member.role !== "manager") notFound()
-
-  const locations = await listLocationsForOrganization(ctx.organization.id)
-  const rows: LocationAdminRow[] = locations.map(toRow)
-
-  return (
-    <Suspense fallback={null}>
-      <LocationsAdminPanel businessSlug={businessSlug} locations={rows} />
-    </Suspense>
-  )
+  const sp = await searchParams
+  const qs = new URLSearchParams()
+  for (const [k, v] of Object.entries(sp)) {
+    if (v === undefined) continue
+    if (Array.isArray(v)) v.forEach((item) => qs.append(k, item))
+    else qs.set(k, v)
+  }
+  const suffix = qs.toString() ? `?${qs.toString()}` : ""
+  redirect(`/${businessSlug}/business/locations${suffix}`)
 }

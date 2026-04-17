@@ -8,5 +8,5 @@ export default async function BusinessBrandingSettingsRedirectPage({
   params: Promise<{ businessSlug: string }>
 }) {
   const { businessSlug } = await params
-  redirect(`/${businessSlug}/settings/business`)
+  redirect(`/${businessSlug}/business/settings`)
 }

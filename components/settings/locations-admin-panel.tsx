@@ -112,7 +112,7 @@ export function LocationsAdminPanel({
   useEffect(() => {
     if (addFromQuery !== "1") return
     setAddOpen(true)
-    router.replace(`/${businessSlug}/settings/locations`, { scroll: false })
+    router.replace(`/${businessSlug}/business/locations`, { scroll: false })
   }, [addFromQuery, businessSlug, router])
 
   const addForm = useForm<AdminAddLocationFormValues>({

@@ -46,17 +46,17 @@ export function AppSidebar({
   const catalogItems: NavItem[] = [
     {
       title: "Categories",
-      url: `${base}/settings/categories`,
+      url: `${base}/catalog/categories`,
       icon: <TagIcon className="size-4" />,
     },
     {
       title: "Products",
-      url: `${base}/settings/products`,
+      url: `${base}/catalog/products`,
       icon: <PackageIcon className="size-4" />,
     },
     {
       title: "Inventory",
-      url: `${base}/settings/inventory`,
+      url: `${base}/catalog/inventory`,
       icon: <BoxesIcon className="size-4" />,
     },
   ]
@@ -64,17 +64,17 @@ export function AppSidebar({
   const businessItems: NavItem[] = [
     {
       title: "Locations",
-      url: `${base}/settings/locations`,
+      url: `${base}/business/locations`,
       icon: <MapPinIcon className="size-4" />,
     },
     {
       title: "Team",
-      url: `${base}/settings/staff`,
+      url: `${base}/business/team`,
       icon: <UsersIcon className="size-4" />,
     },
     {
       title: "Settings",
-      url: `${base}/settings/business`,
+      url: `${base}/business/settings`,
       icon: <SettingsIcon className="size-4" />,
     },
   ]

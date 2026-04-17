@@ -2,11 +2,11 @@ import { redirect } from "next/navigation"
 
 export const dynamic = "force-dynamic"
 
-export default async function LegacyCatalogCategoriesRedirect({
+export default async function LegacyTeamFromStaffSegmentRedirect({
   params,
 }: {
   params: Promise<{ businessSlug: string }>
 }) {
   const { businessSlug } = await params
-  redirect(`/${businessSlug}/catalog/categories`)
+  redirect(`/${businessSlug}/business/team`)
 }
