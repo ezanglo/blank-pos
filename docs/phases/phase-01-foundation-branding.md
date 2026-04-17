@@ -24,6 +24,7 @@
 | Supabase **RLS**, private **Storage**, **signed URLs** for logos | Not implemented (server uses Drizzle; optional Supabase env vars) |
 | **`--brand-*` CSS variables** from DB colors in org shell | Not implemented |
 | **`disableSignUp`** / hard-disable public email sign-up in better-auth | Implemented (`emailAndPassword.disableSignUp: true` in [lib/auth.ts](../../lib/auth.ts)) |
+| **CI** (`lint`, `typecheck`, `build` on push/PR) | Implemented ([`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)) |
 
 ---
 
@@ -39,13 +40,13 @@
 - [x] **Roles** (`owner` \| `manager` \| `cashier`) in **`member.role`**, configured in [lib/auth.ts](../../lib/auth.ts); enforced in server actions (UI matrix deepens in Phase 7).
 - [x] **Drizzle** migrations + [`.env.example`](../../.env.example)** documented vars.
 - [x] **Tooling:** ESLint, Prettier, `lib/env.ts` zod validation for core server env (Supabase keys optional until Storage/RLS).
+- [x] **CI:** GitHub Actions runs **`pnpm install --frozen-lockfile`**, **`pnpm lint`**, **`pnpm typecheck`**, **`pnpm build`** with **`SKIP_ENV_VALIDATION=1`** on **`main`**, **`master`**, and PRs.
 
 ### Deferred (not in repo today; optional hardening)
 
 - [ ] **Private logo Storage** + **`logo_storage_path`** + **short-lived signed URLs** (today: optional **`logo_image_url`** HTTPS on `store_branding`).
 - [ ] **Org-scoped layout** injecting **`--brand-primary` / `--brand-accent`** from DB.
 - [ ] **Supabase RLS** (and Storage policies) aligned with **`member`**; manual cross-org SQL denial checks.
-- [ ] **CI** running `lint` + `typecheck` + `build` (add workflow if missing).
 - [ ] **Org route `error.tsx`** and structured server logging for auth/org errors.
 
 ---
@@ -92,5 +93,5 @@
 ## Definition of done (contributor)
 
 - [x] New developer can follow README **First run** and reach **`/{orgSlug}/dashboard`** via **`/setup`** on an empty DB.
-- [x] No secrets in repo; local **`pnpm lint`**, **`pnpm typecheck`**, **`pnpm build`** expected green.
+- [x] No secrets in repo; local **`pnpm lint`**, **`pnpm typecheck`**, **`pnpm build`** expected green; **CI** runs the same on push/PR ([`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)).
 - [ ] RLS smoke check (deferred until RLS ships).

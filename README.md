@@ -36,6 +36,10 @@ Phase 1 foundation: **Next.js 16**, **better-auth** (username + organization + a
 
 Regenerating the auth schema requires a live `DATABASE_URL` and uses [`lib/auth.config.ts`](lib/auth.config.ts) (CLI-only config).
 
+## CI
+
+Pushes and pull requests against **`main`** or **`master`** run **`pnpm lint`**, **`pnpm typecheck`**, and **`pnpm build`** (with **`SKIP_ENV_VALIDATION=1`**) in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
 ## Adding shadcn components
 
 ```bash
