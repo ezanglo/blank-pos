@@ -16,10 +16,11 @@
 |------|--------|
 | Auth (email/password + org + admin), Drizzle adapter, org/member roles | Implemented |
 | **`/signup`**, **`/login`**, **`/onboarding`**, **`/choose-location`**; **`/`** routing per session + branches | Implemented |
-| Staff: server **`createUser`** (real email) + **`addMember`** | Implemented |
+| Team: server **`createUser`** (real email) + **`addMember`** | Implemented |
 | Org routes `/(protected)/(org)/[businessSlug]/…`, branch routes `…/l/[locationSlug]/…` | Implemented |
 | **`business_details`** per **`organization_id`**, **`location`** many per org, **`user_profile`** per user | Implemented |
-| Branding settings UI | Implemented at **`/{businessSlug}/settings/branding`** |
+| Business settings UI (`business_details`, per-card save) | **`/{businessSlug}/settings/business`**; legacy **`/settings/branding`** redirects there |
+| Locations admin (org-wide branches) | **`/{businessSlug}/settings/locations`** (owner/manager) |
 | **Image uploads** (`POST /api/upload`, local or S3-compatible cloud) | Implemented — [docs/storage-uploads.md](../storage-uploads.md) |
 | **`--brand-primary` / `--brand-accent`** from `business_details` on org shell | Implemented ([`OrgAppShell`](../../components/org-app-shell.tsx)) |
 | **Public sign-up** (`emailAndPassword.disableSignUp: false` in [lib/auth.ts](../../lib/auth.ts)) | Implemented |
@@ -35,7 +36,7 @@
 
 - [x] **Signup + onboarding:** **`/signup`** then **`/onboarding`** (org + optional branding on store step → first **`location`**) → **`/{businessSlug}/l/{locationSlug}/dashboard`** ([onboarding-first-run.md](../onboarding-first-run.md)).
 - [x] **Email auth:** **`signIn.email`** / **`signUp.email`**; no Username plugin.
-- [x] **Staff provisioning:** owner/manager uses **`/{businessSlug}/settings/staff`** with **`createUser`** + **`addMember`** ([schema-better-auth-alignment.md](../schema-better-auth-alignment.md)); real **email** + password.
+- [x] **Team provisioning:** owner/manager uses **`/{businessSlug}/settings/staff`** (sidebar: **Team**; searchable table, dialogs for add / view / edit role / remove) with **`staffCreateUser`**, **`staffUpdateMemberRole`**, **`staffRemoveMember`** ([`lib/actions/staff.ts`](../../lib/actions/staff.ts)); real **email** + password.
 - [x] **Multi-branch picker:** **`/choose-location`** when the user has more than one accessible branch.
 - [x] **Organization** with stable **`slug`** in URLs (`/{businessSlug}/…`); **location** slug under `/l/{locationSlug}/`.
 - [x] **Roles** (`owner` \| `manager` \| `cashier`) in **`member.role`** in [lib/auth.ts](../../lib/auth.ts); enforced in server actions.
@@ -57,7 +58,7 @@
 - **Branch address + default currency:** on **`location`**.
 - **Org-level profile / branding:** on **`business_details`**. **`/login`** uses static app chrome; per-business styling after sign-in in the org shell.
 - **Person extras:** **`user_profile`**.
-- **Auth plugins:** **Organization** + **Admin** (staff `createUser`); **emailAndPassword** with **`disableSignUp: false`**.
+- **Auth plugins:** **Organization** + **Admin** (`createUser` for team provisioning); **emailAndPassword** with **`disableSignUp: false`**.
 
 ---
 
@@ -73,8 +74,10 @@
 | `/(protected)/(org)/[businessSlug]` | Redirects to default branch dashboard |
 | `/(protected)/(org)/[businessSlug]/l/[locationSlug]/dashboard` | Branch home |
 | `/(protected)/(org)/[businessSlug]/l/[locationSlug]/settings/store` | Branch name, address, currency |
-| `/(protected)/(org)/[businessSlug]/settings/staff` | Staff CRUD (org-wide) |
-| `/(protected)/(org)/[businessSlug]/settings/branding` | `business_details` (owner/manager) |
+| `/(protected)/(org)/[businessSlug]/settings/locations` | Branch list + dialogs: create / view / edit / delete (`location` rows; owner/manager) |
+| `/(protected)/(org)/[businessSlug]/settings/staff` | **Team** UI: table + dialogs — add, view, role update, remove (org-wide; owner/manager) |
+| `/(protected)/(org)/[businessSlug]/settings/business` | `business_details` + org display name, grouped cards with per-card save (owner/manager) |
+| `/(protected)/(org)/[businessSlug]/settings/branding` | Redirects to **`/settings/business`** |
 
 ---
 

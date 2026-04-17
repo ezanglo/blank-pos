@@ -4,7 +4,7 @@ Detailed task breakdowns for Blank POS delivery. They follow the frozen stack an
 
 **Auth schema:** [schema-better-auth-alignment.md](../schema-better-auth-alignment.md) — use better-auth **`organization`** / **`member`** / **`session.activeOrganizationId`**; **many `location` rows per organization** (branches); org-level profile on **`business_details`**; do not duplicate org membership tables.
 
-**First-run UX:** [onboarding-first-run.md](../onboarding-first-run.md) — clone, env, migrate, then **`/signup`** and **`/onboarding`** (**`organization`** + **`business_details`** + **`location`** + presentation). Users with multiple branches use **`/choose-location`**. Additional users via **Settings → Staff** (`createUser` + **`addMember`**, real **email** + password).
+**First-run UX:** [onboarding-first-run.md](../onboarding-first-run.md) — clone, env, migrate, then **`/signup`** and **`/onboarding`** (**`organization`** + **`business_details`** + **`location`** + presentation). Users with multiple branches use **`/choose-location`**. Additional users via **Settings → Team** (`createUser` + **`addMember`**, real **email** + password).
 
 | Phase | Document |
 | --- | --- |

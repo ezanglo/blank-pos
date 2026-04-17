@@ -20,7 +20,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { LayoutDashboardIcon, PaintbrushIcon, StoreIcon, UsersIcon } from "lucide-react"
+import { LayoutDashboardIcon, MapPinIcon, Settings2Icon, UsersIcon } from "lucide-react"
 
 export type AppSidebarUser = {
   name: string
@@ -57,19 +57,19 @@ export function AppSidebar({
 
   const adminNav = [
     {
-      title: "Location",
-      url: `${locBase}/settings/store`,
-      icon: <StoreIcon className="size-4" />,
+      title: "Locations",
+      url: `${base}/settings/locations`,
+      icon: <MapPinIcon className="size-4" />,
     },
     {
-      title: "Staff",
+      title: "Team",
       url: `${base}/settings/staff`,
       icon: <UsersIcon className="size-4" />,
     },
     {
-      title: "Branding",
-      url: `${base}/settings/branding`,
-      icon: <PaintbrushIcon className="size-4" />,
+      title: "Business settings",
+      url: `${base}/settings/business`,
+      icon: <Settings2Icon className="size-4" />,
     },
   ]
 

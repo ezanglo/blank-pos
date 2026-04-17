@@ -45,7 +45,7 @@ Core auth tables (`user`, `account`, `verification`, …) remain better-auth’s
 
 ---
 
-## User lifecycle (v1): email sign-up + email login + admin staff
+## User lifecycle (v1): email sign-up + email login + admin team provisioning
 
 **Public sign-up**  
 [`lib/auth.ts`](../lib/auth.ts) sets **`emailAndPassword.disableSignUp: false`**. New users register at **`/signup`** with **`authClient.signUp.email`** (`email`, `password`, `name`). Email verification is **off** until SMTP is configured (see README / follow-ups).
@@ -53,11 +53,11 @@ Core auth tables (`user`, `account`, `verification`, …) remain better-auth’s
 **First business**  
 After sign-in, users who cannot yet open a branch dashboard complete **`/onboarding`**: **`authClient.organization.create`**, optional branding on **`business_details`** in the same step, then first **`location`**. The organization creator is **`member.role` = `owner`**. (**`user_profile`** can be added in settings later; v1 onboarding does not collect it.)
 
-**Staff**  
-Owners (and managers where allowed) add users from **Settings → Staff** with a **real email**, temporary password, display name, and role:
+**Team**  
+Owners (and managers where allowed) add users from **Settings → Team** with a **real email**, temporary password, display name, and role:
 
 1. **Server-only** [`lib/actions/staff.ts`](../lib/actions/staff.ts): **`auth.api.createUser`** with **`email`** + **`password`** + **`name`**, then **`addMember`** with **`member.role`** (`manager` | `cashier`).
-2. Staff sign in at **`/login`** with **`authClient.signIn.email`**.
+2. New members sign in at **`/login`** with **`authClient.signIn.email`**.
 
 **Multi-branch**  
 If a user can open **more than one** `(organization, location)` pair, **`/`** and post-login redirects send them to **`/choose-location`** before landing on a dashboard.
@@ -69,7 +69,7 @@ If a user can open **more than one** `(organization, location)` pair, **`/`** an
 **POS-specific columns** should not overload the auth model unnecessarily. **Current repo split:**
 
 - **Branch address / phone / default currency** — on **`location`** (`id` PK, **`organization_id`**, **`slug`**, **`name`**, **`is_default`**, …). Created in onboarding via **`createFirstLocationAfterOrgCreate`**; updated from **Location** settings ([`lib/actions/organization.ts`](../lib/actions/organization.ts)).
-- **Org-level profile / branding / onboarding extras** — on **`business_details`** (PK **`organization_id`**). Upserted from onboarding and **Settings → Branding** ([`lib/actions/branding.ts`](../lib/actions/branding.ts)) via **`updateBusinessDetails`** / **`setupPhaseSaveBusinessDetails`**.
+- **Org-level profile / branding / onboarding extras** — on **`business_details`** (PK **`organization_id`**). Upserted from onboarding and **Settings → Business settings** ([`lib/actions/branding.ts`](../lib/actions/branding.ts)) via **`patchBusinessDetails`** / **`updateBusinessDetails`** / **`setupPhaseSaveBusinessDetails`**.
 - **Person extras** — on **`user_profile`** ([`lib/actions/user-profile.ts`](../lib/actions/user-profile.ts)).
 - **`organization.logo` / `metadata`** — reserved for better-auth plugin defaults; avoid duplicating full **`business_details`** here unless you add an explicit sync hook.
 

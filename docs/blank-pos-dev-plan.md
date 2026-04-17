@@ -83,7 +83,7 @@ Core **users, sessions, accounts**, and **organization plugin** tables are **own
 
 - **`organization`** — `id`, `name`, `slug`, optional `logo`, optional `metadata`, timestamps (exact set per generated schema).
 - **`member`** — membership and **org role** string per user (`role`: `owner` | `manager` | `cashier` or your configured allowlist).
-- **`invitation`** — may exist from plugin migrations; **v1 does not use invites** for staff. Add users via **Admin `createUser`** + **`addMember`** ([schema-better-auth-alignment.md](schema-better-auth-alignment.md)).
+- **`invitation`** — may exist from plugin migrations; **v1 does not use invites** for team onboarding. Add users via **Admin `createUser`** + **`addMember`** ([schema-better-auth-alignment.md](schema-better-auth-alignment.md)).
 - **`session`** — includes **`activeOrganizationId`** for the current org context.
 
 **App-owned:**
@@ -205,7 +205,7 @@ transaction_items
 ### v1 — Core POS (MVP)
 
 - [x] **Signup + onboarding** (browser: **`/signup`**, **`/onboarding`**, org + branches + **`business_details`**) — [onboarding-first-run.md](onboarding-first-run.md)
-- [x] User auth: **email + password**; roles **owner / manager / cashier**; **public sign-up** enabled; staff via owner/manager **createUser** + **addMember** (real email)
+- [x] User auth: **email + password**; roles **owner / manager / cashier**; **public sign-up** enabled; team members via owner/manager **createUser** + **addMember** (real email)
 - [ ] Category management (CRUD, color/icon)
 - [ ] Product management (CRUD, assign category)
 - [ ] Multiple price tiers per product (org-scoped)
@@ -353,7 +353,7 @@ blank-pos/
 │   ├── (protected)/          # Session required: onboarding, choose-location, org shell
 │   │   └── (org)/            # Business + branch routes
 │   │       └── [businessSlug]/  # Org gate; index redirects to default branch
-│   │           ├── settings/ # Staff, branding (org-wide)
+│   │           ├── settings/ # Locations, team, business (org-wide); /settings/branding → /business
 │   │           └── l/[locationSlug]/  # Branch shell: dashboard, settings/store, …
 │   │   # (future under branch: pos/, products/, …)
 ├── components/

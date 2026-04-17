@@ -27,6 +27,18 @@ export async function getDefaultLocationSlugForOrganization(
   return rows[0]?.slug ?? null
 }
 
+export async function getLocationByIdForOrganization(organizationId: string, locationId: string) {
+  const db = getDb()
+  const [row] = await db
+    .select()
+    .from(businessLocation)
+    .where(
+      and(eq(businessLocation.organizationId, organizationId), eq(businessLocation.id, locationId)),
+    )
+    .limit(1)
+  return row ?? null
+}
+
 export async function getLocationByOrganizationAndSlug(
   organizationId: string,
   locationSlug: string,

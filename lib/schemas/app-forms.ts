@@ -73,6 +73,12 @@ export const setupFirstLocationSchema = setupLocationSchema.extend({
 })
 export type SetupFirstLocationFormValues = z.infer<typeof setupFirstLocationSchema>
 
+/** Org admin: edit branch row (slug not editable here). */
+export const adminLocationBranchSchema = setupLocationSchema.extend({
+  locationName: z.string().min(1, "Location name is required"),
+})
+export type AdminLocationBranchFormValues = z.infer<typeof adminLocationBranchSchema>
+
 export const storeSettingsSchema = z.object({
   storeName: z.string().min(1, "Store name is required"),
   locationName: z.string().min(1, "Location name is required"),
@@ -177,6 +183,54 @@ export const brandingSettingsSchema = z.object({
   expectedGoLive: z.string().optional(),
 })
 export type BrandingSettingsFormValues = z.infer<typeof brandingSettingsSchema>
+
+export const organizationStoreNameSchema = z.object({
+  organizationName: z.string().min(1, "Store name is required"),
+})
+export type OrganizationStoreNameFormValues = z.infer<typeof organizationStoreNameSchema>
+
+export const businessSettingsIdentitySchema = brandingSettingsSchema.pick({
+  displayName: true,
+  tagline: true,
+  legalName: true,
+  taxIdentifier: true,
+})
+export type BusinessSettingsIdentityFormValues = z.infer<typeof businessSettingsIdentitySchema>
+
+export const businessSettingsOperationsSchema = brandingSettingsSchema.pick({
+  businessCategory: true,
+  teamScaleBand: true,
+  expectedGoLive: true,
+})
+export type BusinessSettingsOperationsFormValues = z.infer<typeof businessSettingsOperationsSchema>
+
+export const businessSettingsBrandSchema = brandingSettingsSchema.pick({
+  logoImageUrl: true,
+  primaryColor: true,
+  accentColor: true,
+})
+export type BusinessSettingsBrandFormValues = z.infer<typeof businessSettingsBrandSchema>
+
+export const businessSettingsReceiptSchema = brandingSettingsSchema.pick({
+  receiptHeaderText: true,
+  receiptFooterText: true,
+})
+export type BusinessSettingsReceiptFormValues = z.infer<typeof businessSettingsReceiptSchema>
+
+export const businessSettingsWebContactSchema = brandingSettingsSchema.pick({
+  websiteUrl: true,
+  menuUrl: true,
+  contactEmail: true,
+  publicPhone: true,
+})
+export type BusinessSettingsWebContactFormValues = z.infer<typeof businessSettingsWebContactSchema>
+
+export const businessSettingsSocialSchema = brandingSettingsSchema.pick({
+  instagramUrl: true,
+  facebookUrl: true,
+  operatingHoursText: true,
+})
+export type BusinessSettingsSocialFormValues = z.infer<typeof businessSettingsSocialSchema>
 
 export const staffCreateSchema = z.object({
   email: z.string().min(1, "Email is required").email("Enter a valid email"),

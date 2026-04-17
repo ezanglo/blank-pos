@@ -166,3 +166,39 @@ export async function updateStoreAndLocationSettings(
 
   return { ok: true as const }
 }
+
+/** Update better-auth organization display name only (org-wide “store name”). */
+export async function updateOrganizationStoreName(businessSlug: string, storeName: string) {
+  const session = await getServerSession()
+  if (!session?.user) throw new Error("Unauthorized")
+
+  const ctx = await getOrgForUser(businessSlug, session.user.id)
+  if (!ctx || (ctx.member.role !== "owner" && ctx.member.role !== "manager")) {
+    throw new Error("Forbidden")
+  }
+
+  const metadata = stripLocationKeysFromOrganizationMetadata(ctx.organization.metadata)
+
+  try {
+    await auth.api.updateOrganization({
+      headers: await headers(),
+      body: {
+        organizationId: ctx.organization.id,
+        data: {
+          name: storeName.trim(),
+          metadata,
+        },
+      },
+    })
+  } catch (e) {
+    logAuthEvent("error", "organization.update_store_name_failed", {
+      orgSlug: businessSlug,
+      organizationId: ctx.organization.id,
+      message: e instanceof APIError ? e.message : e instanceof Error ? e.message : "unknown",
+    })
+    if (e instanceof APIError) throw new Error(e.message)
+    throw e
+  }
+
+  return { ok: true as const }
+}

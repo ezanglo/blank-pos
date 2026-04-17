@@ -17,8 +17,10 @@ function titleForPath(pathname: string, businessSlug: string) {
     return "Dashboard"
   }
   if (pathname.includes("/settings/store")) return "Location"
-  if (pathname.includes("/settings/staff")) return "Staff"
-  if (pathname.includes("/settings/branding")) return "Branding"
+  if (pathname.includes("/settings/locations")) return "Locations"
+  if (pathname.includes("/settings/staff")) return "Team"
+  if (pathname.includes("/settings/business")) return "Business settings"
+  if (pathname.includes("/settings/branding")) return "Business settings"
   return "Blank POS"
 }
 

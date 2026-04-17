@@ -4,7 +4,7 @@ This describes how someone can **clone the repo**, configure **`.env`**, run **m
 
 It belongs to **Phase 1**; see [phases/phase-01-foundation-branding.md](phases/phase-01-foundation-branding.md) for scope and deferred items.
 
-**Auth model (v1):** **Email + password** for **`/signup`** and **`/login`**. The **first user** (and any later user) self-registers at **`/signup`**. **Staff** are created by **owner/manager** from **Settings → Staff** with a **real email** + temporary password ([`lib/actions/staff.ts`](../lib/actions/staff.ts) — Admin **`createUser`** + **`addMember`**). **No email invite flow** yet.
+**Auth model (v1):** **Email + password** for **`/signup`** and **`/login`**. The **first user** (and any later user) self-registers at **`/signup`**. **Team members** are created by **owner/manager** from **Settings → Team** with a **real email** + temporary password ([`lib/actions/staff.ts`](../lib/actions/staff.ts) — Admin **`createUser`** + **`addMember`**). **No email invite flow** yet.
 
 ---
 
@@ -47,12 +47,13 @@ Shared step UI lives under [`components/setup/setup-steps.tsx`](../components/se
 
 ---
 
-## Staff (after the first business exists)
+## Team (after the first business exists)
 
-**`/{businessSlug}/settings/staff`**:
+**`/{businessSlug}/settings/staff`** (labeled **Team** in the sidebar under Administration):
 
-- Form: **email**, **password**, **name**, **role** (`manager` | `cashier`; only **owner** creates **managers**).
-- Server: **`staffCreateUser`** → **`createUser`** + **`addMember`** ([`lib/actions/staff.ts`](../lib/actions/staff.ts)).
+- UI: **search**, **Add member** (dialog), and a **paginated table** with view / edit role / remove (dialogs).
+- Add member: **email**, **password**, **name**, **role** (`manager` | `cashier`; only **owner** creates **managers**).
+- Server: **`staffCreateUser`** (`createUser` + `addMember`), **`staffUpdateMemberRole`**, **`staffRemoveMember`** ([`lib/actions/staff.ts`](../lib/actions/staff.ts)).
 
 ---
 

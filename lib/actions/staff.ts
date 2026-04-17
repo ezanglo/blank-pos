@@ -32,7 +32,7 @@ export async function staffCreateUser(input: {
 
   const actor = await getMembership(input.organizationId, session.user.id)
   if (!actor || (actor.role !== "owner" && actor.role !== "manager")) {
-    throw new Error("You do not have permission to manage staff.")
+    throw new Error("You do not have permission to manage the team.")
   }
 
   if (input.role === "manager" && actor.role !== "owner") {
@@ -88,13 +88,71 @@ export async function staffCreateUser(input: {
   return { ok: true as const }
 }
 
+export async function staffUpdateMemberRole(
+  businessSlug: string,
+  memberId: string,
+  role: "manager" | "cashier",
+) {
+  const session = await getServerSession()
+  if (!session?.user) throw new Error("Unauthorized")
+
+  const ctx = await getOrgForUser(businessSlug, session.user.id)
+  if (!ctx || (ctx.member.role !== "owner" && ctx.member.role !== "manager")) {
+    throw new Error("You do not have permission to manage the team.")
+  }
+
+  if (role === "manager" && ctx.member.role !== "owner") {
+    throw new Error("Only the owner can assign the manager role.")
+  }
+
+  const db = getDb()
+  const [target] = await db
+    .select()
+    .from(member)
+    .where(and(eq(member.id, memberId), eq(member.organizationId, ctx.organization.id)))
+    .limit(1)
+  if (!target) throw new Error("Member not found.")
+
+  if (target.userId === session.user.id) {
+    throw new Error("You cannot change your own role here.")
+  }
+  if (target.role === "owner") {
+    throw new Error("The store owner role cannot be changed here.")
+  }
+  if (target.role === "manager" && ctx.member.role !== "owner") {
+    throw new Error("Only the owner can change a manager’s role.")
+  }
+
+  try {
+    await auth.api.updateMemberRole({
+      headers: await headers(),
+      body: {
+        memberId,
+        role,
+        organizationId: ctx.organization.id,
+      },
+    })
+  } catch (e) {
+    logAuthEvent("error", "staff.update_member_role_failed", {
+      organizationId: ctx.organization.id,
+      businessSlug,
+      memberId,
+      message: e instanceof APIError ? e.message : e instanceof Error ? e.message : "unknown",
+    })
+    if (e instanceof APIError) throw new Error(e.message)
+    throw e
+  }
+
+  return { ok: true as const }
+}
+
 export async function staffRemoveMember(businessSlug: string, memberId: string) {
   const session = await getServerSession()
   if (!session?.user) throw new Error("Unauthorized")
 
   const ctx = await getOrgForUser(businessSlug, session.user.id)
   if (!ctx || (ctx.member.role !== "owner" && ctx.member.role !== "manager")) {
-    throw new Error("You do not have permission to manage staff.")
+    throw new Error("You do not have permission to manage the team.")
   }
 
   const db = getDb()

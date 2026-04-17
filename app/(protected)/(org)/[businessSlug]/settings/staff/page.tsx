@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
-import { StaffPanel } from "@/components/settings/staff-panel"
+import { StaffAdminPanel, type StaffMemberRow } from "@/components/settings/staff-admin-panel"
 import { listMembersForOrganization } from "@/lib/queries/members"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { requireSession } from "@/lib/server-auth"
@@ -17,10 +17,10 @@ export async function generateMetadata({
   const session = await requireSession()
   const ctx = await getOrgForUser(businessSlug, session.user.id)
   if (!ctx) {
-    return { title: "Staff" }
+    return { title: "Team" }
   }
   return {
-    title: `Staff · ${ctx.organization.name}`,
+    title: `Team · ${ctx.organization.name}`,
     description: `Manage team members and roles for ${ctx.organization.name}.`,
   }
 }
@@ -37,18 +37,23 @@ export default async function StaffSettingsPage({
   if (!ctx) notFound()
   if (ctx.member.role !== "owner" && ctx.member.role !== "manager") notFound()
 
-  const members = await listMembersForOrganization(ctx.organization.id)
+  const membersRaw = await listMembersForOrganization(ctx.organization.id)
+  const members: StaffMemberRow[] = membersRaw.map((m) => ({
+    memberId: m.memberId,
+    userId: m.userId,
+    role: m.role,
+    name: m.name,
+    email: m.email,
+    joinedAt: m.joinedAt instanceof Date ? m.joinedAt.toISOString() : String(m.joinedAt),
+  }))
 
   return (
-    <div className="space-y-2">
-      <h1 className="text-2xl font-semibold tracking-tight">Staff</h1>
-      <StaffPanel
-        businessSlug={businessSlug}
-        organizationId={ctx.organization.id}
-        currentUserId={session.user.id}
-        currentRole={ctx.member.role}
-        members={members}
-      />
-    </div>
+    <StaffAdminPanel
+      businessSlug={businessSlug}
+      organizationId={ctx.organization.id}
+      currentUserId={session.user.id}
+      currentRole={ctx.member.role}
+      members={members}
+    />
   )
 }

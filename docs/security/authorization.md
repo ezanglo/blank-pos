@@ -5,7 +5,7 @@ Blank POS is deployed as **one install per business** today: a single Postgres d
 ## How access is enforced
 
 - The Next.js app uses **server actions**, **route handlers**, and **Drizzle** with a normal **database connection** (see `DATABASE_URL`). **Membership and roles** are checked in **TypeScript** before reads and writes (for example `member` rows, `getOrgForUser`, `getLocationForUserByBusinessAndLocationSlug`, `userCanEditBusinessDetailsForOrganization`, org- and location-scoped queries).
-- **Org-level settings routes** (`/{businessSlug}/settings/…`) require a **`member`** row for that **`organization.slug`** (URL segment = **`businessSlug`**).
+- **Org-level settings routes** (`/{businessSlug}/settings/…`) require a **`member`** row for that **`organization.slug`** (URL segment = **`businessSlug`**). **`/settings/locations`**, **`/settings/staff`** (sidebar: **Team**), and **`/settings/business`** additionally require **`owner`** or **`manager`** (see each route’s `notFound()` guard). **`/settings/branding`** redirects to **`/settings/business`**.
 - **Branch routes** (`/{businessSlug}/l/{locationSlug}/…`) additionally require a **`location`** row whose **`slug`** matches and whose **`organization_id`** is that organization.
 - There is **no reliance** on database Row Level Security (RLS) in v1. If you add RLS later, keep policies aligned with the same membership rules.
 

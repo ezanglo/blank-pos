@@ -9,7 +9,7 @@ const SITE_LABEL_FALLBACK = "Business"
 export const APP_PRODUCT_NAME = "Blank POS"
 
 export const DEFAULT_DESCRIPTION =
-  "Multi-tenant store operations—organizations, staff roles, and branding—for point-of-sale workflows."
+  "Multi-tenant store operations—organizations, team roles, and branding—for point-of-sale workflows."
 
 /**
  * Canonical origin for relative Open Graph / Twitter URLs.

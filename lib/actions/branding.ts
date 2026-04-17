@@ -1,6 +1,7 @@
 "use server"
 
 import { getDb } from "@/lib/db"
+import type { BusinessDetails } from "@/lib/db/schema-app"
 import { businessDetails } from "@/lib/db/schema-app"
 import { getBusinessDetailsByOrganizationId } from "@/lib/queries/business-details"
 import { userCanEditBusinessDetailsForOrganization } from "@/lib/queries/stores"
@@ -90,6 +91,45 @@ function businessDetailsRowValues(input: BusinessDetailsWriteInput) {
   }
 }
 
+function businessDetailsRowToWriteInput(row: BusinessDetails): BusinessDetailsWriteInput {
+  return {
+    displayName: row.displayName,
+    tagline: row.tagline,
+    receiptHeaderText: row.receiptHeaderText,
+    receiptFooterText: row.receiptFooterText,
+    legalName: row.legalName,
+    taxIdentifier: row.taxIdentifier,
+    websiteUrl: row.websiteUrl,
+    menuUrl: row.menuUrl,
+    contactEmail: row.contactEmail,
+    publicPhone: row.publicPhone,
+    instagramUrl: row.instagramUrl,
+    facebookUrl: row.facebookUrl,
+    operatingHoursText: row.operatingHoursText,
+    primaryColor: row.primaryColor,
+    accentColor: row.accentColor,
+    logoImageUrl: row.logoImageUrl,
+    businessCategory: row.businessCategory,
+    teamScaleBand: row.teamScaleBand,
+    expectedGoLive: row.expectedGoLive,
+  }
+}
+
+function mergeBusinessDetailsWriteInput(
+  existing: BusinessDetails | null,
+  patch: Partial<BusinessDetailsWriteInput>,
+): BusinessDetailsWriteInput {
+  const base = existing ? businessDetailsRowToWriteInput(existing) : {}
+  const out: BusinessDetailsWriteInput = { ...base }
+  for (const key of Object.keys(patch) as (keyof BusinessDetailsWriteInput)[]) {
+    const v = patch[key]
+    if (v !== undefined) {
+      ;(out as Record<string, unknown>)[key] = v
+    }
+  }
+  return out
+}
+
 async function upsertBusinessDetailsForOrganization(
   organizationId: string,
   input: BusinessDetailsWriteInput,
@@ -151,6 +191,30 @@ export async function updateBusinessDetails(businessSlug: string, input: Busines
   if (!allowed) throw new Error("Forbidden")
 
   await upsertBusinessDetailsForOrganization(ctx.organization.id, input)
+
+  return { ok: true as const }
+}
+
+/** Merge partial branding fields into the existing row, then upsert (safe for per-card saves). */
+export async function patchBusinessDetails(
+  businessSlug: string,
+  patch: Partial<BusinessDetailsWriteInput>,
+) {
+  const session = await getServerSession()
+  if (!session?.user?.id) throw new Error("Unauthorized")
+
+  const ctx = await getOrgForUser(businessSlug, session.user.id)
+  if (!ctx) throw new Error("Forbidden")
+
+  const allowed = await userCanEditBusinessDetailsForOrganization(
+    session.user.id,
+    ctx.organization.id,
+  )
+  if (!allowed) throw new Error("Forbidden")
+
+  const existing = await getBusinessDetailsByOrganizationId(ctx.organization.id)
+  const merged = mergeBusinessDetailsWriteInput(existing, patch)
+  await upsertBusinessDetailsForOrganization(ctx.organization.id, merged)
 
   return { ok: true as const }
 }

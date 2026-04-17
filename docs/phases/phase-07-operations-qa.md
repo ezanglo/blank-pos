@@ -63,7 +63,7 @@
 
 ## Workstream E — QA program
 
-- [ ] **Test matrix** by role: owner, manager, cashier—each row of matrix exercised, including **who may open Settings → Staff** and **`createUser`** (align with Phase 1 rules: e.g. only owner creates managers).
+- [ ] **Test matrix** by role: owner, manager, cashier—each row of matrix exercised, including **who may open Settings → Team** and **`createUser`** (align with Phase 1 rules: e.g. only owner creates managers).
 - [ ] **Offline + void** interaction documented (if void requires online, state clearly).
 - [ ] **Load test light:** e.g. 50 concurrent checkouts simulation if feasible.
 
