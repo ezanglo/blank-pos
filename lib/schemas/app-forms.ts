@@ -79,6 +79,28 @@ export const adminLocationBranchSchema = setupLocationSchema.extend({
 })
 export type AdminLocationBranchFormValues = z.infer<typeof adminLocationBranchSchema>
 
+/** Settings → Locations: add branch with display name + URL slug only (currency defaults to PHP, address empty). */
+export const adminAddLocationSchema = z.object({
+  locationName: z.string().min(1, "Location name is required"),
+  locationSlug: z
+    .string()
+    .transform((s) => s.trim().toLowerCase())
+    .pipe(
+      z
+        .string()
+        .min(2, "Location link is too short")
+        .regex(SETUP_WEB_SLUG_REGEX, "Use lowercase letters, numbers, and hyphens only"),
+    ),
+})
+export type AdminAddLocationFormValues = z.infer<typeof adminAddLocationSchema>
+
+/** Settings → Locations: edit branch name + currency (address edited separately). */
+export const adminLocationBranchCoreSchema = z.object({
+  locationName: z.string().min(1, "Location name is required"),
+  defaultCurrency: z.enum(["PHP", "USD", "EUR", "GBP"]),
+})
+export type AdminLocationBranchCoreFormValues = z.infer<typeof adminLocationBranchCoreSchema>
+
 export const storeSettingsSchema = z.object({
   storeName: z.string().min(1, "Store name is required"),
   locationName: z.string().min(1, "Location name is required"),

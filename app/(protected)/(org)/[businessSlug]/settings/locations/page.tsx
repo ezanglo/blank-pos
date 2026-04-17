@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
+import { Suspense } from "react"
 
 import { LocationsAdminPanel, type LocationAdminRow } from "@/components/settings/locations-admin-panel"
 import { listLocationsForOrganization } from "@/lib/queries/location"
@@ -68,5 +69,9 @@ export default async function LocationsSettingsPage({
   const locations = await listLocationsForOrganization(ctx.organization.id)
   const rows: LocationAdminRow[] = locations.map(toRow)
 
-  return <LocationsAdminPanel businessSlug={businessSlug} locations={rows} />
+  return (
+    <Suspense fallback={null}>
+      <LocationsAdminPanel businessSlug={businessSlug} locations={rows} />
+    </Suspense>
+  )
 }

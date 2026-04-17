@@ -1,53 +1,36 @@
 "use client"
 
-import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import * as React from "react"
 
-import { BusinessSwitcher } from "@/components/business-switcher"
 import { NavSecondary } from "@/components/nav-secondary"
-import { NavUser } from "@/components/nav-user"
-import type { SidebarBusinessNavItem } from "@/lib/types/nav"
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { LayoutDashboardIcon, MapPinIcon, Settings2Icon, UsersIcon } from "lucide-react"
-
-export type AppSidebarUser = {
-  name: string
-  email: string
-  avatar: string
-  brandName?: string
-  orgRole?: string
-}
+import {
+  LayoutDashboardIcon,
+  MapPinIcon,
+  Settings2Icon,
+  UsersIcon,
+} from "lucide-react"
 
 export function AppSidebar({
   businessSlug,
   navLocationSlug,
-  sidebarBusinesses,
-  user: userProp,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
   businessSlug: string
   navLocationSlug: string
-  sidebarBusinesses: SidebarBusinessNavItem[]
-  user?: AppSidebarUser
 }) {
   const pathname = usePathname()
-  const user = userProp ?? {
-    name: "",
-    email: "",
-    avatar: "",
-  }
 
   const base = `/${businessSlug}`
   const locBase = `${base}/l/${navLocationSlug}`
@@ -75,9 +58,6 @@ export function AppSidebar({
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader>
-        <BusinessSwitcher businesses={sidebarBusinesses} />
-      </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
@@ -96,11 +76,12 @@ export function AppSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <NavSecondary title="Administration" items={adminNav} className="mt-auto" />
+        <NavSecondary
+          title="Administration"
+          items={adminNav}
+          className="mt-auto"
+        />
       </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={user} />
-      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )

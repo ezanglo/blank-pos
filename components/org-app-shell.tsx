@@ -3,7 +3,7 @@
 import * as React from "react"
 
 import { AppSidebar } from "@/components/app-sidebar"
-import { HeaderLocationSwitcher } from "@/components/header-location-switcher"
+import type { HeaderBranch } from "@/components/header-location-switcher"
 import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import type { SidebarBusinessNavItem } from "@/lib/types/nav"
@@ -15,8 +15,6 @@ export type OrgAppShellUser = {
   brandName: string
   orgRole: string
 }
-
-export type HeaderBranch = { slug: string; name: string }
 
 export function OrgAppShell({
   businessSlug,
@@ -42,48 +40,43 @@ export function OrgAppShell({
 }) {
   return (
     <SidebarProvider
-      className="h-dvh max-h-dvh min-h-0 overflow-hidden"
+      className="flex h-dvh max-h-dvh min-h-0 flex-col overflow-hidden"
       style={
         {
           "--sidebar-width": "calc(var(--spacing) * 72)",
-          "--header-height": "calc(var(--spacing) * 12)",
           ...(brandPrimaryCss ? { "--brand-primary": brandPrimaryCss } : {}),
           ...(brandAccentCss ? { "--brand-accent": brandAccentCss } : {}),
         } as React.CSSProperties
       }
     >
-      <AppSidebar
-        variant="inset"
+      <SiteHeader
         businessSlug={businessSlug}
         navLocationSlug={navLocationSlug}
         sidebarBusinesses={sidebarBusinesses}
+        headerBranches={headerBranches}
+        showLocationSwitcher={showLocationSwitcher}
         user={{
           name: user.name,
           email: user.email,
-          avatar: user.image ?? "",
+          image: user.image,
           brandName: user.brandName,
           orgRole: user.orgRole,
         }}
       />
-      <SidebarInset className="min-h-0 flex-1 overflow-hidden">
-        <SiteHeader
+      <div className="flex min-h-0 w-full flex-1 overflow-hidden">
+        <AppSidebar
+          variant="inset"
           businessSlug={businessSlug}
-          locationSwitcher={
-            showLocationSwitcher ? (
-              <HeaderLocationSwitcher
-                businessSlug={businessSlug}
-                branches={headerBranches}
-                activeLocationSlug={navLocationSlug}
-              />
-            ) : null
-          }
+          navLocationSlug={navLocationSlug}
         />
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain">
-          <div className="@container/main flex flex-col gap-2">
-            <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-6">{children}</div>
+        <SidebarInset className="min-h-0 flex-1 overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain">
+            <div className="@container/main flex flex-col gap-2">
+              <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-6">{children}</div>
+            </div>
           </div>
-        </div>
-      </SidebarInset>
+        </SidebarInset>
+      </div>
     </SidebarProvider>
   )
 }

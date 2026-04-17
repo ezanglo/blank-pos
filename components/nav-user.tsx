@@ -3,6 +3,7 @@
 import * as React from "react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,9 +45,23 @@ function accountSubtitle(user: {
   return user.email
 }
 
-export function NavUser({
-  user,
-}: {
+function initialsFromName(name: string, email: string) {
+  const parts = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  if (parts.length >= 2) {
+    return `${parts[0].charAt(0)}${parts.at(-1)!.charAt(0)}`.toUpperCase()
+  }
+  if (parts.length === 1 && parts[0].length >= 2) {
+    return parts[0].slice(0, 2).toUpperCase()
+  }
+  if (parts[0]?.[0]) return parts[0].charAt(0).toUpperCase()
+  const e = email.trim()
+  return e[0]?.toUpperCase() ?? "?"
+}
+
+export type NavUserProps = {
   user: {
     name: string
     email: string
@@ -54,10 +69,16 @@ export function NavUser({
     brandName?: string
     orgRole?: string
   }
-}) {
+  /** `header`: avatar-only trigger in app bar. `sidebar`: full-width footer control (default). */
+  variant?: "sidebar" | "header"
+}
+
+export function NavUser({ user, variant = "sidebar" }: NavUserProps) {
   const { isMobile } = useSidebar()
   const subtitle = accountSubtitle(user)
   const [signingOut, setSigningOut] = React.useState(false)
+  const initials = initialsFromName(user.name, user.email)
+  const isHeader = variant === "header"
 
   async function onSignOut() {
     if (signingOut) return
@@ -68,6 +89,76 @@ export function NavUser({
     } catch {
       setSigningOut(false)
     }
+  }
+
+  const menu = (
+    <>
+      <DropdownMenuGroup>
+        <DropdownMenuLabel className="p-0 font-normal">
+          <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+            <Avatar className="size-9">
+              <AvatarImage src={user.avatar} alt={user.name} />
+              <AvatarFallback>{initials}</AvatarFallback>
+            </Avatar>
+            <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
+              <span className="truncate font-medium">{user.name}</span>
+              <span className="truncate text-xs text-muted-foreground">{subtitle}</span>
+            </div>
+          </div>
+        </DropdownMenuLabel>
+      </DropdownMenuGroup>
+      <DropdownMenuSeparator />
+      <DropdownMenuGroup>
+        <DropdownMenuItem>
+          <BadgeCheckIcon />
+          Account
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        variant="destructive"
+        disabled={signingOut}
+        onClick={() => {
+          void onSignOut()
+        }}
+      >
+        <LogOutIcon />
+        {signingOut ? "Signing out…" : "Log out"}
+      </DropdownMenuItem>
+    </>
+  )
+
+  if (isHeader) {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-9 shrink-0 rounded-full"
+              aria-label="Account menu"
+            />
+          }
+        >
+          <Avatar className="size-8 after:border-0">
+            <AvatarImage src={user.avatar} alt="" />
+            <AvatarFallback className="bg-primary text-xs font-semibold text-primary-foreground">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          className="min-w-56 rounded-lg"
+          side={isMobile ? "bottom" : "bottom"}
+          align="end"
+          sideOffset={4}
+        >
+          {menu}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
   }
 
   return (
@@ -81,13 +172,11 @@ export function NavUser({
           >
             <Avatar>
               <AvatarImage src={user.avatar} alt={user.name} />
-              <AvatarFallback>CN</AvatarFallback>
+              <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
             <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium">{user.name}</span>
-              <span className="truncate text-xs text-muted-foreground">
-                {subtitle}
-              </span>
+              <span className="truncate text-xs text-muted-foreground">{subtitle}</span>
             </div>
             <ChevronsUpDownIcon className="ml-auto size-4" />
           </DropdownMenuTrigger>
@@ -97,40 +186,7 @@ export function NavUser({
             align="end"
             sideOffset={4}
           >
-            <DropdownMenuGroup>
-              <DropdownMenuLabel className="p-0 font-normal">
-                <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                  <Avatar>
-                    <AvatarImage src={user.avatar} alt={user.name} />
-                    <AvatarFallback>CN</AvatarFallback>
-                  </Avatar>
-                  <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">{user.name}</span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {subtitle}
-                    </span>
-                  </div>
-                </div>
-              </DropdownMenuLabel>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <BadgeCheckIcon />
-                Account
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              variant="destructive"
-              disabled={signingOut}
-              onClick={() => {
-                void onSignOut()
-              }}
-            >
-              <LogOutIcon />
-              {signingOut ? "Signing out…" : "Log out"}
-            </DropdownMenuItem>
+            {menu}
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
