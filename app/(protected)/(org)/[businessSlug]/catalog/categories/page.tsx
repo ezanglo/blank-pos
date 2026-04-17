@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 
-import { CatalogCategoriesPanel } from "@/components/settings/catalog-categories-panel"
+import { CatalogCategoriesPanel } from "@/components/catalog/catalog-categories-panel"
 import { listCategoryVariantsForOrganization, listProductCategories } from "@/lib/queries/catalog"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { requireSession } from "@/lib/server-auth"

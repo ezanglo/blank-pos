@@ -1,12 +1,23 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import type { ColumnDef } from "@tanstack/react-table"
-import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import {
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  type ColumnDef,
+  type VisibilityState,
+} from "@tanstack/react-table"
+import { ChevronDownIcon, PackageIcon, PencilIcon, PlusIcon, TableIcon, Trash2Icon } from "lucide-react"
 import { useRouter } from "next/navigation"
 
-import { AdminSettingsTable } from "@/components/admin/admin-settings-table"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
@@ -17,6 +28,14 @@ import {
 } from "@/components/ui/dialog"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import {
   createInventoryItem,
   deleteInventoryItem,
@@ -58,6 +77,9 @@ export function CatalogInventoryPanel({
   const [busy, setBusy] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
+  const [query, setQuery] = useState("")
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+
   const resetItem = (r?: Row | null) => {
     setFormError(null)
     if (r) {
@@ -74,42 +96,64 @@ export function CatalogInventoryPanel({
     }
   }
 
+  const displayRows = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return rows
+    return rows.filter((r) =>
+      `${r.item.name} ${r.item.unit} ${formatMinorToDecimal2(r.item.costPerUnitMinor)} ${r.stock} ${r.item.reorderPoint ?? ""}`
+        .toLowerCase()
+        .includes(q),
+    )
+  }, [rows, query])
+
   const columns = useMemo<ColumnDef<Row>[]>(
     () => [
       {
         id: "name",
         header: "Name",
         accessorFn: (r) => r.item.name,
+        enableSorting: false,
         cell: ({ row }) => row.original.item.name,
       },
       {
         id: "unit",
         header: "Unit",
         accessorFn: (r) => r.item.unit,
+        enableSorting: false,
         cell: ({ row }) => row.original.item.unit,
       },
       {
         id: "cost",
         header: "Cost / unit",
+        accessorFn: (r) => formatMinorToDecimal2(r.item.costPerUnitMinor),
+        enableSorting: false,
         cell: ({ row }) => formatMinorToDecimal2(row.original.item.costPerUnitMinor),
       },
-      { id: "stock", header: "Stock", cell: ({ row }) => row.original.stock },
+      {
+        id: "stock",
+        header: "Stock",
+        accessorFn: (r) => String(r.stock),
+        enableSorting: false,
+        cell: ({ row }) => row.original.stock,
+      },
       {
         id: "actions",
         header: "",
+        enableSorting: false,
+        enableHiding: false,
         cell: ({ row }) => (
           <div className="flex justify-end gap-1">
             <Button
               type="button"
               size="icon-sm"
               variant="ghost"
-              aria-label="Stock"
+              aria-label="Adjust stock"
               onClick={() => {
                 setStockQty(String(row.original.stock))
                 setStockRow(row.original)
               }}
             >
-              Stock
+              <PackageIcon className="size-4" />
             </Button>
             <Button
               type="button"
@@ -138,6 +182,33 @@ export function CatalogInventoryPanel({
     ],
     [],
   )
+
+  const table = useReactTable({
+    data: displayRows,
+    columns,
+    state: { columnVisibility },
+    onColumnVisibilityChange: setColumnVisibility,
+    getRowId: (row) => row.item.id,
+    getCoreRowModel: getCoreRowModel(),
+    enableSorting: false,
+  })
+
+  const tableRows = table.getRowModel().rows
+
+  const inventoryColumnMenuLabel = (columnId: string) => {
+    switch (columnId) {
+      case "name":
+        return "Name"
+      case "unit":
+        return "Unit"
+      case "cost":
+        return "Cost / unit"
+      case "stock":
+        return "Stock"
+      default:
+        return columnId
+    }
+  }
 
   async function submitCreate() {
     setBusy(true)
@@ -223,24 +294,99 @@ export function CatalogInventoryPanel({
         </p>
       </div>
 
-      <AdminSettingsTable
-        columns={columns}
-        data={rows}
-        searchPlaceholder="Search items…"
-        searchText={(r) => r.item.name}
-        toolbarRight={
-          <Button
-            type="button"
-            onClick={() => {
-              resetItem()
-              setAddOpen(true)
-            }}
-          >
-            <PlusIcon className="size-4" />
-            Add item
-          </Button>
-        }
-      />
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2">
+            <Input
+              placeholder="Search items…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label="Search inventory"
+              className="min-w-0 max-w-sm flex-1"
+            />
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={<Button type="button" variant="outline" size="sm" className="gap-1.5" />}
+              >
+                <TableIcon className="size-4" />
+                <span className="hidden lg:inline">Customize Columns</span>
+                <span className="lg:hidden">Columns</span>
+                <ChevronDownIcon className="size-4 opacity-60" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {table
+                  .getAllColumns()
+                  .filter((column) => typeof column.accessorFn !== "undefined" && column.getCanHide())
+                  .map((column) => (
+                    <DropdownMenuCheckboxItem
+                      key={column.id}
+                      checked={column.getIsVisible()}
+                      onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                    >
+                      {inventoryColumnMenuLabel(column.id)}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              type="button"
+              onClick={() => {
+                resetItem()
+                setAddOpen(true)
+              }}
+            >
+              <PlusIcon className="size-4" />
+              Add item
+            </Button>
+          </div>
+        </div>
+        <div className="overflow-hidden rounded-lg border">
+          <Table>
+            <TableHeader className="sticky top-0 z-10 bg-muted">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id} colSpan={header.colSpan}>
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {tableRows.length ? (
+                tableRows.map((row) => (
+                  <TableRow key={row.id}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={Math.max(1, table.getVisibleLeafColumns().length)}
+                    className="text-muted-foreground h-24 text-center"
+                  >
+                    No results.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        <p className="text-muted-foreground text-sm">
+          {displayRows.length === 0
+            ? "0 items"
+            : query.trim()
+              ? `${displayRows.length} match${displayRows.length === 1 ? "" : "es"}`
+              : `${displayRows.length} item${displayRows.length === 1 ? "" : "s"}`}
+        </p>
+      </div>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>

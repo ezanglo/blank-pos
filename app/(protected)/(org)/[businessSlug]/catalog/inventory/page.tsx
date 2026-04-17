@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 
-import { CatalogInventoryPanel } from "@/components/settings/catalog-inventory-panel"
+import { CatalogInventoryPanel } from "@/components/catalog/catalog-inventory-panel"
 import { listInventoryItemsWithStock } from "@/lib/queries/catalog"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { requireSession } from "@/lib/server-auth"

@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 
-import { LocationsAdminPanel, type LocationAdminRow } from "@/components/settings/locations-admin-panel"
+import { LocationsAdminPanel, type LocationAdminRow } from "@/components/business/locations-admin-panel"
 import { listLocationsForOrganization } from "@/lib/queries/location"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { requireSession } from "@/lib/server-auth"

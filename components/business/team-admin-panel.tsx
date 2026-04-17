@@ -23,12 +23,12 @@ import { FieldGroup } from "@/components/ui/field"
 import { type StaffCreateFormValues, staffCreateSchema } from "@/lib/schemas/app-forms"
 import { z } from "zod"
 
-const staffRoleEditSchema = z.object({
+const teamRoleEditSchema = z.object({
   role: z.enum(["manager", "cashier"]),
 })
-type StaffRoleEditFormValues = z.infer<typeof staffRoleEditSchema>
+type TeamRoleEditFormValues = z.infer<typeof teamRoleEditSchema>
 
-export type StaffMemberRow = {
+export type TeamMemberRow = {
   memberId: string
   userId: string
   role: string | null
@@ -46,7 +46,7 @@ function RootFormError({ message }: { message?: string }) {
   )
 }
 
-export function StaffAdminPanel({
+export function TeamAdminPanel({
   businessSlug,
   organizationId,
   currentUserId,
@@ -57,13 +57,13 @@ export function StaffAdminPanel({
   organizationId: string
   currentUserId: string
   currentRole: string
-  members: StaffMemberRow[]
+  members: TeamMemberRow[]
 }) {
   const router = useRouter()
-  const [viewRow, setViewRow] = useState<StaffMemberRow | null>(null)
+  const [viewRow, setViewRow] = useState<TeamMemberRow | null>(null)
   const [addOpen, setAddOpen] = useState(false)
-  const [editRow, setEditRow] = useState<StaffMemberRow | null>(null)
-  const [deleteRow, setDeleteRow] = useState<StaffMemberRow | null>(null)
+  const [editRow, setEditRow] = useState<TeamMemberRow | null>(null)
+  const [deleteRow, setDeleteRow] = useState<TeamMemberRow | null>(null)
   const [listError, setListError] = useState<string | null>(null)
   const [removingId, setRemovingId] = useState<string | null>(null)
 
@@ -83,17 +83,17 @@ export function StaffAdminPanel({
     }
   }, [addOpen, currentRole, addForm])
 
-  const editForm = useForm<StaffRoleEditFormValues>({
-    resolver: standardSchemaResolver(staffRoleEditSchema),
+  const editForm = useForm<TeamRoleEditFormValues>({
+    resolver: standardSchemaResolver(teamRoleEditSchema),
     defaultValues: { role: "cashier" },
   })
 
-  const searchText = useCallback((row: StaffMemberRow) => {
+  const searchText = useCallback((row: TeamMemberRow) => {
     return [row.name, row.email, row.role ?? ""].join(" ")
   }, [])
 
   const canEditTarget = useCallback(
-    (m: StaffMemberRow) => {
+    (m: TeamMemberRow) => {
       if (m.userId === currentUserId) return false
       if (m.role === "owner") return false
       return currentRole === "owner"
@@ -102,7 +102,7 @@ export function StaffAdminPanel({
   )
 
   const canRemoveTarget = useCallback(
-    (m: StaffMemberRow) => {
+    (m: TeamMemberRow) => {
       if (m.userId === currentUserId) return false
       if (m.role === "owner") return false
       if (m.role === "manager" && currentRole !== "owner") return false
@@ -112,15 +112,15 @@ export function StaffAdminPanel({
   )
 
   const openEdit = useCallback(
-    (row: StaffMemberRow) => {
-      const r = (row.role === "manager" ? "manager" : "cashier") as StaffRoleEditFormValues["role"]
+    (row: TeamMemberRow) => {
+      const r = (row.role === "manager" ? "manager" : "cashier") as TeamRoleEditFormValues["role"]
       editForm.reset({ role: r })
       setEditRow(row)
     },
     [editForm],
   )
 
-  const columns = useMemo<ColumnDef<StaffMemberRow, unknown>[]>(
+  const columns = useMemo<ColumnDef<TeamMemberRow, unknown>[]>(
     () => [
       {
         accessorKey: "name",
@@ -198,7 +198,7 @@ export function StaffAdminPanel({
     }
   }
 
-  async function onEditSubmit(values: StaffRoleEditFormValues) {
+  async function onEditSubmit(values: TeamRoleEditFormValues) {
     if (!editRow) return
     try {
       await staffUpdateMemberRole(businessSlug, editRow.memberId, values.role)

@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
-import { StoreSettingsForm } from "@/components/settings/store-settings-form"
+import { StoreSettingsForm } from "@/components/location/store-settings-form"
 import { getLocationForUserByBusinessAndLocationSlug } from "@/lib/queries/location"
 import { requireSession } from "@/lib/server-auth"
 

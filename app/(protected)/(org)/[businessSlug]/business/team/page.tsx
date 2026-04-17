@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
-import { StaffAdminPanel, type StaffMemberRow } from "@/components/settings/staff-admin-panel"
+import { TeamAdminPanel, type TeamMemberRow } from "@/components/business/team-admin-panel"
 import { listMembersForOrganization } from "@/lib/queries/members"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { requireSession } from "@/lib/server-auth"
@@ -38,7 +38,7 @@ export default async function TeamPage({
   if (ctx.member.role !== "owner" && ctx.member.role !== "manager") notFound()
 
   const membersRaw = await listMembersForOrganization(ctx.organization.id)
-  const members: StaffMemberRow[] = membersRaw.map((m) => ({
+  const members: TeamMemberRow[] = membersRaw.map((m) => ({
     memberId: m.memberId,
     userId: m.userId,
     role: m.role,
@@ -48,7 +48,7 @@ export default async function TeamPage({
   }))
 
   return (
-    <StaffAdminPanel
+    <TeamAdminPanel
       businessSlug={businessSlug}
       organizationId={ctx.organization.id}
       currentUserId={session.user.id}

@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
-import { BusinessSettingsPanel } from "@/components/settings/business-settings-panel"
+import { BusinessSettingsPanel } from "@/components/business/business-settings-panel"
 import { businessDetailsRowToFormInitial, emptyBrandingFormValues } from "@/lib/branding-form-initial"
 import { getBusinessDetailsByOrganizationId } from "@/lib/queries/business-details"
 import { getOrgForUser } from "@/lib/queries/organization"

@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 
-import { CatalogProductsPanel } from "@/components/settings/catalog-products-panel"
+import { CatalogProductsPanel } from "@/components/catalog/catalog-products-panel"
 import {
   listCategoryVariantsForOrganization,
   listInventoryItemsWithStock,
