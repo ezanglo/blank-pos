@@ -65,7 +65,7 @@ export function CatalogProductFormDialog({
   const [description, setDescription] = useState("")
   const [categoryId, setCategoryId] = useState("")
   const [sku, setSku] = useState("")
-  const [barcode, setBarcode] = useState("")
+  const [qrCode, setQrCode] = useState("")
   const [imageUrl, setImageUrl] = useState("")
   const [isActive, setIsActive] = useState(true)
   const [isComposite, setIsComposite] = useState(false)
@@ -83,7 +83,7 @@ export function CatalogProductFormDialog({
     setDescription("")
     setCategoryId(categories[0]?.id ?? "")
     setSku("")
-    setBarcode("")
+    setQrCode("")
     setImageUrl("")
     setIsActive(true)
     setIsComposite(false)
@@ -118,7 +118,7 @@ export function CatalogProductFormDialog({
       setDescription(d.product.description ?? "")
       setCategoryId(d.product.categoryId)
       setSku(d.product.sku ?? "")
-      setBarcode(d.product.barcode ?? "")
+      setQrCode(d.product.qrCode ?? "")
       setImageUrl(d.product.imageUrl ?? "")
       setIsActive(d.product.isActive)
       setIsComposite(d.product.isComposite)
@@ -180,7 +180,7 @@ export function CatalogProductFormDialog({
           description: description || null,
           categoryId,
           sku: sku || null,
-          barcode: barcode || null,
+          qrCode: qrCode || null,
           imageUrl: imageUrl.trim() === "" ? undefined : imageUrl.trim(),
           isActive,
           isComposite,
@@ -196,7 +196,7 @@ export function CatalogProductFormDialog({
           description: description || null,
           categoryId,
           sku: sku || null,
-          barcode: barcode || null,
+          qrCode: qrCode || null,
           imageUrl: imageUrl.trim() === "" ? undefined : imageUrl.trim(),
           isActive,
           isComposite,
@@ -283,8 +283,16 @@ export function CatalogProductFormDialog({
               <Input value={sku} onChange={(e) => setSku(e.target.value)} />
             </Field>
             <Field>
-              <FieldLabel>Barcode (optional)</FieldLabel>
-              <Input value={barcode} onChange={(e) => setBarcode(e.target.value)} />
+              <FieldLabel>QR code payload (optional)</FieldLabel>
+              <Input
+                value={qrCode}
+                onChange={(e) => setQrCode(e.target.value)}
+                placeholder="e.g. product id or URL your labels encode"
+                autoComplete="off"
+              />
+              <p className="text-muted-foreground mt-1 text-xs">
+                POS will match whatever string a customer QR scan decodes to (often a short id or deep link).
+              </p>
             </Field>
           </div>
           <div className="flex flex-wrap gap-4">

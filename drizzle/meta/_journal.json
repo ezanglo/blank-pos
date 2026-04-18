@@ -15,6 +15,13 @@
       "when": 1776448254477,
       "tag": "0001_happy_jimmy_woo",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776501240890,
+      "tag": "0002_cynical_starjammers",
+      "breakpoints": true
     }
   ]
 }

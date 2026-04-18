@@ -64,7 +64,8 @@ export const product = pgTable(
     name: text("name").notNull(),
     description: text("description"),
     sku: text("sku"),
-    barcode: text("barcode"),
+    /** Payload encoded in the product QR (e.g. short id or URL); POS resolves scans to this value. */
+    qrCode: text("qr_code"),
     imageUrl: text("image_url"),
     isActive: boolean("is_active").notNull().default(true),
     isComposite: boolean("is_composite").notNull().default(false),

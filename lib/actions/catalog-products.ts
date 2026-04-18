@@ -113,7 +113,7 @@ export async function createProduct(businessSlug: string, raw: z.input<typeof ca
   const productId = randomUUID()
   const now = new Date()
   const sku = normalizeSku(input.sku)
-  const barcode = normalizeSku(input.barcode)
+  const qrCode = normalizeSku(input.qrCode)
 
   try {
     await db.transaction(async (tx) => {
@@ -124,7 +124,7 @@ export async function createProduct(businessSlug: string, raw: z.input<typeof ca
         name: input.name,
         description: input.description?.trim() || null,
         sku,
-        barcode,
+        qrCode,
         imageUrl: input.imageUrl ?? null,
         isActive: input.isActive ?? true,
         isComposite: input.isComposite ?? false,
@@ -227,7 +227,7 @@ export async function updateProduct(businessSlug: string, raw: z.input<typeof ca
 
   const now = new Date()
   const sku = normalizeSku(input.sku)
-  const barcode = normalizeSku(input.barcode)
+  const qrCode = normalizeSku(input.qrCode)
 
   try {
     await db.transaction(async (tx) => {
@@ -238,7 +238,7 @@ export async function updateProduct(businessSlug: string, raw: z.input<typeof ca
           name: input.name,
           description: input.description?.trim() || null,
           sku,
-          barcode,
+          qrCode,
           imageUrl: input.imageUrl ?? null,
           isActive: input.isActive ?? true,
           isComposite: input.isComposite ?? false,
@@ -335,7 +335,7 @@ export type ProductDetailDTO = {
     name: string
     description: string | null
     sku: string | null
-    barcode: string | null
+    qrCode: string | null
     imageUrl: string | null
     isActive: boolean
     isComposite: boolean
@@ -368,7 +368,7 @@ export async function getProductDetailForEdit(
       name: d.product.name,
       description: d.product.description,
       sku: d.product.sku,
-      barcode: d.product.barcode,
+      qrCode: d.product.qrCode,
       imageUrl: d.product.imageUrl,
       isActive: d.product.isActive,
       isComposite: d.product.isComposite,

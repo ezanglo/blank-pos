@@ -7,7 +7,7 @@ export function formatLocationCell(r: ProductListRow): string {
 }
 
 export function productRowSearchText(r: ProductListRow): string {
-  return `${r.product.name} ${r.product.sku ?? ""} ${r.product.imageUrl ?? ""} ${r.priceCount} ${r.categoryName} ${formatLocationCell(r)} ${r.firstIngredientPreview ?? ""} ${r.ingredientCount} ${r.product.trackInventory ? "track" : ""}`
+  return `${r.product.name} ${r.product.sku ?? ""} ${r.product.qrCode ?? ""} ${r.product.imageUrl ?? ""} ${r.priceCount} ${r.categoryName} ${formatLocationCell(r)} ${r.firstIngredientPreview ?? ""} ${r.ingredientCount} ${r.product.trackInventory ? "track" : ""}`
 }
 
 export function catalogProductsColumnMenuLabel(columnId: string): string {

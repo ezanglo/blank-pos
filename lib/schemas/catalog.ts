@@ -83,7 +83,8 @@ export const catalogProductCreateSchema = z.object({
   description: z.string().trim().max(4000).optional().nullable(),
   categoryId: z.string().min(1),
   sku: z.string().trim().max(120).optional().nullable(),
-  barcode: z.string().trim().max(120).optional().nullable(),
+  /** Value embedded when generating / matching QR scans at POS (can be longer than legacy barcodes). */
+  qrCode: z.string().trim().max(2000).optional().nullable(),
   imageUrl: catalogProductImageUrlSchema.optional(),
   isActive: z.boolean().optional(),
   isComposite: z.boolean().optional(),

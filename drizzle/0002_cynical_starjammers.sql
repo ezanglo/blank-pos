@@ -1,0 +1,1 @@
+ALTER TABLE "product" RENAME COLUMN "barcode" TO "qr_code";
