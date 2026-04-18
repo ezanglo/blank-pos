@@ -8,6 +8,16 @@
 
 ---
 
+## Direction — tier-scoped recipes and `track_inventory` (revisit before build)
+
+This section records **intent only**; nothing here is required for Phase 3 POS. Revisit when scoping **Phase 5** (or a smaller inventory slice).
+
+- **`track_inventory`** — Stored on **`product`** and editable in **catalog admin** today. **POS does not** read it; there are **no low-stock badges** on the register until movements, deduction policy, and alerts exist (see **Outcomes** below). Avoid implying POS behavior from the flag until then.
+- **`product_ingredient`** — Recipe lines are keyed by **`product_id` only** (one BOM per product for all price tiers). For menus where **Small / Large** (or other tiers) need **different** ingredient quantities, the planned direction is **tier-scoped BOM**: attach recipe lines to the **sellable tier** the cashier actually picks — e.g. **`product_price.id`**, or a unique **`(product_id, category_variant_id)`** — **not** to **`product_category_variant` alone** (those labels are **category-wide** and shared by every product in the category). Aligning BOM with **`product_price_id`** (or equivalent) keeps **checkout, receipts, and deduction** on the same key.
+- Until that migration, composite **cost** in admin and any future deduction logic should treat the current rows as **product-level** defaults; when tier-scoped recipes ship, **auto-deduct on sale** should use the recipe for the tier that was sold.
+
+---
+
 ## Outcomes (exit criteria)
 
 - [ ] **`inventory_movements`** implemented with **`organization_id`**, `type` in (`in`, `out`, `adjustment`), `quantity`, `reference_id` (nullable FK to transaction line or adjustment batch), `note`, `created_at`, `user_id` optional.
@@ -37,7 +47,7 @@
 
 ## Workstream B — Deduction rules (explicit)
 
-- [ ] **Composite products:** always deduct ingredients on sale completion (unless `is_composite` false).
+- [ ] **Composite products:** always deduct ingredients on sale completion (unless `is_composite` false). When **tier-scoped recipes** exist (see **Direction** above), resolve the recipe for the sold **`product_price`** / tier, not the product default alone.
 - [ ] **Simple products with `track_inventory`:** if you map simple products to a single `inventory_item` in a future schema, defer here—**Phase 5 MVP:** only composite deduction required per master roadmap; document if simple product stock is out of scope.
 - [ ] **Insufficient stock:** policy choice—**recommend:** allow sale with **warning** + negative stock forbidden **or** block sale—pick one and implement consistently in POS + server.
 

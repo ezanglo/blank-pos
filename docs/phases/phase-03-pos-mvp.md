@@ -6,22 +6,24 @@
 
 **References:** [blank-pos-dev-plan.md](../blank-pos-dev-plan.md) §4 (transactions, `transaction_items`, **`transaction_item_addon`**, **`product_addon`**, **`product_category_addon`**), §5 v1 POS bullets.
 
+**Status (repo):** Core Phase 3 **MVP is implemented** — register at **`/{businessSlug}/l/{locationSlug}/pos`**, [`createSale`](../../lib/actions/sales.ts), receipt + print CSS, cart store, category-scoped add-ons and special instructions. The checklists below are updated to match the codebase; a few items remain **optional** or **informal QA** rather than missing product features.
+
 ---
 
 ## Outcomes (exit criteria)
 
-- [ ] **Organization context** via **`session.activeOrganizationId`** and routes; **branch context** from **`/{businessSlug}/l/{locationSlug}`**. Product grid lists only products **available at that location** (Phase 2 **`product.availability_mode`** + optional **`product_location`** rows).
-- [ ] **POS grid** of active products with category filter and search (name/SKU/QR partial match).
-- [ ] **Cart** supports add/remove, quantity stepper, empty cart; shows line subtotals and **grand subtotal** (no tax line). **Add-ons** appear **indented under the parent line**; totals include base price plus add-ons scaled by line quantity.
-- [ ] **Cart line identity:** the same **product + price tier** with **different add-on selections** are **separate lines** (e.g. small milk tea + pearl vs small milk tea + nata). Quantity **merges** only when product, tier, and **full add-on signature** (sorted add-on ids and per-add-on quantities) match.
-- [ ] **Add-on UX:** after quantity and **price tier** are chosen, if the product’s **category** has active add-ons whose **currency matches** the selected tier, an **add-ons** step lets staff toggle options (optional; can add with none). Add-ons are **not** separate cart rows; they nest under the parent item.
-- [ ] **Price tier selection** per line or per cart policy—**pick one UX** and document it (recommended: per line default to org-wide default tier; allow change per line before checkout).
-- [ ] **Checkout** captures `payment_method` enum (`cash`, `card_placeholder`, …); persists `transactions` with `status=completed` (or `open` then complete—**MVP: single-step completed**).
-- [ ] **transaction_items** store `product_id`, `product_price_id`, `quantity`, **`unit_price_minor`** (product unit only), `discount` column **always zero**, **`subtotal_minor`** = **full line total** (base × qty + all add-on money for that line).
-- [ ] **`transaction_item_addon`** rows (per parent line): snapshot **`name`**, **`unit_price_minor`**, **`quantity`** (per-drink add-on units), **`subtotal_minor`** (already × parent line qty × add-on qty), FK to **`product_addon`** for catalog integrity; receipts use snapshots so past sales stay stable if catalog changes.
-- [ ] **Receipt page:** org branding (signed logo URL, colors, header/footer copy), line items with **indented add-on lines**, totals, transaction id, **store/org name** (and address from org fields), timestamp, cashier display name.
-- [ ] **Print stylesheet:** `@media print` hides chrome, fits paper, stable layout for browser print dialog.
-- [ ] **Zustand** store for cart (ephemeral) with reset after successful sale; optional persistence across refresh is **out of scope** unless trivial.
+- [x] **Organization context** via **`session.activeOrganizationId`** and routes; **branch context** from **`/{businessSlug}/l/{locationSlug}`**. Product grid lists only products **available at that location** (Phase 2 **`product.availability_mode`** + optional **`product_location`** rows) — see [`listPosProductsForLocation`](../../lib/queries/pos.ts) / [`listSellableProductIdsForLocation`](../../lib/queries/catalog.ts).
+- [x] **POS grid** of active products with category filter and client search (name / SKU / QR substring) — [`PosTerminal`](../../components/pos/pos-terminal.tsx).
+- [x] **Cart** supports add/remove, quantity stepper, empty cart; shows line subtotals and **grand subtotal** (no tax line). **Add-ons** appear **indented under the parent line**; totals include base price plus add-ons scaled by line quantity.
+- [x] **Cart line identity:** the same **product + price tier** with **different add-on selections** are **separate lines**. Quantity **merges** only when product, tier, and **full add-on and instruction signatures** match — [`pos-cart-store.ts`](../../lib/stores/pos-cart-store.ts).
+- [x] **Add-on UX:** after quantity and **price tier** are chosen, if the product’s **category** has active add-ons whose **currency matches** the selected tier, an **add-ons** step lets staff toggle options (optional; can add with none). **Special instructions** use the same flow. Add-ons are **not** separate cart rows; they nest under the parent item — [`pos-addons-dialog.tsx`](../../components/pos/pos-addons-dialog.tsx).
+- [x] **Price tier selection** — **per line:** default tier from org price default / sort; staff can change tier per product before add to cart ([`pos-price-picker-dialog.tsx`](../../components/pos/pos-price-picker-dialog.tsx)).
+- [x] **Checkout** captures `payment_method` enum; persists **`pos_transactions`** as completed in **`createSale`** (single-step).
+- [x] **transaction_items** store `product_id`, `product_price_id`, `quantity`, **`unit_price_minor`** (product unit only), discount zero, **`subtotal_minor`** = full line total — see [`lib/actions/sales.ts`](../../lib/actions/sales.ts) + [`schema-transactions.ts`](../../lib/db/schema-transactions.ts).
+- [x] **`transaction_item_addon`** (and **`transaction_item_instruction`**) snapshot rows; receipts use snapshots — same files as above; receipt UI [`pos/receipt/[transactionId]/page.tsx`](../../app/(protected)/(org)/[businessSlug]/l/[locationSlug]/pos/receipt/[transactionId]/page.tsx).
+- [x] **Receipt page:** org branding (logo URL, colors, header/footer copy), line items with **indented add-on lines**, totals, transaction id, store name and branch address where configured, timestamp, cashier display name.
+- [x] **Print stylesheet:** [`receipt-print.css`](../../app/(protected)/(org)/[businessSlug]/l/[locationSlug]/pos/receipt/[transactionId]/receipt-print.css) — `@media print` for receipt layout.
+- [x] **Zustand** store for cart ([`pos-cart-store.ts`](../../lib/stores/pos-cart-store.ts)); reset after successful sale. Cart persistence across refresh remains out of scope.
 
 ---
 
@@ -35,42 +37,40 @@
 
 ## Workstream A — Schema and persistence
 
-- [ ] Implement `transactions` and `transaction_items` in Drizzle + migrations (if not created earlier as stubs).
-- [ ] **`product_addon`** (org-scoped name, **`amount_minor`**, **`currency`** — aligned to org/branch default via catalog actions — **`is_active`** for POS filtering, org-level sort) and **`product_category_addon`** (which categories expose which add-ons, per-category **`sort_order`** / drag order). Migration: e.g. `drizzle/0004_product_addons.sql`.
-- [ ] **`transaction_item_addon`** child rows as above; **`checkoutId`** idempotency on **`transactions`** remains optional but recommended.
-- [ ] **Authorization:** same **application RBAC** as catalog (org + membership); **Postgres RLS** for transactions remains **optional** hardening, not required for MVP merge.
+- [x] **`pos_transactions`**, **`pos_transaction_items`**, and related tables in Drizzle + migrations — [`lib/db/schema-transactions.ts`](../../lib/db/schema-transactions.ts).
+- [x] **`product_addon`** and **`product_category_addon`** (migrations under `drizzle/`).
+- [x] **`pos_transaction_item_addon`** (and instruction snapshots); **`checkoutId`** idempotency supported in **`createSale`**.
+- [x] **Authorization:** **`requireCatalogMember`** on sales; catalog mutations remain manager/owner. **Postgres RLS** not required for MVP.
 
 ---
 
 ## Workstream B — POS application logic
 
-- [ ] Resolve **sellable price** for product: use **`product_price`** rows for this org only (fallback rule from Phase 2: `is_default` or sort); **no** location branch in v1.
-- [ ] **Stock display (read-only optional):** if `inventory_stock` exists, show low/zero badge for simple products with `track_inventory`—**optional** in Phase 3; do not block checkout on stock in MVP unless product policy demands it (**MVP default:** warn only, no hard block).
-- [ ] Server action: **createSale** in a single DB transaction (header + lines + **add-on rows**); validate all `product_id` belong to org, prices match, and each add-on is **active**, **org-scoped**, **linked to the product’s `category_id`**, and **currency-matches** the chosen **`product_price`**.
+- [x] **Sellable prices** from **`product_price`** for org; tier picked per line; validation in **`createSale`**.
+- [ ] **Stock display (optional):** low/zero badge for **`track_inventory`** products — **not** implemented on POS grid (checkout is not blocked on stock).
+- [x] **`createSale`:** single DB transaction; validates products, prices, add-ons (**active**, linked to line’s category, currency match), and optional **`checkoutId`** deduplication.
 
 ---
 
 ## Workstream C — UI/UX (POS-focused)
 
-- [ ] Large touch targets, keyboard-friendly quantity entry where possible.
-- [ ] Clear **active business and branch** indicator (org shell / header); POS cart is for the **current `location`** from the route.
-- [ ] Post-checkout **success state** with actions: **Print receipt**, **New sale**.
-- [ ] Error handling: inactive product, price missing, network failure with retry guidance.
+- [x] Touch-oriented layout, quantity stepper, large product tiles — iterate as needed.
+- [x] **Org shell** with location context (`OrgAppShellLoader`, branch switcher) — see branch layout under **`l/[locationSlug]`**.
+- [x] Post-checkout **Print receipt** / **New sale** — [`pos-terminal.tsx`](../../components/pos/pos-terminal.tsx).
+- [x] Basic error surfaces on failed checkout; deeper retry UX can be hardened later.
 
 ---
 
 ## Workstream D — Branding integration
 
-- [ ] Reuse Phase 1 branding fetch; map to receipt layout and POS accent buttons.
-- [ ] Print: ensure **background graphics** optional (user print settings); provide high-contrast fallback.
+- [x] Receipt uses **`business_details`** branding bundle from **`getTransactionReceiptBundle`**.
+- [x] Print stylesheet for receipt; user print dialog controls backgrounds.
 
 ---
 
 ## Workstream E — Quality and testing
 
-- [ ] Manual script: 20-line cart, checkout, reload transaction list (if list view included—**minimum** is receipt from last id).
-- [ ] **Concurrency:** two cashiers same org—no SKU collisions; DB handles parallel inserts.
-- [ ] **Accessibility:** focus order, visible focus, ARIA on cart live region for additions.
+- [ ] **Formal QA:** scripted large-cart run, concurrency tests, and accessibility audit — recommended before production hardening; not blockers for “MVP shipped in repo.”
 
 ---
 
@@ -92,5 +92,5 @@
 
 ## Definition of done (checklist)
 
-- [ ] End-to-end demo: product → cart (with optional add-ons) → pay → persisted rows (**including `transaction_item_addon`**) → branded printable receipt (add-ons visible).
-- [ ] Role matrix respected for POS access (cashier cannot open admin catalog edit routes, including **Catalog → Categories** / products / inventory).
+- [x] End-to-end path: product → cart (optional add-ons / instructions) → pay → persisted rows (including add-on snapshots) → branded printable receipt.
+- [x] **Role matrix:** cashiers use **`requireCatalogMember`** for POS; catalog admin pages **`notFound`** for non–owner/manager (e.g. [`catalog/categories/page.tsx`](../../app/(protected)/(org)/[businessSlug]/catalog/categories/page.tsx)).

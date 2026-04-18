@@ -138,6 +138,7 @@ UI building blocks live under [`components/catalog/`](../../components/catalog/)
 - Phase 3 needs: active products **per location** using availability rules; resolvable **default price tier** (`is_default` + `sort_order` on **`product_price`**).
 - Phase 4 needs: `updated_at` on mutable entities for LWW (already on several catalog tables; audit fields still optional).
 - Phase 5 may introduce **per-location stock** if needed; Phase 2 keeps **`inventory_stock`** at **`(inventory_item_id, organization_id)`** unless you explicitly extend it earlier.
+- **Inventory / recipes (future):** **`track_inventory`** is admin-only today (POS ignores it). **`product_ingredient`** is **product-scoped**; tier-scoped BOM and POS low-stock are **planned** — see *Direction — tier-scoped recipes and `track_inventory`* in [phase-05-inventory-reports.md](phase-05-inventory-reports.md).
 
 ---
 
