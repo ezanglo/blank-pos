@@ -24,6 +24,8 @@ Documented in the root **README**:
 2. **`.env`** from [`.env.example`](../.env.example): `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` / `NEXT_PUBLIC_APP_URL`, **`STORAGE_*`** ([storage-uploads.md](storage-uploads.md)).
 3. **`pnpm db:migrate`** before first use. If upgrading from an older schema, **reset the database** and re-run migrations (see README).
 
+**Optional demo data (POS / catalog):** after migrations, **`pnpm db:seed:coffee`** loads a sample coffee-shop catalog for an org (see [phases/phase-03-pos-mvp.md](phases/phase-03-pos-mvp.md) — *Optional — demo catalog seed*).
+
 ---
 
 ## Routes (implemented)

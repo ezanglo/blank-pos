@@ -39,6 +39,7 @@ See [docs/onboarding-first-run.md](docs/onboarding-first-run.md) and [docs/schem
 | `pnpm lint`       | ESLint                                       |
 | `pnpm db:generate`| Drizzle migrations from `lib/db/schema.ts`   |
 | `pnpm db:migrate` | Apply migrations via drizzle-kit             |
+| `pnpm db:seed:coffee` | Optional demo coffee-shop catalog (see **Optional — demo catalog seed** in [phase-03-pos-mvp.md](docs/phases/phase-03-pos-mvp.md)) |
 | `pnpm auth:schema`| Regenerate `lib/db/auth-schema.ts` from CLI  |
 
 Regenerating the auth schema requires a live `DATABASE_URL` and uses [`lib/auth.config.ts`](lib/auth.config.ts) (CLI-only config; must stay aligned with [`lib/auth.ts`](lib/auth.ts)).
@@ -58,6 +59,6 @@ npx shadcn@latest add button
 - [docs/storage-uploads.md](docs/storage-uploads.md) — image uploads and `STORAGE_*` env.
 - [docs/phases/phase-01-foundation-branding.md](docs/phases/phase-01-foundation-branding.md)
 - [docs/phases/phase-02-product-engine.md](docs/phases/phase-02-product-engine.md) — catalog (categories with variants / instructions / **add-ons** dialogs, products, inventory).
-- [docs/phases/phase-03-pos-mvp.md](docs/phases/phase-03-pos-mvp.md) — register, cart, **category add-ons**, checkout, receipts.
+- [docs/phases/phase-03-pos-mvp.md](docs/phases/phase-03-pos-mvp.md) — register, responsive cart, **category add-ons**, checkout, receipt sheet + print, last-receipt badge, optional **`db:seed:coffee`**.
 - [docs/onboarding-first-run.md](docs/onboarding-first-run.md)
 - [docs/blank-pos-dev-plan.md](docs/blank-pos-dev-plan.md) — schema sketch and roadmap.

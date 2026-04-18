@@ -438,10 +438,10 @@ Shipped in repo (detail: [phases/phase-02-product-engine.md](phases/phase-02-pro
 **Shipped in repo (detail: [phases/phase-03-pos-mvp.md](phases/phase-03-pos-mvp.md)):**
 
 - Product grid with category filter and search; branch sellable catalog
-- Cart with quantity, **price tier** selection, **category-scoped add-ons** (optional step when the category defines add-ons and currency matches the tier)
+- Cart with quantity, **price tier** selection, **category-scoped add-ons** (optional step when the category defines add-ons and currency matches the tier); **responsive cart** (**`Sheet`** on small screens, **`aside`** on large)
 - **Cart line identity:** different add-on selections → separate lines; same product + tier + same add-on signature → quantity merge
 - Checkout flow (**cash**, **card placeholder**); **createSale** persists **`transactions`**, **`transaction_items`**, **`transaction_item_addon`**
-- Branded **receipt** with nested add-on lines under each item
+- Branded **receipt** (shared document component): standalone **`/pos/receipt/...`** route, **in-app preview sheet** + print, **last-receipt** shortcut from latest branch sale; print CSS scoped via **`#pos-receipt-root`**
 - **Coupon / automatic promotions** → Phase 6 (not in current POS checkout)
 
 ### Phase 4 — Offline & Sync (Weeks 7–8)
