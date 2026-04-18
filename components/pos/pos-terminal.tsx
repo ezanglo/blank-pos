@@ -735,6 +735,39 @@ export function PosTerminal({
                         No image
                       </div>
                     )}
+                    {p.stockBadge === "out" ? (
+                      <Badge
+                        variant="destructive"
+                        className="absolute top-2 right-2 max-w-[calc(100%-1rem)] truncate px-2 py-0.5 text-[10px] font-bold shadow-md sm:text-xs"
+                        title="Out of stock"
+                      >
+                        Out
+                      </Badge>
+                    ) : p.stockBadge === "low" ? (
+                      <Badge
+                        variant="secondary"
+                        className="absolute top-2 right-2 max-w-[calc(100%-1rem)] truncate border-amber-500/60 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-950 shadow-md dark:text-amber-100 sm:text-xs"
+                        title={
+                          p.sellableUnits != null
+                            ? `Low stock — about ${p.sellableUnits} left at this branch`
+                            : "Low stock"
+                        }
+                      >
+                        {p.sellableUnits != null ? `Low · ~${p.sellableUnits}` : "Low stock"}
+                      </Badge>
+                    ) : p.stockBadge === "ok" ? (
+                      <Badge
+                        variant="outline"
+                        className="absolute top-2 right-2 max-w-[calc(100%-1rem)] truncate border-emerald-600/35 bg-background/85 px-2 py-0.5 text-[10px] font-semibold text-emerald-900 shadow-sm backdrop-blur-sm dark:border-emerald-500/40 dark:text-emerald-100 sm:text-xs"
+                        title={
+                          p.sellableUnits != null
+                            ? `On stock — about ${p.sellableUnits} sellable from recipe`
+                            : "On stock"
+                        }
+                      >
+                        On stock
+                      </Badge>
+                    ) : null}
                   </div>
                   <div className="flex min-h-20 flex-1 flex-col justify-center gap-1.5 p-3.5 pt-2 sm:p-4 lg:min-h-18 lg:p-3">
                     <span className="line-clamp-2 text-lg leading-snug font-semibold sm:text-base lg:text-base">

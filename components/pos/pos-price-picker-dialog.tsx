@@ -4,6 +4,7 @@ import * as React from "react"
 import Image from "next/image"
 import { MinusIcon, PlusIcon } from "lucide-react"
 
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -67,6 +68,21 @@ export function PosPricePickerDialog({ product, open, onOpenChange, onPickPrice 
                         ? `Code ${product.qrCode.trim()}`
                         : "Set quantity, then tap a price to add"}
                   </DialogDescription>
+                  {product.stockBadge === "out" ? (
+                    <Badge variant="destructive" className="mt-2 w-fit text-xs font-semibold">
+                      Out of stock
+                    </Badge>
+                  ) : product.stockBadge === "low" ? (
+                    <p className="mt-2 text-sm font-semibold text-amber-800 dark:text-amber-200">
+                      Low stock
+                      {product.sellableUnits != null ? ` (~${product.sellableUnits} left)` : ""}
+                    </p>
+                  ) : product.stockBadge === "ok" ? (
+                    <p className="mt-2 text-sm font-medium text-emerald-800 dark:text-emerald-200">
+                      On stock
+                      {product.sellableUnits != null ? ` (~${product.sellableUnits} from recipe)` : ""}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </>

@@ -3,9 +3,13 @@ import type { SQL } from "drizzle-orm"
 
 import { getDb } from "@/lib/db"
 import type { PosProductCard, PosProductPrice } from "@/lib/pos/pos-types"
+import { derivePosStockBadge } from "@/lib/pos/pos-stock-badge"
 import {
+  inventoryItem,
+  inventoryStock,
   product,
   productCategory,
+  productIngredient,
   productPrice,
 } from "@/lib/db/schema-catalog"
 
@@ -96,14 +100,59 @@ export async function listPosProductsForLocation(
     pricesByProduct.set(pr.productId, list)
   }
 
-  return baseRows.map(({ product: p, categoryName }) => ({
-    id: p.id,
-    name: p.name,
-    imageUrl: p.imageUrl,
-    sku: p.sku,
-    qrCode: p.qrCode,
-    categoryId: p.categoryId,
-    categoryName,
-    prices: pricesByProduct.get(p.id) ?? [],
-  }))
+  const linesByProduct = new Map<
+    string,
+    { quantityMilli: number; stockQuantity: number; reorderPoint: number | null }[]
+  >()
+
+  if (productIds.length > 0) {
+    const ingRows = await db
+      .select({
+        productId: productIngredient.productId,
+        quantityMilli: productIngredient.quantityMilli,
+        inventoryItemId: productIngredient.inventoryItemId,
+        stockQuantity: sql<number>`COALESCE(${inventoryStock.quantity}, 0)`.mapWith(Number),
+        reorderPoint: inventoryItem.reorderPoint,
+      })
+      .from(productIngredient)
+      .innerJoin(inventoryItem, eq(productIngredient.inventoryItemId, inventoryItem.id))
+      .leftJoin(
+        inventoryStock,
+        and(
+          eq(inventoryStock.inventoryItemId, productIngredient.inventoryItemId),
+          eq(inventoryStock.organizationId, organizationId),
+        ),
+      )
+      .where(
+        and(eq(inventoryItem.organizationId, organizationId), inArray(productIngredient.productId, productIds)),
+      )
+
+    for (const r of ingRows) {
+      const list = linesByProduct.get(r.productId) ?? []
+      list.push({
+        quantityMilli: r.quantityMilli,
+        stockQuantity: r.stockQuantity,
+        reorderPoint: r.reorderPoint,
+      })
+      linesByProduct.set(r.productId, list)
+    }
+  }
+
+  return baseRows.map(({ product: p, categoryName }) => {
+    const lines = linesByProduct.get(p.id) ?? []
+    const stock = lines.length > 0 ? derivePosStockBadge(lines) : null
+    return {
+      id: p.id,
+      name: p.name,
+      imageUrl: p.imageUrl,
+      sku: p.sku,
+      qrCode: p.qrCode,
+      categoryId: p.categoryId,
+      categoryName,
+      prices: pricesByProduct.get(p.id) ?? [],
+      trackInventory: p.trackInventory,
+      sellableUnits: stock?.sellableUnits ?? null,
+      stockBadge: stock?.stockBadge ?? null,
+    }
+  })
 }
