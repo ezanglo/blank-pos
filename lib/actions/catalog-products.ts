@@ -26,7 +26,11 @@ import {
 import { getProductDetailForOrganization, listSellableProductIdsForLocation } from "@/lib/queries/catalog"
 import { getDefaultCatalogCurrencyCode } from "@/lib/queries/catalog-currency"
 import { getLocationByIdForOrganization } from "@/lib/queries/location"
-import { catalogProductCreateSchema, catalogProductUpdateSchema } from "@/lib/schemas/catalog"
+import {
+  catalogProductCreateSchema,
+  catalogProductRecipeSaveSchema,
+  catalogProductUpdateSchema,
+} from "@/lib/schemas/catalog"
 
 type RawPriceInput = z.infer<typeof catalogProductCreateSchema>["prices"][number]
 
@@ -128,7 +132,7 @@ export async function createProduct(businessSlug: string, raw: z.input<typeof ca
         imageUrl: input.imageUrl ?? null,
         isActive: input.isActive ?? true,
         isComposite: input.isComposite ?? false,
-        trackInventory: input.trackInventory ?? false,
+        trackInventory: true,
         availabilityMode: input.availabilityMode,
         createdAt: now,
         updatedAt: now,
@@ -241,8 +245,8 @@ export async function updateProduct(businessSlug: string, raw: z.input<typeof ca
           qrCode,
           imageUrl: input.imageUrl ?? null,
           isActive: input.isActive ?? true,
-          isComposite: input.isComposite ?? false,
-          trackInventory: input.trackInventory ?? false,
+          ...(input.isComposite !== undefined ? { isComposite: input.isComposite } : {}),
+          trackInventory: true,
           availabilityMode: input.availabilityMode,
           updatedAt: now,
         })
@@ -281,30 +285,6 @@ export async function updateProduct(businessSlug: string, raw: z.input<typeof ca
           }
         }
       }
-
-      await tx.delete(productIngredient).where(eq(productIngredient.productId, input.id))
-      if (input.isComposite) {
-        for (const line of input.ingredients ?? []) {
-          const milli = parseDecimal3ToMilli(line.quantity)
-          const [ii] = await tx
-            .select({ id: inventoryItem.id })
-            .from(inventoryItem)
-            .where(
-              and(
-                eq(inventoryItem.id, line.inventoryItemId),
-                eq(inventoryItem.organizationId, ctx.organization.id),
-              ),
-            )
-            .limit(1)
-          if (!ii) throw new Error("Ingredient item not found.")
-          await tx.insert(productIngredient).values({
-            id: randomUUID(),
-            productId: input.id,
-            inventoryItemId: line.inventoryItemId,
-            quantityMilli: milli,
-          })
-        }
-      }
     })
   } catch (e: unknown) {
     const err = e as { code?: string }
@@ -313,6 +293,58 @@ export async function updateProduct(businessSlug: string, raw: z.input<typeof ca
   }
 
   return { ok: true as const }
+}
+
+export async function saveProductRecipe(
+  businessSlug: string,
+  raw: z.input<typeof catalogProductRecipeSaveSchema>,
+): Promise<{ ok: true; ingredients: { inventoryItemId: string; quantity: string }[] }> {
+  const ctx = await requireCatalogManager(businessSlug)
+  const input = catalogProductRecipeSaveSchema.parse(raw)
+  const db = getDb()
+
+  const [existing] = await db
+    .select({ id: product.id })
+    .from(product)
+    .where(and(eq(product.id, input.productId), eq(product.organizationId, ctx.organization.id)))
+    .limit(1)
+  if (!existing) throw new Error("Product not found.")
+
+  const cleaned = input.ingredients.filter((line) => line.inventoryItemId.trim().length > 0)
+  const now = new Date()
+
+  await db.transaction(async (tx) => {
+    await tx.delete(productIngredient).where(eq(productIngredient.productId, input.productId))
+    for (const line of cleaned) {
+      const milli = parseDecimal3ToMilli(line.quantity)
+      const [ii] = await tx
+        .select({ id: inventoryItem.id })
+        .from(inventoryItem)
+        .where(
+          and(eq(inventoryItem.id, line.inventoryItemId), eq(inventoryItem.organizationId, ctx.organization.id)),
+        )
+        .limit(1)
+      if (!ii) throw new Error("Ingredient item not found.")
+      await tx.insert(productIngredient).values({
+        id: randomUUID(),
+        productId: input.productId,
+        inventoryItemId: line.inventoryItemId,
+        quantityMilli: milli,
+      })
+    }
+    await tx
+      .update(product)
+      .set({
+        isComposite: cleaned.length > 0,
+        updatedAt: now,
+      })
+      .where(eq(product.id, input.productId))
+  })
+
+  return {
+    ok: true as const,
+    ingredients: cleaned.map((l) => ({ inventoryItemId: l.inventoryItemId, quantity: l.quantity })),
+  }
 }
 
 export async function deleteProduct(businessSlug: string, productId: string) {

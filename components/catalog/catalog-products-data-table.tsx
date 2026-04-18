@@ -1,7 +1,5 @@
 "use client"
 
-import Image from "next/image"
-import { useMemo, useState } from "react"
 import {
   flexRender,
   getCoreRowModel,
@@ -13,11 +11,14 @@ import {
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  FlaskConicalIcon,
   PencilIcon,
   PlusIcon,
   TableIcon,
   Trash2Icon,
 } from "lucide-react"
+import Image from "next/image"
+import { useMemo, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -46,7 +47,10 @@ import {
 import type { ProductCategoryRow } from "@/lib/db/schema-catalog"
 import type { ProductListRow } from "@/lib/queries/catalog"
 
-import { catalogProductsColumnMenuLabel, formatLocationCell } from "./catalog-products-utils"
+import {
+  catalogProductsColumnMenuLabel,
+  formatLocationCell,
+} from "./catalog-products-utils"
 
 export function CatalogProductsDataTable({
   products,
@@ -69,6 +73,8 @@ export function CatalogProductsDataTable({
   onEditProduct,
   onRequestDelete,
   onOpenPrices,
+  onEditRecipe,
+  hasInventoryItems,
 }: {
   products: ProductListRow[]
   total: number
@@ -90,6 +96,8 @@ export function CatalogProductsDataTable({
   onEditProduct: (productId: string) => void
   onRequestDelete: (productId: string) => void
   onOpenPrices: (row: ProductListRow) => void
+  onEditRecipe: (row: ProductListRow) => void
+  hasInventoryItems: boolean
 }) {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
 
@@ -108,13 +116,13 @@ export function CatalogProductsDataTable({
                 alt=""
                 width={36}
                 height={36}
-                className="border-border size-9 shrink-0 rounded-md border object-cover"
+                className="size-9 shrink-0 rounded-md border border-border object-cover"
                 loading="lazy"
                 referrerPolicy="no-referrer"
               />
             ) : (
               <span
-                className="border-border bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-md border text-xs"
+                className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-xs text-muted-foreground"
                 aria-hidden
               >
                 —
@@ -122,10 +130,10 @@ export function CatalogProductsDataTable({
             )}
             <span>{row.original.product.name}</span>
             {row.original.product.isComposite ? (
-              <span className="text-muted-foreground text-xs">Composite</span>
+              <span className="text-xs text-muted-foreground">Composite</span>
             ) : null}
             {!row.original.product.isActive ? (
-              <span className="text-muted-foreground text-xs">Inactive</span>
+              <span className="text-xs text-muted-foreground">Inactive</span>
             ) : null}
           </span>
         ),
@@ -163,7 +171,10 @@ export function CatalogProductsDataTable({
         accessorFn: (r) => formatLocationCell(r),
         enableSorting: false,
         cell: ({ row }) => (
-          <span className="max-w-56 truncate text-sm" title={formatLocationCell(row.original)}>
+          <span
+            className="max-w-56 truncate text-sm"
+            title={formatLocationCell(row.original)}
+          >
             {formatLocationCell(row.original)}
           </span>
         ),
@@ -172,34 +183,37 @@ export function CatalogProductsDataTable({
         id: "ingredients",
         header: "Ingredients",
         accessorFn: (r) =>
-          r.product.isComposite ? `${r.firstIngredientPreview ?? ""} ${r.ingredientCount}`.trim() : "",
+          r.product.isComposite
+            ? `${r.firstIngredientPreview ?? ""} ${r.ingredientCount}`.trim()
+            : "",
         enableSorting: false,
         cell: ({ row }) => {
           const r = row.original
-          if (!r.product.isComposite) {
-            return <span className="text-muted-foreground text-sm">—</span>
-          }
-          if (r.ingredientCount === 0) {
-            return <span className="text-muted-foreground text-sm">0</span>
-          }
-          const rest = r.ingredientCount > 1 ? ` · ${r.ingredientCount} lines` : ""
-          const full = `${r.firstIngredientPreview ?? ""}${rest}`
+          const rest =
+            r.ingredientCount > 1 ? ` · ${r.ingredientCount} lines` : ""
+          const summary = !r.product.isComposite
+            ? "No recipe"
+            : r.ingredientCount === 0
+              ? "Empty recipe"
+              : `${r.firstIngredientPreview ?? ""}${rest}`.trim()
           return (
-            <span className="text-muted-foreground max-w-[18rem] truncate text-sm" title={full}>
-              {r.firstIngredientPreview}
-              {r.ingredientCount > 1 ? (
-                <span className="text-muted-foreground/90">{` · ${r.ingredientCount} lines`}</span>
-              ) : null}
-            </span>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="outline"
+              disabled={!hasInventoryItems}
+              title={
+                hasInventoryItems
+                  ? `${summary} — click to edit`
+                  : "Add inventory items before building a recipe"
+              }
+              aria-label={`Edit ingredients: ${r.product.name}. ${summary}`}
+              onClick={() => onEditRecipe(r)}
+            >
+              <FlaskConicalIcon className="size-4" />
+            </Button>
           )
         },
-      },
-      {
-        id: "trackInventory",
-        header: "Track inventory",
-        accessorFn: (r) => (r.product.trackInventory ? "Yes" : "No"),
-        enableSorting: false,
-        cell: ({ row }) => (row.original.product.trackInventory ? "Yes" : "No"),
       },
       {
         id: "actions",
@@ -230,7 +244,13 @@ export function CatalogProductsDataTable({
         ),
       },
     ],
-    [onEditProduct, onOpenPrices, onRequestDelete],
+    [
+      hasInventoryItems,
+      onEditProduct,
+      onEditRecipe,
+      onOpenPrices,
+      onRequestDelete,
+    ]
   )
 
   const table = useReactTable({
@@ -254,12 +274,14 @@ export function CatalogProductsDataTable({
             value={searchDraft}
             onChange={(e) => setSearchDraft(e.target.value)}
             aria-label="Search products"
-            className="min-w-0 max-w-sm flex-1"
+            className="max-w-sm min-w-0 flex-1"
           />
           {hasCategories ? (
             <Select
               value={categoryFilterId || "__all__"}
-              onValueChange={(v) => onCategoryChange(!v || v === "__all__" ? "" : v)}
+              onValueChange={(v) =>
+                onCategoryChange(!v || v === "__all__" ? "" : v)
+              }
             >
               <SelectTrigger
                 size="default"
@@ -282,7 +304,14 @@ export function CatalogProductsDataTable({
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger
-              render={<Button type="button" variant="outline" size="sm" className="gap-1.5" />}
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                />
+              }
             >
               <TableIcon className="size-4" />
               <span className="hidden lg:inline">Customize Columns</span>
@@ -292,12 +321,18 @@ export function CatalogProductsDataTable({
             <DropdownMenuContent align="end" className="w-56">
               {table
                 .getAllColumns()
-                .filter((column) => typeof column.accessorFn !== "undefined" && column.getCanHide())
+                .filter(
+                  (column) =>
+                    typeof column.accessorFn !== "undefined" &&
+                    column.getCanHide()
+                )
                 .map((column) => (
                   <DropdownMenuCheckboxItem
                     key={column.id}
                     checked={column.getIsVisible()}
-                    onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                    onCheckedChange={(value) =>
+                      column.toggleVisibility(!!value)
+                    }
                   >
                     {catalogProductsColumnMenuLabel(column.id)}
                   </DropdownMenuCheckboxItem>
@@ -317,7 +352,12 @@ export function CatalogProductsDataTable({
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <TableHead key={header.id} colSpan={header.colSpan}>
-                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -329,7 +369,10 @@ export function CatalogProductsDataTable({
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -338,7 +381,7 @@ export function CatalogProductsDataTable({
               <TableRow>
                 <TableCell
                   colSpan={Math.max(1, table.getVisibleLeafColumns().length)}
-                  className="text-muted-foreground h-24 text-center"
+                  className="h-24 text-center text-muted-foreground"
                 >
                   No results.
                 </TableCell>
@@ -347,7 +390,7 @@ export function CatalogProductsDataTable({
           </TableBody>
         </Table>
       </div>
-      <div className="text-muted-foreground flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <p>
           {total === 0
             ? "0 products"
@@ -369,7 +412,7 @@ export function CatalogProductsDataTable({
             >
               <ChevronLeftIcon className="size-4" />
             </Button>
-            <span className="text-foreground min-w-[7rem] text-center text-xs tabular-nums">
+            <span className="min-w-[7rem] text-center text-xs text-foreground tabular-nums">
               Page {page} of {totalPages}
             </span>
             <Button

@@ -272,7 +272,6 @@ type ProductSeed = {
   description: string | null
   categoryKey: CatKey
   isComposite: boolean
-  trackInventory: boolean
   /** Three tier prices (matches category variant order), decimal strings */
   prices: [string, string, string]
   ingredients?: { invKey: string; qty: string }[]
@@ -285,7 +284,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Double shot + hot water.",
     categoryKey: "hot",
     isComposite: true,
-    trackInventory: false,
     prices: ["95.00", "110.00", "125.00"],
     ingredients: [
       { invKey: "beans_house", qty: "18" },
@@ -299,7 +297,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Espresso with steamed fresh milk.",
     categoryKey: "hot",
     isComposite: true,
-    trackInventory: false,
     prices: ["120.00", "135.00", "150.00"],
     ingredients: [
       { invKey: "beans_house", qty: "18" },
@@ -312,7 +309,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Espresso, milk, more foam.",
     categoryKey: "hot",
     isComposite: true,
-    trackInventory: false,
     prices: ["125.00", "140.00", "155.00"],
     ingredients: [
       { invKey: "beans_house", qty: "18" },
@@ -325,7 +321,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Condensed milk + espresso + fresh milk.",
     categoryKey: "hot",
     isComposite: true,
-    trackInventory: false,
     prices: ["130.00", "150.00", "170.00"],
     ingredients: [
       { invKey: "beans_house", qty: "18" },
@@ -339,7 +334,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Chocolate + espresso + milk.",
     categoryKey: "hot",
     isComposite: true,
-    trackInventory: false,
     prices: ["135.00", "155.00", "175.00"],
     ingredients: [
       { invKey: "beans_house", qty: "18" },
@@ -353,7 +347,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Iced espresso + cold milk.",
     categoryKey: "iced",
     isComposite: true,
-    trackInventory: false,
     prices: ["125.00", "140.00", "160.00"],
     ingredients: [
       { invKey: "beans_house", qty: "18" },
@@ -367,7 +360,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Espresso over ice + cold water.",
     categoryKey: "iced",
     isComposite: true,
-    trackInventory: false,
     prices: ["105.00", "120.00", "135.00"],
     ingredients: [
       { invKey: "beans_house", qty: "18" },
@@ -381,7 +373,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Blended ice mocha.",
     categoryKey: "iced",
     isComposite: true,
-    trackInventory: false,
     prices: ["145.00", "165.00", "185.00"],
     ingredients: [
       { invKey: "beans_house", qty: "18" },
@@ -397,7 +388,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Slow-steeped concentrate over ice.",
     categoryKey: "iced",
     isComposite: true,
-    trackInventory: false,
     prices: ["115.00", "130.00", "145.00"],
     ingredients: [
       { invKey: "cold_brew_conc", qty: "120" },
@@ -410,7 +400,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Condensed milk, espresso, milk, ice.",
     categoryKey: "iced",
     isComposite: true,
-    trackInventory: false,
     prices: ["135.00", "155.00", "175.00"],
     ingredients: [
       { invKey: "beans_house", qty: "18" },
@@ -425,7 +414,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Ceremonial-style matcha with milk.",
     categoryKey: "tea",
     isComposite: true,
-    trackInventory: false,
     prices: ["140.00", "160.00", "180.00"],
     ingredients: [
       { invKey: "matcha", qty: "3" },
@@ -438,7 +426,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Black tea, milk, wintermelon.",
     categoryKey: "tea",
     isComposite: true,
-    trackInventory: false,
     prices: ["110.00", "125.00", "140.00"],
     ingredients: [
       { invKey: "tea_bag", qty: "1" },
@@ -452,7 +439,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Roasted / brown sugar style with milk.",
     categoryKey: "tea",
     isComposite: true,
-    trackInventory: false,
     prices: ["115.00", "130.00", "145.00"],
     ingredients: [
       { invKey: "tea_bag", qty: "1" },
@@ -466,7 +452,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Iced black tea, citrus finish (simulated).",
     categoryKey: "tea",
     isComposite: true,
-    trackInventory: false,
     prices: ["95.00", "108.00", "120.00"],
     ingredients: [
       { invKey: "tea_bag", qty: "1" },
@@ -480,7 +465,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Matcha layered with strawberry.",
     categoryKey: "tea",
     isComposite: true,
-    trackInventory: false,
     prices: ["150.00", "170.00", "190.00"],
     ingredients: [
       { invKey: "matcha", qty: "2.5" },
@@ -494,7 +478,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Buttery brioche with cheese topping.",
     categoryKey: "bakery",
     isComposite: true,
-    trackInventory: false,
     prices: ["55.00", "105.00", "300.00"],
     ingredients: [
       { invKey: "flour", qty: "85" },
@@ -510,7 +493,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Soft bun with sweet coconut filling.",
     categoryKey: "bakery",
     isComposite: false,
-    trackInventory: false,
     prices: ["28.00", "52.00", "150.00"],
   },
   {
@@ -519,7 +501,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Flaky roll with cheese.",
     categoryKey: "bakery",
     isComposite: true,
-    trackInventory: false,
     prices: ["35.00", "65.00", "190.00"],
     ingredients: [
       { invKey: "flour", qty: "70" },
@@ -534,7 +515,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Ube halaya + cheese in pandesal dough.",
     categoryKey: "bakery",
     isComposite: true,
-    trackInventory: false,
     prices: ["42.00", "80.00", "230.00"],
     ingredients: [
       { invKey: "flour", qty: "80" },
@@ -550,7 +530,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Moist loaf — priced per slice / half / whole.",
     categoryKey: "bakery",
     isComposite: true,
-    trackInventory: false,
     prices: ["45.00", "85.00", "240.00"],
     ingredients: [
       { invKey: "flour", qty: "60" },
@@ -566,7 +545,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Retail bag, whole bean.",
     categoryKey: "retail",
     isComposite: true,
-    trackInventory: true,
     prices: ["320.00", "600.00", "1100.00"],
     ingredients: [{ invKey: "retail_bag_250g", qty: "1" }],
   },
@@ -576,7 +554,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Bold Barako, retail bag.",
     categoryKey: "retail",
     isComposite: true,
-    trackInventory: true,
     prices: ["980.00", "1880.00", "3500.00"],
     ingredients: [{ invKey: "retail_bag_1kg", qty: "1" }],
   },
@@ -586,7 +563,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "20oz insulated tumbler.",
     categoryKey: "retail",
     isComposite: true,
-    trackInventory: true,
     prices: ["450.00", "850.00", "1200.00"],
     ingredients: [{ invKey: "tumbler_sku", qty: "1" }],
   },
@@ -596,7 +572,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Takeaway-friendly cup.",
     categoryKey: "retail",
     isComposite: true,
-    trackInventory: true,
     prices: ["180.00", "340.00", "600.00"],
     ingredients: [{ invKey: "cup_sku", qty: "1" }],
   },
@@ -606,7 +581,6 @@ const PRODUCTS: ProductSeed[] = [
     description: "Cup + 250g beans + sticker pack.",
     categoryKey: "retail",
     isComposite: true,
-    trackInventory: true,
     prices: ["520.00", "980.00", "1600.00"],
     ingredients: [{ invKey: "gift_bundle_sku", qty: "1" }],
   },
@@ -731,7 +705,7 @@ async function seedCoffeeCatalog(db: ReturnType<typeof createDb>, organizationId
         imageUrl: null,
         isActive: true,
         isComposite: p.isComposite,
-        trackInventory: p.trackInventory,
+        trackInventory: true,
         availabilityMode: "all_locations",
         createdAt: now,
         updatedAt: now,

@@ -87,7 +87,7 @@ export const product = pgTable(
     imageUrl: text("image_url"),
     isActive: boolean("is_active").notNull().default(true),
     isComposite: boolean("is_composite").notNull().default(false),
-    trackInventory: boolean("track_inventory").notNull().default(false),
+    trackInventory: boolean("track_inventory").notNull().default(true),
     availabilityMode: text("availability_mode").notNull().default("all_locations"),
     createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })

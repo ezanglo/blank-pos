@@ -15,6 +15,7 @@ import type { ProductListRow } from "@/lib/queries/catalog"
 
 import { CatalogProductDeleteDialog } from "./catalog-product-delete-dialog"
 import { CatalogProductFormDialog, type CatalogProductFormLaunch } from "./catalog-product-form-dialog"
+import { CatalogProductIngredientsDialog } from "./catalog-product-ingredients-dialog"
 import { CatalogProductPricesDialog } from "./catalog-product-prices-dialog"
 import { CatalogProductsDataTable } from "./catalog-products-data-table"
 
@@ -57,6 +58,7 @@ export function CatalogProductsPanel({
   )
 
   const [formLaunch, setFormLaunch] = useState<CatalogProductFormLaunch | null>(null)
+  const [recipeTarget, setRecipeTarget] = useState<{ id: string; name: string } | null>(null)
   const [pricesAnchor, setPricesAnchor] = useState<ProductListRow | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -116,8 +118,9 @@ export function CatalogProductsPanel({
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Products</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Add a product with category and availability. Use the green prices badge for variant tiers, and edit for
-          composite ingredients. Search and filters apply across the whole catalog (server-side).
+          Add a product with category and availability. Use the green prices badge for variant tiers and the flask
+          icon in the Ingredients column to manage recipes. Search and filters apply across the whole catalog
+          (server-side).
         </p>
       </div>
 
@@ -148,6 +151,8 @@ export function CatalogProductsPanel({
         onEditProduct={(productId) => setFormLaunch({ mode: "edit", productId })}
         onRequestDelete={setDeleteId}
         onOpenPrices={(row) => setPricesAnchor(row)}
+        hasInventoryItems={inventory.length > 0}
+        onEditRecipe={(row) => setRecipeTarget({ id: row.product.id, name: row.product.name })}
       />
 
       <CatalogProductFormDialog
@@ -156,9 +161,26 @@ export function CatalogProductsPanel({
         businessSlug={businessSlug}
         categories={categories}
         locations={locations}
-        inventory={inventory}
         onSaved={() => router.refresh()}
       />
+
+      {recipeTarget ? (
+        <CatalogProductIngredientsDialog
+          key={recipeTarget.id}
+          open
+          onOpenChange={(next) => {
+            if (!next) setRecipeTarget(null)
+          }}
+          businessSlug={businessSlug}
+          productId={recipeTarget.id}
+          productName={recipeTarget.name}
+          inventory={inventory}
+          onSaved={() => {
+            setRecipeTarget(null)
+            router.refresh()
+          }}
+        />
+      ) : null}
 
       <CatalogProductDeleteDialog
         productId={deleteId}

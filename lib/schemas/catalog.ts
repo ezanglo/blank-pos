@@ -75,6 +75,11 @@ export const catalogProductIngredientInputSchema = z.object({
   quantity: z.string().trim().min(1, "Quantity is required."),
 })
 
+export const catalogProductRecipeSaveSchema = z.object({
+  productId: z.string().min(1),
+  ingredients: z.array(catalogProductIngredientInputSchema).max(100),
+})
+
 function isValidProductImageUrl(s: string): boolean {
   if (s.length > 2000) return false
   if (s.startsWith("/uploads/")) {
@@ -110,7 +115,6 @@ export const catalogProductCreateSchema = z.object({
   imageUrl: catalogProductImageUrlSchema.optional(),
   isActive: z.boolean().optional(),
   isComposite: z.boolean().optional(),
-  trackInventory: z.boolean().optional(),
   availabilityMode: catalogAvailabilityModeSchema,
   locationIds: z.array(z.string()).optional(),
   prices: z.array(catalogProductPriceInputSchema).default([]),

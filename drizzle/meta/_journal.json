@@ -43,6 +43,13 @@
       "when": 1776532380657,
       "tag": "0005_sharp_medusa",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1776600000001,
+      "tag": "0006_product_track_inventory_default",
+      "breakpoints": true
     }
   ]
 }
