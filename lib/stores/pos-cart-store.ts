@@ -52,6 +52,25 @@ function newLineKey(): string {
   return `line-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
+function addonSelectionsToLines(selections: PosCartAddonSelection[]): PosCartAddonLine[] {
+  return selections.map((s) => ({
+    key: newLineKey(),
+    addonId: s.addonId,
+    name: s.name,
+    unitPriceMinor: s.unitPriceMinor,
+    currency: s.currency,
+    quantity: Math.max(1, Math.min(99, Math.floor(s.quantity))),
+  }))
+}
+
+function instructionSelectionsToLines(selections: PosCartInstructionSelection[]): PosCartInstructionLine[] {
+  return selections.map((s) => ({
+    key: newLineKey(),
+    instructionId: s.instructionId,
+    label: s.label,
+  }))
+}
+
 function lineFromTier(
   p: PosProductCard,
   productPriceId: string,
@@ -63,19 +82,8 @@ function lineFromTier(
   const pr = p.prices.find((x) => x.id === productPriceId)
   if (!pr) return null
   const q = Math.max(1, Math.min(9999, Math.floor(quantity)))
-  const addons: PosCartAddonLine[] = addonSelections.map((s) => ({
-    key: newLineKey(),
-    addonId: s.addonId,
-    name: s.name,
-    unitPriceMinor: s.unitPriceMinor,
-    currency: s.currency,
-    quantity: Math.max(1, Math.min(99, Math.floor(s.quantity))),
-  }))
-  const instructions: PosCartInstructionLine[] = instructionSelections.map((s) => ({
-    key: newLineKey(),
-    instructionId: s.instructionId,
-    label: s.label,
-  }))
+  const addons = addonSelectionsToLines(addonSelections)
+  const instructions = instructionSelectionsToLines(instructionSelections)
   return {
     key,
     productId: p.id,
@@ -88,6 +96,24 @@ function lineFromTier(
     addons,
     instructions,
   }
+}
+
+/** After editing options, merge into an identical sibling line or keep a single updated row. */
+function mergeOrReplaceLine(lines: PosCartLine[], updatedKey: string, updated: PosCartLine): PosCartLine[] {
+  const rest = lines.filter((l) => l.key !== updatedKey)
+  const twin = rest.find(
+    (l) =>
+      l.productId === updated.productId &&
+      l.productPriceId === updated.productPriceId &&
+      posCartAddonSignature(l.addons) === posCartAddonSignature(updated.addons) &&
+      posCartInstructionSignature(l.instructions) === posCartInstructionSignature(updated.instructions),
+  )
+  if (twin) {
+    return rest.map((l) =>
+      l.key === twin.key ? { ...l, quantity: Math.min(9999, l.quantity + updated.quantity) } : l,
+    )
+  }
+  return [...rest, updated]
 }
 
 type PosCartState = {
@@ -106,6 +132,8 @@ type PosCartState = {
     addonSelections?: PosCartAddonSelection[],
     instructionSelections?: PosCartInstructionSelection[],
   ) => void
+  setLineAddons: (lineKey: string, addonSelections: PosCartAddonSelection[]) => void
+  setLineInstructions: (lineKey: string, instructionSelections: PosCartInstructionSelection[]) => void
   removeLine: (key: string) => void
   setQuantity: (key: string, quantity: number) => void
   reset: () => void
@@ -145,6 +173,30 @@ export const usePosCartStore = create<PosCartState>((set) => ({
       return {
         lines: [...state.lines, line],
         cartAnnounce: addQty > 1 ? `${p.name} ×${addQty} added` : `${p.name} added to cart`,
+      }
+    })
+  },
+  setLineAddons: (lineKey, addonSelections) => {
+    set((state) => {
+      const line = state.lines.find((l) => l.key === lineKey)
+      if (!line) return state
+      const addons = addonSelectionsToLines(addonSelections)
+      const updated = { ...line, addons }
+      return {
+        lines: mergeOrReplaceLine(state.lines, lineKey, updated),
+        cartAnnounce: "Add-ons updated",
+      }
+    })
+  },
+  setLineInstructions: (lineKey, instructionSelections) => {
+    set((state) => {
+      const line = state.lines.find((l) => l.key === lineKey)
+      if (!line) return state
+      const instructions = instructionSelectionsToLines(instructionSelections)
+      const updated = { ...line, instructions }
+      return {
+        lines: mergeOrReplaceLine(state.lines, lineKey, updated),
+        cartAnnounce: "Instructions updated",
       }
     })
   },

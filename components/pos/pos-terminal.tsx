@@ -1,6 +1,8 @@
 "use client"
 
 import {
+  ChefHatIcon,
+  Layers2Icon,
   MinusIcon,
   PlusIcon,
   ShoppingCartIcon,
@@ -34,6 +36,10 @@ import {
   parseMinorFromSerialized,
   sumMinor,
 } from "@/lib/money"
+import {
+  posCartAddonSignature,
+  posCartInstructionSignature,
+} from "@/lib/pos/pos-addon-signature"
 import type { PosProductCard } from "@/lib/pos/pos-types"
 import type { PosCategoryInstruction } from "@/lib/queries/catalog"
 import type { PosCategoryAddon } from "@/lib/queries/catalog-addons"
@@ -79,6 +85,8 @@ export function PosTerminal({
   const lines = usePosCartStore((s) => s.lines)
   const cartAnnounce = usePosCartStore((s) => s.cartAnnounce)
   const addProduct = usePosCartStore((s) => s.addProduct)
+  const setLineAddons = usePosCartStore((s) => s.setLineAddons)
+  const setLineInstructions = usePosCartStore((s) => s.setLineInstructions)
   const removeLine = usePosCartStore((s) => s.removeLine)
   const setQuantity = usePosCartStore((s) => s.setQuantity)
   const reset = usePosCartStore((s) => s.reset)
@@ -94,10 +102,9 @@ export function PosTerminal({
   >(null)
   const [pickerProduct, setPickerProduct] =
     React.useState<PosProductCard | null>(null)
-  const [addonFlow, setAddonFlow] = React.useState<null | {
-    product: PosProductCard
-    priceId: string
-    quantity: number
+  const [lineOptionsEdit, setLineOptionsEdit] = React.useState<null | {
+    lineKey: string
+    variant: "addons" | "instructions"
   }>(null)
   const [cartOpen, setCartOpen] = React.useState(false)
 
@@ -131,6 +138,13 @@ export function PosTerminal({
     return () => window.removeEventListener("keydown", onKey)
   }, [cartOpen])
 
+  React.useEffect(() => {
+    if (!lineOptionsEdit) return
+    if (!lines.some((l) => l.key === lineOptionsEdit.lineKey)) {
+      setLineOptionsEdit(null)
+    }
+  }, [lines, lineOptionsEdit])
+
   const filteredProducts = React.useMemo(() => {
     const q = search.trim().toLowerCase()
     return products.filter((p) => {
@@ -152,18 +166,32 @@ export function PosTerminal({
 
   const receiptHref = `/${businessSlug}/l/${locationSlug}/pos/receipt/${doneTransactionId}`
 
-  const addonDialogList = React.useMemo(() => {
-    if (!addonFlow) return []
-    const pr = addonFlow.product.prices.find((x) => x.id === addonFlow.priceId)
-    const raw = addonsByCategory[addonFlow.product.categoryId] ?? []
-    if (!pr) return []
-    return raw.filter((a) => a.currency === pr.currency)
-  }, [addonFlow, addonsByCategory])
+  const lineOptionsLine = React.useMemo(
+    () => (lineOptionsEdit ? lines.find((l) => l.key === lineOptionsEdit.lineKey) : null),
+    [lines, lineOptionsEdit],
+  )
 
-  const instructionDialogList = React.useMemo(() => {
-    if (!addonFlow) return []
-    return instructionsByCategory[addonFlow.product.categoryId] ?? []
-  }, [addonFlow, instructionsByCategory])
+  const lineOptionsProduct = React.useMemo(
+    () =>
+      lineOptionsLine ? (products.find((p) => p.id === lineOptionsLine.productId) ?? null) : null,
+    [products, lineOptionsLine],
+  )
+
+  const editAddonsList = React.useMemo(() => {
+    if (!lineOptionsProduct || !lineOptionsLine) return []
+    const raw = addonsByCategory[lineOptionsProduct.categoryId] ?? []
+    return raw.filter((a) => a.currency === lineOptionsLine.currency)
+  }, [lineOptionsProduct, lineOptionsLine, addonsByCategory])
+
+  const editInstructionsList = React.useMemo(() => {
+    if (!lineOptionsProduct) return []
+    return instructionsByCategory[lineOptionsProduct.categoryId] ?? []
+  }, [lineOptionsProduct, instructionsByCategory])
+
+  const lineOptionsPrefillKey =
+    lineOptionsLine && lineOptionsEdit
+      ? `${lineOptionsEdit.lineKey}-${lineOptionsEdit.variant}-${posCartAddonSignature(lineOptionsLine.addons)}-${posCartInstructionSignature(lineOptionsLine.instructions)}`
+      : ""
 
   async function onCheckout() {
     if (lines.length === 0) {
@@ -404,38 +432,31 @@ export function PosTerminal({
               }}
               onPickPrice={(p, priceId, quantity) => {
                 setPickerProduct(null)
-                const pr = p.prices.find((x) => x.id === priceId)
-                const raw = addonsByCategory[p.categoryId] ?? []
-                const list = pr ? raw.filter((a) => a.currency === pr.currency) : []
-                const instrList = instructionsByCategory[p.categoryId] ?? []
-                if (list.length > 0 || instrList.length > 0) {
-                  setAddonFlow({ product: p, priceId, quantity })
-                } else {
-                  addProduct(p, priceId, quantity, [], [])
-                  setCartOpen(true)
-                }
+                addProduct(p, priceId, quantity, [], [])
+                setCartOpen(true)
               }}
             />
             <PosAddonsDialog
-              product={addonFlow?.product ?? null}
-              productPriceId={addonFlow?.priceId ?? null}
-              quantity={addonFlow?.quantity ?? 1}
-              addons={addonDialogList}
-              instructions={instructionDialogList}
-              open={addonFlow !== null}
+              variant={lineOptionsEdit?.variant ?? "addons"}
+              product={lineOptionsProduct}
+              productPriceId={lineOptionsLine?.productPriceId ?? null}
+              quantity={lineOptionsLine?.quantity ?? 1}
+              addons={lineOptionsEdit?.variant === "instructions" ? [] : editAddonsList}
+              instructions={lineOptionsEdit?.variant === "addons" ? [] : editInstructionsList}
+              prefillKey={lineOptionsPrefillKey}
+              initialAddonIds={lineOptionsLine?.addons.map((a) => a.addonId) ?? []}
+              initialInstructionIds={lineOptionsLine?.instructions.map((i) => i.instructionId) ?? []}
+              open={lineOptionsEdit !== null}
               onOpenChange={(next) => {
-                if (!next) setAddonFlow(null)
+                if (!next) setLineOptionsEdit(null)
               }}
-              onConfirm={(pick) => {
-                addProduct(
-                  pick.product,
-                  pick.productPriceId,
-                  pick.quantity,
-                  pick.selections,
-                  pick.instructionSelections,
-                )
-                setAddonFlow(null)
-                setCartOpen(true)
+              onConfirm={(payload) => {
+                if (!lineOptionsEdit || !lineOptionsLine) return
+                if (payload.variant === "addons") {
+                  setLineAddons(lineOptionsEdit.lineKey, payload.selections)
+                } else {
+                  setLineInstructions(lineOptionsEdit.lineKey, payload.instructionSelections)
+                }
               }}
             />
           </div>
@@ -493,91 +514,144 @@ export function PosTerminal({
               </p>
             </div>
           ) : (
-            <ul className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-y-contain pr-0.5 [-webkit-overflow-scrolling:touch]">
+            <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overscroll-y-contain pr-0.5 [-webkit-overflow-scrolling:touch]">
               {lines.map((line) => {
                 const sub = lineSubtotalMinor(line)
                 const unit = formatMinorToDecimal2(
                   parseMinorFromSerialized(line.unitPriceMinor)
                 )
+                const pCard = products.find((p) => p.id === line.productId)
+                const addonChoices = pCard
+                  ? (addonsByCategory[pCard.categoryId] ?? []).filter(
+                      (a) => a.currency === line.currency,
+                    )
+                  : []
+                const instructionChoices = pCard
+                  ? (instructionsByCategory[pCard.categoryId] ?? [])
+                  : []
+                const showAddonBtn = addonChoices.length > 0
+                const showInstrBtn = instructionChoices.length > 0
                 return (
                   <li
                     key={line.key}
-                    className="rounded-xl border border-border/80 bg-background/90 px-3 py-2.5 shadow-sm"
+                    className="rounded-lg border border-border/80 bg-background/90 px-2.5 py-2 shadow-sm"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="line-clamp-2 text-base leading-tight font-semibold">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="line-clamp-2 min-w-0 flex-1 text-base leading-snug font-semibold">
                           {line.productName}
                         </p>
-                        <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                          {line.priceLabel} · {unit} ea · {line.currency}
-                        </p>
-                        {line.addons.length > 0 ? (
-                          <ul className="mt-1.5 list-none space-y-0.5 border-l-2 border-primary/25 pl-2 text-sm text-muted-foreground">
-                            {line.addons.map((a) => {
-                              const au = formatMinorToDecimal2(
-                                parseMinorFromSerialized(a.unitPriceMinor),
-                              )
-                              return (
-                                <li key={a.key} className="tabular-nums">
-                                  + {a.name}
-                                  {a.quantity !== 1 ? ` ×${a.quantity}` : ""} · {au}{" "}
-                                  {a.currency}
-                                </li>
-                              )
-                            })}
-                          </ul>
-                        ) : null}
-                        {line.instructions.length > 0 ? (
-                          <ul className="mt-1.5 list-none space-y-0.5 border-l-2 border-muted-foreground/20 pl-2 text-xs text-muted-foreground">
-                            {line.instructions.map((ins) => (
-                              <li key={ins.key}>Kitchen: {ins.label}</li>
-                            ))}
-                          </ul>
-                        ) : null}
+                        <div className="flex shrink-0 items-center gap-0.5">
+                          {showAddonBtn ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              title="Add-ons"
+                              className={cn(
+                                "size-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground",
+                                line.addons.length > 0 && "text-primary",
+                              )}
+                              onClick={() =>
+                                setLineOptionsEdit({ lineKey: line.key, variant: "addons" })
+                              }
+                              aria-label={`Add-ons for ${line.productName}`}
+                            >
+                              <Layers2Icon className="size-4" />
+                            </Button>
+                          ) : null}
+                          {showInstrBtn ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              title="Special instructions"
+                              className={cn(
+                                "size-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground",
+                                line.instructions.length > 0 && "text-primary",
+                              )}
+                              onClick={() =>
+                                setLineOptionsEdit({
+                                  lineKey: line.key,
+                                  variant: "instructions",
+                                })
+                              }
+                              aria-label={`Special instructions for ${line.productName}`}
+                            >
+                              <ChefHatIcon className="size-4" />
+                            </Button>
+                          ) : null}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            title="Remove line"
+                            className="size-8 shrink-0 rounded-lg text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => removeLine(line.key)}
+                            aria-label={`Remove ${line.productName}`}
+                          >
+                            <Trash2Icon className="size-4" />
+                          </Button>
+                        </div>
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        className="size-11 shrink-0 rounded-xl text-muted-foreground hover:text-destructive"
-                        onClick={() => removeLine(line.key)}
-                        aria-label={`Remove ${line.productName}`}
-                      >
-                        <Trash2Icon />
-                      </Button>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {line.priceLabel} · {unit} ea · {line.currency}
+                      </p>
+                      {line.addons.length > 0 ? (
+                        <ul className="mt-1 list-none space-y-0 border-l border-primary/30 pl-1.5 text-xs text-muted-foreground">
+                          {line.addons.map((a) => {
+                            const au = formatMinorToDecimal2(
+                              parseMinorFromSerialized(a.unitPriceMinor),
+                            )
+                            return (
+                              <li key={a.key} className="tabular-nums leading-tight">
+                                + {a.name}
+                                {a.quantity !== 1 ? ` ×${a.quantity}` : ""} · {au}{" "}
+                                {a.currency}
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      ) : null}
+                      {line.instructions.length > 0 ? (
+                        <ul className="mt-1 list-none space-y-0 border-l border-muted-foreground/25 pl-1.5 text-[11px] leading-tight text-muted-foreground">
+                          {line.instructions.map((ins) => (
+                            <li key={ins.key}>Kitchen: {ins.label}</li>
+                          ))}
+                        </ul>
+                      ) : null}
                     </div>
-                    <div className="mt-2 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-1.5">
+                    <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-border/50 pt-1.5">
+                      <div className="flex items-center gap-1">
                         <Button
                           type="button"
                           variant="outline"
-                          size="icon-xs"
-                          className="size-11 rounded-xl"
+                          size="icon"
+                          className="size-8 rounded-lg"
                           aria-label="Decrease quantity"
                           onClick={() =>
                             setQuantity(line.key, line.quantity - 1)
                           }
                         >
-                          <MinusIcon />
+                          <MinusIcon className="size-4" />
                         </Button>
-                        <span className="min-w-10 text-center text-lg font-bold tabular-nums">
+                        <span className="min-w-8 text-center text-sm font-bold tabular-nums">
                           {line.quantity}
                         </span>
                         <Button
                           type="button"
                           variant="outline"
-                          size="icon-xs"
-                          className="size-11 rounded-xl"
+                          size="icon"
+                          className="size-8 rounded-lg"
                           aria-label="Increase quantity"
                           onClick={() =>
                             setQuantity(line.key, line.quantity + 1)
                           }
                         >
-                          <PlusIcon />
+                          <PlusIcon className="size-4" />
                         </Button>
                       </div>
-                      <span className="text-lg font-bold tabular-nums">
+                      <span className="text-sm font-bold tabular-nums">
                         {formatMinorToDecimal2(sub)}
                       </span>
                     </div>
