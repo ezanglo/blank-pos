@@ -133,6 +133,7 @@ export async function createProduct(businessSlug: string, raw: z.input<typeof ca
         isActive: input.isActive ?? true,
         isComposite: input.isComposite ?? false,
         trackInventory: true,
+        prepTimeSeconds: input.prepTimeSeconds ?? null,
         availabilityMode: input.availabilityMode,
         createdAt: now,
         updatedAt: now,
@@ -247,6 +248,7 @@ export async function updateProduct(businessSlug: string, raw: z.input<typeof ca
           isActive: input.isActive ?? true,
           ...(input.isComposite !== undefined ? { isComposite: input.isComposite } : {}),
           trackInventory: true,
+          prepTimeSeconds: input.prepTimeSeconds ?? null,
           availabilityMode: input.availabilityMode,
           updatedAt: now,
         })
@@ -372,6 +374,7 @@ export type ProductDetailDTO = {
     isActive: boolean
     isComposite: boolean
     trackInventory: boolean
+    prepTimeSeconds: number | null
     availabilityMode: string
   }
   prices: {
@@ -405,6 +408,7 @@ export async function getProductDetailForEdit(
       isActive: d.product.isActive,
       isComposite: d.product.isComposite,
       trackInventory: d.product.trackInventory,
+      prepTimeSeconds: d.product.prepTimeSeconds ?? null,
       availabilityMode: d.product.availabilityMode,
     },
     prices: d.prices.map((p) => ({

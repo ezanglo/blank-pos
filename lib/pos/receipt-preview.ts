@@ -42,6 +42,8 @@ export type PosReceiptPreviewModel = {
   createdAtIso: string
   cashierName: string
   paymentMethod: string
+  queueNumber: number | null
+  customerCallName: string | null
   lines: PosReceiptLinePreview[]
   subtotalMinorSerialized: string
   totalMinorSerialized: string
@@ -73,6 +75,8 @@ export function transactionBundleToPreviewModel(
     createdAtIso: transaction.createdAt.toISOString(),
     cashierName,
     paymentMethod: transaction.paymentMethod,
+    queueNumber: transaction.queueNumber ?? null,
+    customerCallName: transaction.customerCallName?.trim() || null,
     lines: lines.map((line) => ({
       id: line.id,
       productName: line.productName,

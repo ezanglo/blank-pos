@@ -67,6 +67,16 @@
 
 ---
 
+## Bundle / set promotions (planned scope)
+
+**Goal:** Christmas sets, family meals, “buy these together” discounts without ad-hoc manual coupons.
+
+- **Preferred (Phase 6):** add a promotion **type** or rule shape **bundle** in `evaluatePromotions`: when the cart satisfies a defined set of products/categories and quantities, apply a **percentage** or **fixed** discount (automatic or coupon-triggered), reusing schedules, `transaction_promotions`, and stacking rules.
+- **Optional later (catalog + POS):** a **`bundle` product** that **explodes** into normal line items at add-to-cart (Phase 2 surface + Phase 3 cart) so the menu shows one tile; discount can still be a Phase 6 bundle promo.
+- **Defer:** “promotion product” that only auto-adds lines + hidden coupon—harder to audit; use bundle rules + optional bundle SKU instead.
+
+---
+
 ## Dependencies for later phases
 
 - Phase 7 void/refund: reverse or annotate promotion usage counts consistently.

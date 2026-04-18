@@ -1,6 +1,6 @@
 import { relations } from "drizzle-orm"
-import { bigint, index, integer, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
+import { bigint, index, integer, pgTable, primaryKey, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core"
 
 import { organization, user } from "./auth-schema"
 import { businessLocation } from "./schema-app"
@@ -12,6 +12,22 @@ export type TransactionStatus = (typeof transactionStatusValues)[number]
 
 export const transactionPaymentMethodValues = ["cash", "card_placeholder"] as const
 export type TransactionPaymentMethod = (typeof transactionPaymentMethodValues)[number]
+
+/**
+ * Per-branch daily sequence for café-style queue tickets. `queue_date` is UTC calendar date (YYYY-MM-DD).
+ * Allocated inside the same DB transaction as the sale via upsert + increment.
+ */
+export const locationQueueCounter = pgTable(
+  "location_queue_counter",
+  {
+    locationId: text("location_id")
+      .notNull()
+      .references(() => businessLocation.id, { onDelete: "cascade" }),
+    queueDate: text("queue_date").notNull(),
+    lastNumber: integer("last_number").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.locationId, t.queueDate] })],
+)
 
 /**
  * Sales header. Table name `transactions` matches the dev plan; export uses `posTransactions` to avoid confusion with `db.transaction()`.
@@ -36,6 +52,10 @@ export const posTransactions = pgTable(
     totalAmountMinor: bigint("total_amount_minor", { mode: "bigint" }).notNull(),
     paymentMethod: text("payment_method").notNull(),
     notes: text("notes"),
+    /** Daily queue ticket for this branch (see `location_queue_counter`). */
+    queueNumber: integer("queue_number"),
+    /** Name staff call out for the order (e.g. Starbucks-style). */
+    customerCallName: text("customer_call_name"),
     /** Client-generated UUID for idempotent checkout (optional). */
     checkoutId: text("checkout_id"),
     createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().defaultNow(),

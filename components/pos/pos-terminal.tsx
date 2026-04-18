@@ -65,6 +65,14 @@ import type { PosReceiptPreviewModel } from "@/lib/pos/receipt-preview"
 import { usePosCartStore, type PosCartLine } from "@/lib/stores/pos-cart-store"
 import { cn } from "@/lib/utils"
 
+function formatCartPrepEstimate(seconds: number): string {
+  if (seconds >= 60) {
+    const m = Math.max(1, Math.round(seconds / 60))
+    return `~${m} min`
+  }
+  return `~${seconds}s`
+}
+
 const PAYMENT_METHOD_LABEL: Record<
   (typeof transactionPaymentMethodValues)[number],
   string
@@ -135,6 +143,9 @@ type PosCartPanelInnerProps = {
   instructionsByCategory: Record<string, PosCategoryInstruction[]>
   cartAnnounce: string
   grandMinor: bigint
+  estimatedPrepLabel: string | null
+  customerCallName: string
+  setCustomerCallName: (v: string) => void
   paymentMethod: (typeof transactionPaymentMethodValues)[number]
   setPaymentMethod: (v: (typeof transactionPaymentMethodValues)[number]) => void
   submitting: boolean
@@ -156,6 +167,9 @@ function PosCartPanelInner({
   instructionsByCategory,
   cartAnnounce,
   grandMinor,
+  estimatedPrepLabel,
+  customerCallName,
+  setCustomerCallName,
   paymentMethod,
   setPaymentMethod,
   submitting,
@@ -168,6 +182,7 @@ function PosCartPanelInner({
   setLineOptionsEdit,
 }: PosCartPanelInnerProps) {
   const payFieldId = React.useId()
+  const callNameFieldId = React.useId()
 
   return (
     <>
@@ -334,6 +349,26 @@ function PosCartPanelInner({
           <span className="text-muted-foreground">Subtotal</span>
           <span className="text-foreground tabular-nums">{formatMinorToDecimal2(grandMinor)}</span>
         </div>
+        {estimatedPrepLabel && lines.length > 0 ? (
+          <p className="text-muted-foreground text-xs leading-snug">
+            Est. prep {estimatedPrepLabel}
+            <span className="sr-only"> based on catalog prep times and quantities</span> (catalog)
+          </p>
+        ) : null}
+        <div className="space-y-1">
+          <Label htmlFor={callNameFieldId} className="text-xs font-medium text-muted-foreground">
+            Name for order (optional)
+          </Label>
+          <Input
+            id={callNameFieldId}
+            value={customerCallName}
+            onChange={(e) => setCustomerCallName(e.target.value)}
+            placeholder="e.g. for the counter call-out"
+            maxLength={120}
+            autoComplete="name"
+            className="min-h-11 rounded-xl text-base"
+          />
+        </div>
         <div className="space-y-1.5">
           <Label htmlFor={payFieldId} className="sr-only">
             Payment method
@@ -407,9 +442,13 @@ export function PosTerminal({
   const [paymentMethod, setPaymentMethod] =
     React.useState<(typeof transactionPaymentMethodValues)[number]>("cash")
   const [submitting, setSubmitting] = React.useState(false)
-  const [doneTransactionId, setDoneTransactionId] = React.useState<
-    string | null
-  >(null)
+  const [customerCallName, setCustomerCallName] = React.useState("")
+  const [completedSale, setCompletedSale] = React.useState<{
+    transactionId: string
+    queueNumber: number | null
+    customerCallName: string | null
+    estimatedPrepSeconds: number | null
+  } | null>(null)
   const [pickerProduct, setPickerProduct] =
     React.useState<PosProductCard | null>(null)
   const [lineOptionsEdit, setLineOptionsEdit] = React.useState<null | {
@@ -508,6 +547,21 @@ export function PosTerminal({
     [lines]
   )
 
+  const estimatedPrepLabel = React.useMemo(() => {
+    if (lines.length === 0) return null
+    let total = 0
+    let any = false
+    for (const line of lines) {
+      const p = products.find((x) => x.id === line.productId)
+      const s = p?.prepTimeSeconds
+      if (s != null && s > 0) {
+        any = true
+        total += s * line.quantity
+      }
+    }
+    return any ? formatCartPrepEstimate(total) : null
+  }, [lines, products])
+
   const lineOptionsLine = React.useMemo(
     () => (lineOptionsEdit ? lines.find((l) => l.key === lineOptionsEdit.lineKey) : null),
     [lines, lineOptionsEdit],
@@ -546,11 +600,13 @@ export function PosTerminal({
         : `${Date.now()}`
     setSubmitting(true)
     try {
+      const callNameTrim = customerCallName.trim()
       const res = await createSale({
         businessSlug,
         locationSlug,
         paymentMethod,
         notes: null,
+        customerCallName: callNameTrim.length > 0 ? callNameTrim : null,
         checkoutId,
         lines: lines.map((l) => ({
           productId: l.productId,
@@ -570,7 +626,13 @@ export function PosTerminal({
         return
       }
       setLastOrderTransactionId(res.transactionId)
-      setDoneTransactionId(res.transactionId)
+      setCompletedSale({
+        transactionId: res.transactionId,
+        queueNumber: res.queueNumber,
+        customerCallName: res.customerCallName,
+        estimatedPrepSeconds: res.estimatedPrepSeconds,
+      })
+      setCustomerCallName("")
       reset()
     } catch {
       toast.error("Network error. Check your connection and try again.")
@@ -580,16 +642,16 @@ export function PosTerminal({
   }
 
   function onNewSale() {
-    setDoneTransactionId(null)
+    setCompletedSale(null)
     setReceiptSheetTxId(null)
     setReceiptModel(null)
     reset()
   }
 
   function openReceiptSheet() {
-    if (!doneTransactionId) return
-    setReceiptSheetTxId(doneTransactionId)
-    setDoneTransactionId(null)
+    if (!completedSale) return
+    setReceiptSheetTxId(completedSale.transactionId)
+    setCompletedSale(null)
   }
 
   function openLastOrderReceipt() {
@@ -607,6 +669,9 @@ export function PosTerminal({
     instructionsByCategory,
     cartAnnounce,
     grandMinor,
+    estimatedPrepLabel,
+    customerCallName,
+    setCustomerCallName,
     paymentMethod,
     setPaymentMethod,
     submitting,
@@ -879,9 +944,9 @@ export function PosTerminal({
     </div>
 
     <Dialog
-      open={doneTransactionId !== null}
+      open={completedSale !== null}
       onOpenChange={(open) => {
-        if (!open) setDoneTransactionId(null)
+        if (!open) setCompletedSale(null)
       }}
     >
       <DialogContent className="max-w-md text-center" showCloseButton>
@@ -890,10 +955,27 @@ export function PosTerminal({
             <StoreIcon className="size-10" />
           </div>
           <DialogTitle className="text-xl font-semibold">Sale complete</DialogTitle>
-          <DialogDescription className="text-base">
+          <DialogDescription className="sr-only">
             Transaction saved. You can print the receipt or start another sale.
           </DialogDescription>
         </DialogHeader>
+        <div className="space-y-2 text-center text-base text-foreground">
+          {completedSale?.queueNumber != null ? (
+            <p className="text-2xl font-bold tabular-nums">Order #{completedSale.queueNumber}</p>
+          ) : null}
+          {completedSale?.customerCallName ? (
+            <p className="text-muted-foreground">For {completedSale.customerCallName}</p>
+          ) : null}
+          {completedSale?.estimatedPrepSeconds != null && completedSale.estimatedPrepSeconds > 0 ? (
+            <p className="text-muted-foreground text-sm">
+              Est. prep {formatCartPrepEstimate(completedSale.estimatedPrepSeconds)} (typical, from
+              catalog)
+            </p>
+          ) : null}
+          <p className="text-muted-foreground text-sm">
+            You can print the receipt or start another sale.
+          </p>
+        </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Button
             type="button"

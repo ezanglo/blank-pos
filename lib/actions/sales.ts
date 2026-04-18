@@ -2,7 +2,7 @@
 
 import { randomUUID } from "node:crypto"
 
-import { and, eq, inArray } from "drizzle-orm"
+import { and, eq, inArray, sql } from "drizzle-orm"
 
 import { requireCatalogMember } from "@/lib/catalog-access"
 import { getDb } from "@/lib/db"
@@ -15,6 +15,7 @@ import {
   productPrice,
 } from "@/lib/db/schema-catalog"
 import {
+  locationQueueCounter,
   posTransactionItemAddons,
   posTransactionItemInstructions,
   posTransactionItems,
@@ -29,7 +30,14 @@ import { sumMinor } from "@/lib/money"
 const ZERO = BigInt(0)
 
 export type CreateSaleResult =
-  | { ok: true; transactionId: string }
+  | {
+      ok: true
+      transactionId: string
+      queueNumber: number | null
+      customerCallName: string | null
+      /** Sum of per-product prep seconds × line qty when any line has `prep_time_seconds`; else null. */
+      estimatedPrepSeconds: number | null
+    }
   | { ok: false; error: "validation" | "forbidden" | "location" | "empty" | "product" | "price" | "server"; message: string }
 
 export async function createSale(raw: unknown): Promise<CreateSaleResult> {
@@ -57,7 +65,21 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
   if (input.checkoutId) {
     const existing = await findTransactionIdByCheckoutId(organizationId, input.checkoutId)
     if (existing) {
-      return { ok: true, transactionId: existing }
+      const [meta] = await getDb()
+        .select({
+          queueNumber: posTransactions.queueNumber,
+          customerCallName: posTransactions.customerCallName,
+        })
+        .from(posTransactions)
+        .where(and(eq(posTransactions.id, existing), eq(posTransactions.organizationId, organizationId)))
+        .limit(1)
+      return {
+        ok: true,
+        transactionId: existing,
+        queueNumber: meta?.queueNumber ?? null,
+        customerCallName: meta?.customerCallName ?? null,
+        estimatedPrepSeconds: null,
+      }
     }
   }
 
@@ -239,10 +261,44 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
   const subtotalAmountMinor = sumMinor(lineSubtotals)
   const totalAmountMinor = subtotalAmountMinor
 
+  let estimatedPrepSecondsTotal = 0
+  let anyPrep = false
+  for (const line of resolvedLines) {
+    const p = productById.get(line.productId)
+    const sec = p?.prepTimeSeconds
+    if (sec != null && sec > 0) {
+      anyPrep = true
+      estimatedPrepSecondsTotal += sec * line.quantity
+    }
+  }
+  const estimatedPrepSeconds = anyPrep ? estimatedPrepSecondsTotal : null
+
+  const callName = input.customerCallName?.trim() || null
+  const queueDate = new Date().toISOString().slice(0, 10)
+
   const transactionId = randomUUID()
+  let queueNumber: number | null = null
 
   try {
     await db.transaction(async (tx) => {
+      const [counterRow] = await tx
+        .insert(locationQueueCounter)
+        .values({
+          locationId: location.id,
+          queueDate,
+          lastNumber: 1,
+        })
+        .onConflictDoUpdate({
+          target: [locationQueueCounter.locationId, locationQueueCounter.queueDate],
+          set: { lastNumber: sql`${locationQueueCounter.lastNumber} + 1` },
+        })
+        .returning({ lastNumber: locationQueueCounter.lastNumber })
+
+      queueNumber = counterRow?.lastNumber ?? null
+      if (queueNumber == null) {
+        throw new Error("queue_counter_failed")
+      }
+
       await tx.insert(posTransactions).values({
         id: transactionId,
         organizationId,
@@ -255,6 +311,8 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
         totalAmountMinor,
         paymentMethod: input.paymentMethod,
         notes: input.notes?.trim() || null,
+        queueNumber,
+        customerCallName: callName,
         checkoutId: input.checkoutId ?? null,
       })
 
@@ -295,11 +353,37 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
   } catch (e) {
     if (input.checkoutId) {
       const existing = await findTransactionIdByCheckoutId(organizationId, input.checkoutId)
-      if (existing) return { ok: true, transactionId: existing }
+      if (existing) {
+        const [meta] = await getDb()
+          .select({
+            queueNumber: posTransactions.queueNumber,
+            customerCallName: posTransactions.customerCallName,
+          })
+          .from(posTransactions)
+          .where(and(eq(posTransactions.id, existing), eq(posTransactions.organizationId, organizationId)))
+          .limit(1)
+        return {
+          ok: true,
+          transactionId: existing,
+          queueNumber: meta?.queueNumber ?? null,
+          customerCallName: meta?.customerCallName ?? null,
+          estimatedPrepSeconds: null,
+        }
+      }
     }
     console.error(e)
     return { ok: false, error: "server", message: "Checkout failed. Please try again." }
   }
 
-  return { ok: true, transactionId }
+  if (queueNumber == null) {
+    return { ok: false, error: "server", message: "Checkout failed. Please try again." }
+  }
+
+  return {
+    ok: true,
+    transactionId,
+    queueNumber,
+    customerCallName: callName,
+    estimatedPrepSeconds,
+  }
 }

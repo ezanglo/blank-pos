@@ -67,6 +67,8 @@ export function CatalogProductFormDialog({
     "all_locations",
   )
   const [selectedLocationIds, setSelectedLocationIds] = useState<string[]>([])
+  /** Empty string = no prep time in catalog */
+  const [prepTimeSecondsDraft, setPrepTimeSecondsDraft] = useState("")
 
   const resetDefaults = useCallback(() => {
     setFormError(null)
@@ -80,6 +82,7 @@ export function CatalogProductFormDialog({
     setIsActive(true)
     setAvailabilityMode("all_locations")
     setSelectedLocationIds([])
+    setPrepTimeSecondsDraft("")
   }, [categories])
 
   useEffect(() => {
@@ -114,6 +117,11 @@ export function CatalogProductFormDialog({
         d.product.availabilityMode === "selected_locations_only" ? "selected_locations_only" : "all_locations",
       )
       setSelectedLocationIds(d.locationIds)
+      setPrepTimeSecondsDraft(
+        d.product.prepTimeSeconds != null && d.product.prepTimeSeconds > 0
+          ? String(d.product.prepTimeSeconds)
+          : "",
+      )
     })()
     return () => {
       cancelled = true
@@ -129,6 +137,14 @@ export function CatalogProductFormDialog({
     setBusy(true)
     setFormError(null)
     try {
+      const prepTrim = prepTimeSecondsDraft.trim()
+      const prepParsed =
+        prepTrim === "" ? null : Number.parseInt(prepTrim, 10)
+      const prepTimeSeconds =
+        prepParsed == null || !Number.isFinite(prepParsed) || prepParsed < 0
+          ? null
+          : Math.min(86400, prepParsed)
+
       await flushPendingImageUploads((_id, url) => {
         setImageUrl(url)
       })
@@ -143,6 +159,7 @@ export function CatalogProductFormDialog({
           imageUrl: imageUrl.trim() === "" ? undefined : imageUrl.trim(),
           isActive,
           availabilityMode,
+          prepTimeSeconds,
           locationIds: availabilityMode === "selected_locations_only" ? selectedLocationIds : [],
         })
       } else {
@@ -155,6 +172,7 @@ export function CatalogProductFormDialog({
           imageUrl: imageUrl.trim() === "" ? undefined : imageUrl.trim(),
           isActive,
           availabilityMode,
+          prepTimeSeconds,
           locationIds: availabilityMode === "selected_locations_only" ? selectedLocationIds : [],
           prices: [],
         })
@@ -227,6 +245,20 @@ export function CatalogProductFormDialog({
               />
               <p className="text-muted-foreground mt-1 text-xs">
                 Upload a file above, or paste a public https link. Local dev uploads use paths under /uploads/.
+              </p>
+            </Field>
+            <Field>
+              <FieldLabel>Typical prep time (optional)</FieldLabel>
+              <Input
+                value={prepTimeSecondsDraft}
+                onChange={(e) => setPrepTimeSecondsDraft(e.target.value)}
+                placeholder="Seconds, e.g. 120 for 2 min"
+                inputMode="numeric"
+                autoComplete="off"
+                className="tabular-nums"
+              />
+              <p className="text-muted-foreground mt-1 text-xs">
+                Used on the register to estimate wait time from the cart (sum of prep × quantity).
               </p>
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">

@@ -118,6 +118,7 @@ product
   name, description, category_id,
   sku, qr_code, image_url, is_active, is_composite,
   track_inventory,
+  prep_time_seconds,  -- optional; typical make time for POS wait estimates
   availability_mode,  -- all_locations | selected_locations_only
   created_at, updated_at
 
@@ -214,12 +215,17 @@ transaction_promotions
 ### Sales
 
 ```sql
+location_queue_counter
+  location_id, queue_date, last_number  -- PK (location_id, queue_date); UTC date string YYYY-MM-DD; café-style ticket sequence
+
 transactions
-  id, organization_id, user_id,
+  id, organization_id, user_id, location_id,
   status (open|completed|voided),
   subtotal_amount_minor, discount_amount_minor, tax_amount_minor, total_amount_minor,  -- bigint minor units
-  payment_method, notes, created_at
-  -- optional later: location_id for branch-scoped reporting
+  payment_method, notes,
+  queue_number,           -- daily ticket # for this branch (from location_queue_counter)
+  customer_call_name,     -- optional call-out name on the order
+  checkout_id, created_at
 
 transaction_items
   id, transaction_id, product_id, product_price_id,

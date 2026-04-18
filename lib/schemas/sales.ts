@@ -36,6 +36,8 @@ export const createSaleInputSchema = z.object({
   locationSlug: z.string().min(1),
   paymentMethod: z.enum(transactionPaymentMethodValues),
   notes: z.string().max(2000).optional().nullable(),
+  /** Name for the order (call-out). Empty after trim = none. */
+  customerCallName: z.string().max(120).optional().nullable(),
   checkoutId: z.string().uuid().optional().nullable(),
   lines: z.array(createSaleLineSchema).min(1).max(500),
 })

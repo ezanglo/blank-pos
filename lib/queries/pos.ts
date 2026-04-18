@@ -151,6 +151,7 @@ export async function listPosProductsForLocation(
       categoryName,
       prices: pricesByProduct.get(p.id) ?? [],
       trackInventory: p.trackInventory,
+      prepTimeSeconds: p.prepTimeSeconds ?? null,
       sellableUnits: stock?.sellableUnits ?? null,
       stockBadge: stock?.stockBadge ?? null,
     }

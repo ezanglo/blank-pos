@@ -50,6 +50,7 @@ import type { ProductListRow } from "@/lib/queries/catalog"
 import {
   catalogProductsColumnMenuLabel,
   formatLocationCell,
+  formatPrepCellSeconds,
 } from "./catalog-products-utils"
 
 export function CatalogProductsDataTable({
@@ -144,6 +145,17 @@ export function CatalogProductsDataTable({
         accessorFn: (r) => r.categoryName,
         enableSorting: false,
         cell: ({ row }) => row.original.categoryName,
+      },
+      {
+        id: "prep",
+        header: "Prep",
+        accessorFn: (r) => r.product.prepTimeSeconds ?? 0,
+        enableSorting: false,
+        cell: ({ row }) => (
+          <span className="tabular-nums text-sm text-muted-foreground">
+            {formatPrepCellSeconds(row.original.product.prepTimeSeconds)}
+          </span>
+        ),
       },
       {
         id: "prices",

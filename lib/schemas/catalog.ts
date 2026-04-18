@@ -119,6 +119,8 @@ export const catalogProductCreateSchema = z.object({
   locationIds: z.array(z.string()).optional(),
   prices: z.array(catalogProductPriceInputSchema).default([]),
   ingredients: z.array(catalogProductIngredientInputSchema).optional(),
+  /** Typical prep time in seconds; omit or null = unknown. */
+  prepTimeSeconds: z.number().int().min(0).max(86400).nullable().optional(),
 })
 
 /** Single product price row (variant + amount); label and sort order come from the variant. */

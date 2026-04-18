@@ -73,6 +73,18 @@ export function PosReceiptDocument({
             <dt className="text-muted-foreground">Payment</dt>
             <dd className="capitalize">{model.paymentMethod.replace(/_/g, " ")}</dd>
           </div>
+          {model.queueNumber != null ? (
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">Order #</dt>
+              <dd className="text-lg font-bold tabular-nums">{model.queueNumber}</dd>
+            </div>
+          ) : null}
+          {model.customerCallName ? (
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">Name</dt>
+              <dd className="min-w-0 text-right font-medium break-words">{model.customerCallName}</dd>
+            </div>
+          ) : null}
         </dl>
 
         <table className="mt-6 w-full text-sm">

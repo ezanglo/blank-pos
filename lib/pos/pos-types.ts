@@ -18,6 +18,8 @@ export type PosProductCard = {
   categoryName: string
   prices: PosProductPrice[]
   trackInventory: boolean
+  /** Typical prep time in seconds when set in catalog; null = unknown. */
+  prepTimeSeconds: number | null
   /** Estimated units left from recipe + stock; null when not tracked or no recipe. */
   sellableUnits: number | null
   /** Stock state for tiles; null when not tracked or recipe missing. */

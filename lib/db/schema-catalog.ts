@@ -88,6 +88,11 @@ export const product = pgTable(
     isActive: boolean("is_active").notNull().default(true),
     isComposite: boolean("is_composite").notNull().default(false),
     trackInventory: boolean("track_inventory").notNull().default(true),
+    /**
+     * Optional typical prep time in seconds (e.g. 120 for 2 min). Used for POS ETA hints.
+     * Null = unknown / not applicable.
+     */
+    prepTimeSeconds: integer("prep_time_seconds"),
     availabilityMode: text("availability_mode").notNull().default("all_locations"),
     createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
