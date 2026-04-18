@@ -16,6 +16,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import {
+  BanknoteIcon,
   BoxesIcon,
   LayoutDashboardIcon,
   MapPinIcon,
@@ -28,10 +29,12 @@ import {
 export function AppSidebar({
   businessSlug,
   navLocationSlug,
+  orgRole,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
   businessSlug: string
   navLocationSlug: string
+  orgRole: string
 }) {
   const pathname = usePathname()
 
@@ -40,6 +43,10 @@ export function AppSidebar({
   const dashboardHref = `${locBase}/dashboard`
   const dashboardActive =
     pathname === dashboardHref || pathname.startsWith(`${dashboardHref}/`)
+  const posHref = `${locBase}/pos`
+  const posActive = pathname === posHref || pathname.startsWith(`${posHref}/`)
+
+  const isCashier = orgRole === "cashier"
 
   type NavItem = { title: string; url: string; icon: React.ReactNode }
 
@@ -79,10 +86,12 @@ export function AppSidebar({
     },
   ]
 
-  const navGroups: { label: string; items: NavItem[] }[] = [
-    { label: "Catalog", items: catalogItems },
-    { label: "Business", items: businessItems },
-  ]
+  const navGroups: { label: string; items: NavItem[] }[] = isCashier
+    ? []
+    : [
+        { label: "Catalog", items: catalogItems },
+        { label: "Business", items: businessItems },
+      ]
 
   function itemActive(url: string) {
     return pathname === url || pathname.startsWith(`${url}/`)
@@ -103,6 +112,16 @@ export function AppSidebar({
                 >
                   <LayoutDashboardIcon />
                   <span>Dashboard</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip="Register"
+                  isActive={posActive}
+                  render={<Link href={posHref} />}
+                >
+                  <BanknoteIcon />
+                  <span>Register</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

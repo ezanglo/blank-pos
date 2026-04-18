@@ -68,11 +68,12 @@ export function OrgAppShell({
           variant="inset"
           businessSlug={businessSlug}
           navLocationSlug={navLocationSlug}
+          orgRole={user.orgRole}
         />
         <SidebarInset className="min-h-0 flex-1 overflow-hidden">
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain">
-            <div className="@container/main flex flex-col gap-2">
-              <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-6">{children}</div>
+            <div className="@container/main flex min-h-0 flex-1 flex-col gap-2">
+              <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">{children}</div>
             </div>
           </div>
         </SidebarInset>

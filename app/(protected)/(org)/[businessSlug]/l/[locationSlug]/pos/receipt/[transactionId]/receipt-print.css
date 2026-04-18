@@ -1,0 +1,25 @@
+/* Isolate receipt in the browser print dialog (hides app chrome). */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #pos-receipt-root,
+  #pos-receipt-root * {
+    visibility: visible;
+  }
+  #pos-receipt-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 12mm 10mm;
+    background: #fff;
+    color: #000;
+    font-size: 11pt;
+  }
+  #pos-receipt-root .no-print {
+    display: none !important;
+  }
+}
