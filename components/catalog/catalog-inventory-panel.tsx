@@ -1,6 +1,7 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
   flexRender,
   getCoreRowModel,
@@ -8,8 +9,23 @@ import {
   type ColumnDef,
   type VisibilityState,
 } from "@tanstack/react-table"
-import { ChevronDownIcon, PackageIcon, PencilIcon, PlusIcon, TableIcon, Trash2Icon } from "lucide-react"
-import { useRouter } from "next/navigation"
+import {
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  PackageIcon,
+  PencilIcon,
+  PlusIcon,
+  TableIcon,
+  Trash2Icon,
+} from "lucide-react"
+
+import {
+  mergeCatalogProductsUrlState,
+  parseCatalogProductsUrlState,
+  serializeCatalogProductsUrlState,
+  type CatalogProductsUrlState,
+} from "@/lib/catalog-products-url"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -59,11 +75,46 @@ function RootFormError({ message }: { message?: string }) {
 export function CatalogInventoryPanel({
   businessSlug,
   rows,
+  total,
 }: {
   businessSlug: string
   rows: Row[]
+  total: number
 }) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  const urlState = useMemo(
+    () => parseCatalogProductsUrlState(Object.fromEntries(searchParams.entries())),
+    [searchParams],
+  )
+
+  const pushUrlState = useCallback(
+    (patch: Partial<CatalogProductsUrlState>) => {
+      const next = mergeCatalogProductsUrlState(urlState, patch)
+      const qs = serializeCatalogProductsUrlState(next)
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+    },
+    [pathname, router, urlState],
+  )
+
+  const [searchDraft, setSearchDraft] = useState(urlState.search)
+  useEffect(() => {
+    setSearchDraft(urlState.search)
+  }, [urlState.search])
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (searchDraft === urlState.search) return
+      pushUrlState({ search: searchDraft })
+    }, 350)
+    return () => clearTimeout(t)
+  }, [searchDraft, urlState.search, pushUrlState])
+
+  const totalPages = Math.max(1, Math.ceil(total / urlState.pageSize))
+  const hasPrevPage = urlState.page > 1
+  const hasNextPage = urlState.page < totalPages
   const [addOpen, setAddOpen] = useState(false)
   const [editRow, setEditRow] = useState<Row | null>(null)
   const [stockRow, setStockRow] = useState<Row | null>(null)
@@ -77,7 +128,6 @@ export function CatalogInventoryPanel({
   const [busy, setBusy] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
-  const [query, setQuery] = useState("")
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
 
   const resetItem = (r?: Row | null) => {
@@ -95,16 +145,6 @@ export function CatalogInventoryPanel({
       setInitialStock("0")
     }
   }
-
-  const displayRows = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return rows
-    return rows.filter((r) =>
-      `${r.item.name} ${r.item.unit} ${formatMinorToDecimal2(r.item.costPerUnitMinor)} ${r.stock} ${r.item.reorderPoint ?? ""}`
-        .toLowerCase()
-        .includes(q),
-    )
-  }, [rows, query])
 
   const columns = useMemo<ColumnDef<Row>[]>(
     () => [
@@ -184,7 +224,7 @@ export function CatalogInventoryPanel({
   )
 
   const table = useReactTable({
-    data: displayRows,
+    data: rows,
     columns,
     state: { columnVisibility },
     onColumnVisibilityChange: setColumnVisibility,
@@ -290,7 +330,8 @@ export function CatalogInventoryPanel({
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Inventory</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Raw materials and stock levels (organization-wide). Used for composite recipes.
+          Raw materials and stock levels (organization-wide). Used for composite recipes. Search and pagination match
+          the products catalog (URL query params).
         </p>
       </div>
 
@@ -299,8 +340,8 @@ export function CatalogInventoryPanel({
           <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2">
             <Input
               placeholder="Search items…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              value={searchDraft}
+              onChange={(e) => setSearchDraft(e.target.value)}
               aria-label="Search inventory"
               className="min-w-0 max-w-sm flex-1"
             />
@@ -379,13 +420,44 @@ export function CatalogInventoryPanel({
             </TableBody>
           </Table>
         </div>
-        <p className="text-muted-foreground text-sm">
-          {displayRows.length === 0
-            ? "0 items"
-            : query.trim()
-              ? `${displayRows.length} match${displayRows.length === 1 ? "" : "es"}`
-              : `${displayRows.length} item${displayRows.length === 1 ? "" : "s"}`}
-        </p>
+        <div className="text-muted-foreground flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <p>
+            {total === 0
+              ? "0 items"
+              : (() => {
+                  const from = (urlState.page - 1) * urlState.pageSize + 1
+                  const to = (urlState.page - 1) * urlState.pageSize + rows.length
+                  return `Showing ${from}–${to} of ${total} item${total === 1 ? "" : "s"}`
+                })()}
+          </p>
+          {total > 0 ? (
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!hasPrevPage}
+                onClick={() => hasPrevPage && pushUrlState({ page: urlState.page - 1 })}
+                aria-label="Previous page"
+              >
+                <ChevronLeftIcon className="size-4" />
+              </Button>
+              <span className="text-foreground min-w-28 text-center text-xs tabular-nums">
+                Page {urlState.page} of {totalPages}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!hasNextPage}
+                onClick={() => hasNextPage && pushUrlState({ page: urlState.page + 1 })}
+                aria-label="Next page"
+              >
+                <ChevronRightIcon className="size-4" />
+              </Button>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>

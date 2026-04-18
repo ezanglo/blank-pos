@@ -19,7 +19,7 @@
 | **`listSellableProductIdsForLocation`** (active products × availability mode) | Implemented ([`lib/queries/catalog.ts`](../../lib/queries/catalog.ts)) |
 | Admin UI: **Categories** (+ variants, reorder), **Products** (table, create/edit, delete, image upload, prices dialog), **Inventory** (items + org stock) | Implemented under **`/{businessSlug}/catalog/…`** (see below) |
 | **`POST /api/upload`** for product **`image_url`** (same contract as branding) | Implemented ([`docs/storage-uploads.md`](../storage-uploads.md)) |
-| Server-side **offset pagination** + URL filters (`page`, `per`, `q`, `category`) on **`/catalog/products`** | Implemented ([`lib/queries/catalog.ts`](../../lib/queries/catalog.ts), [`lib/catalog-products-url.ts`](../../lib/catalog-products-url.ts)) |
+| Server-side **offset pagination** + URL params: **`/catalog/products`** (`page`, `per`, `q`, `category`) and **`/catalog/inventory`** (`page`, `per`, `q`; same helpers) | Implemented ([`lib/queries/catalog.ts`](../../lib/queries/catalog.ts), [`lib/catalog-products-url.ts`](../../lib/catalog-products-url.ts)) |
 | **Demo seed** script for sample catalog | Deferred |
 | **Free-text price tiers** with `category_variant_id` null (DB nullable; UI requires a variant per tier today) | Deferred |
 | **Global barcode** uniqueness (only **`(organization_id, sku)`** is unique today) | Deferred |
@@ -60,7 +60,7 @@ UI building blocks live under [`components/catalog/`](../../components/catalog/)
 
 - [x] Full CRUD for **categories** with `name`, `color`, `icon`, `sort_order`; list reorder and filters on the product table.
 - [x] **`product_category_variant`** per category: preset **labels** with **`sort_order`**; **`product_price.category_variant_id`** with **`label` snapshot** at write time.
-- [x] Full CRUD for **products**: `name`, `description`, `category_id`, `sku`, `barcode`, **`image_url`** (upload or URL), `is_active`, `is_composite`, `track_inventory`, **availability** (`all_locations` \| `selected_locations_only`), **`product_location`** rows when restricted; timestamps.
+- [x] Full CRUD for **products**: `name`, `description`, `category_id`, `sku`, **`qr_code`**, **`image_url`** (upload or URL), `is_active`, `is_composite`, `track_inventory`, **availability** (`all_locations` \| `selected_locations_only`), **`product_location`** rows when restricted; timestamps.
 - [x] **`product_location`:** `(product_id, location_id)` unique; server validates IDs belong to the product’s org. Empty selection invalid when mode is **`selected_locations_only`**.
 - [x] **Product prices:** multiple rows per product; **`amount_minor`** (`bigint`), **`currency`**, **`is_default`**, **`sort_order`**; org-wide only (no `location_id`). **Current UI:** each tier is tied to a **category variant** (one price per variant enforced on create).
 - [x] **Inventory items** org-scoped: `name`, `unit`, **`cost_per_unit_minor`**, `reorder_point`; **inventory_stock** quantity per **`(inventory_item_id, organization_id)`**.

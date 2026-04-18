@@ -15,6 +15,20 @@ import {
 } from "@/lib/db/schema-catalog"
 import { formatMilliToDecimal3 } from "@/lib/money"
 
+function escapeLikeMeta(s: string): string {
+  return s.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_")
+}
+
+function buildInventoryListWhere(organizationId: string, search: string): SQL {
+  const parts: SQL[] = [eq(inventoryItem.organizationId, organizationId)]
+  const raw = search.trim()
+  if (raw.length > 0) {
+    const pattern = `%${escapeLikeMeta(raw)}%`
+    parts.push(or(ilike(inventoryItem.name, pattern), ilike(inventoryItem.unit, pattern))!)
+  }
+  return and(...parts)!
+}
+
 export async function listProductCategories(organizationId: string) {
   const db = getDb()
   return db
@@ -71,6 +85,58 @@ export async function listInventoryItemsWithStock(organizationId: string): Promi
   }))
 }
 
+/**
+ * Paginated inventory list; `search` matches **name** or **unit** (case-insensitive).
+ */
+export async function listInventoryItemsWithStockPage(
+  organizationId: string,
+  search: string,
+  page: number,
+  pageSize: number,
+): Promise<{ rows: InventoryItemWithStock[]; total: number }> {
+  const db = getDb()
+  const whereClause = buildInventoryListWhere(organizationId, search)
+  const p = Math.max(1, page)
+  const ps = Math.max(1, pageSize)
+  const offset = (p - 1) * ps
+
+  const [countRow] = await db
+    .select({ n: sql<number>`count(*)::int`.mapWith(Number) })
+    .from(inventoryItem)
+    .where(whereClause)
+
+  const total = countRow?.n ?? 0
+
+  const items = await db
+    .select()
+    .from(inventoryItem)
+    .where(whereClause)
+    .orderBy(asc(inventoryItem.name))
+    .limit(ps)
+    .offset(offset)
+
+  if (items.length === 0) {
+    return { rows: [], total }
+  }
+
+  const ids = items.map((i) => i.id)
+  const stocks = await db
+    .select()
+    .from(inventoryStock)
+    .where(and(eq(inventoryStock.organizationId, organizationId), inArray(inventoryStock.inventoryItemId, ids)))
+
+  const qtyByItem = new Map<string, number>()
+  for (const s of stocks) {
+    qtyByItem.set(s.inventoryItemId, s.quantity)
+  }
+
+  const rows = items.map((item) => ({
+    item,
+    stock: qtyByItem.get(item.id) ?? 0,
+  }))
+  return { rows, total }
+}
+
 export type ProductListRow = {
   product: typeof product.$inferSelect
   categoryName: string
@@ -87,10 +153,6 @@ export type CatalogProductsListFilters = {
   search: string
   /** Empty string = all categories */
   categoryId: string
-}
-
-function escapeLikeMeta(s: string): string {
-  return s.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_")
 }
 
 function buildCatalogProductListWhere(organizationId: string, filters: CatalogProductsListFilters): SQL {

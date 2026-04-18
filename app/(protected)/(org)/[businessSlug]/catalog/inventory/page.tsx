@@ -3,7 +3,8 @@ import { notFound } from "next/navigation"
 import { Suspense } from "react"
 
 import { CatalogInventoryPanel } from "@/components/catalog/catalog-inventory-panel"
-import { listInventoryItemsWithStock } from "@/lib/queries/catalog"
+import { parseCatalogProductsUrlState } from "@/lib/catalog-products-url"
+import { listInventoryItemsWithStockPage } from "@/lib/queries/catalog"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { requireSession } from "@/lib/server-auth"
 
@@ -23,8 +24,10 @@ export async function generateMetadata({
 
 export default async function CatalogInventoryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ businessSlug: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   const { businessSlug } = await params
   const session = await requireSession()
@@ -32,11 +35,17 @@ export default async function CatalogInventoryPage({
   if (!ctx) notFound()
   if (ctx.member.role !== "owner" && ctx.member.role !== "manager") notFound()
 
-  const rows = await listInventoryItemsWithStock(ctx.organization.id)
+  const url = parseCatalogProductsUrlState(await searchParams)
+  const { rows, total } = await listInventoryItemsWithStockPage(
+    ctx.organization.id,
+    url.search,
+    url.page,
+    url.pageSize,
+  )
 
   return (
     <Suspense fallback={null}>
-      <CatalogInventoryPanel businessSlug={businessSlug} rows={rows} />
+      <CatalogInventoryPanel businessSlug={businessSlug} rows={rows} total={total} />
     </Suspense>
   )
 }

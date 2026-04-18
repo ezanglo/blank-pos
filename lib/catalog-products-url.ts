@@ -1,4 +1,4 @@
-/** Default rows per page on `/{businessSlug}/catalog/products`. */
+/** Default rows per page on `/{businessSlug}/catalog/products` and **`/catalog/inventory`** (shared `page` / `per` / `q`). */
 export const CATALOG_PRODUCTS_PAGE_DEFAULT_SIZE = 25
 export const CATALOG_PRODUCTS_PAGE_MAX_SIZE = 100
 /** Hard cap so `offset` stays reasonable even with forged URLs. */
