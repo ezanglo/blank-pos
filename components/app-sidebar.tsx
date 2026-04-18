@@ -21,6 +21,7 @@ import {
   LayoutDashboardIcon,
   MapPinIcon,
   PackageIcon,
+  PlusCircleIcon,
   SettingsIcon,
   TagIcon,
   UsersIcon,
@@ -60,6 +61,11 @@ export function AppSidebar({
       title: "Products",
       url: `${base}/catalog/products`,
       icon: <PackageIcon className="size-4" />,
+    },
+    {
+      title: "Add-ons",
+      url: `${base}/catalog/add-ons`,
+      icon: <PlusCircleIcon className="size-4" />,
     },
     {
       title: "Inventory",

@@ -1,10 +1,18 @@
-import { and, asc, eq } from "drizzle-orm"
+import { and, asc, eq, inArray } from "drizzle-orm"
 
 import { getDb } from "@/lib/db"
 import { user } from "@/lib/db/auth-schema"
 import { businessDetails, businessLocation } from "@/lib/db/schema-app"
 import { product, productPrice } from "@/lib/db/schema-catalog"
-import { posTransactionItems, posTransactions } from "@/lib/db/schema-transactions"
+import { posTransactionItemAddons, posTransactionItems, posTransactions } from "@/lib/db/schema-transactions"
+
+export type TransactionReceiptAddonLine = {
+  id: string
+  name: string
+  quantity: number
+  unitPriceMinor: bigint
+  subtotalMinor: bigint
+}
 
 export type TransactionReceiptLine = {
   id: string
@@ -13,6 +21,7 @@ export type TransactionReceiptLine = {
   quantity: number
   unitPriceMinor: bigint
   subtotalMinor: bigint
+  addons: TransactionReceiptAddonLine[]
 }
 
 export type TransactionReceiptBundle = {
@@ -75,6 +84,29 @@ export async function getTransactionReceiptBundle(
     .where(eq(posTransactionItems.transactionId, transactionId))
     .orderBy(asc(posTransactionItems.id))
 
+  const itemIds = linesWithLabels.map((r) => r.item.id)
+  const addonRows =
+    itemIds.length > 0
+      ? await db
+          .select()
+          .from(posTransactionItemAddons)
+          .where(inArray(posTransactionItemAddons.transactionItemId, itemIds))
+          .orderBy(asc(posTransactionItemAddons.id))
+      : []
+
+  const addonsByItem = new Map<string, TransactionReceiptAddonLine[]>()
+  for (const a of addonRows) {
+    const list = addonsByItem.get(a.transactionItemId) ?? []
+    list.push({
+      id: a.id,
+      name: a.name,
+      quantity: a.quantity,
+      unitPriceMinor: a.unitPriceMinor,
+      subtotalMinor: a.subtotalMinor,
+    })
+    addonsByItem.set(a.transactionItemId, list)
+  }
+
   const lines: TransactionReceiptLine[] = linesWithLabels.map((r) => ({
     id: r.item.id,
     productName: r.productName,
@@ -82,6 +114,7 @@ export async function getTransactionReceiptBundle(
     quantity: r.item.quantity,
     unitPriceMinor: r.item.unitPriceMinor,
     subtotalMinor: r.item.subtotalMinor,
+    addons: addonsByItem.get(r.item.id) ?? [],
   }))
 
   return {

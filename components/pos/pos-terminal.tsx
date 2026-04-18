@@ -13,6 +13,7 @@ import Link from "next/link"
 import * as React from "react"
 import { toast } from "sonner"
 
+import { PosAddonsDialog } from "@/components/pos/pos-addons-dialog"
 import { PosPricePickerDialog } from "@/components/pos/pos-price-picker-dialog"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
@@ -34,7 +35,8 @@ import {
   sumMinor,
 } from "@/lib/money"
 import type { PosProductCard } from "@/lib/pos/pos-types"
-import { usePosCartStore } from "@/lib/stores/pos-cart-store"
+import type { PosCategoryAddon } from "@/lib/queries/catalog-addons"
+import { usePosCartStore, type PosCartLine } from "@/lib/stores/pos-cart-store"
 import { cn } from "@/lib/utils"
 
 const PAYMENT_METHOD_LABEL: Record<
@@ -45,11 +47,17 @@ const PAYMENT_METHOD_LABEL: Record<
   card_placeholder: "Card (not processed)",
 }
 
-function lineSubtotalMinor(line: {
-  unitPriceMinor: string
-  quantity: number
-}): bigint {
-  return parseMinorFromSerialized(line.unitPriceMinor) * BigInt(line.quantity)
+function lineSubtotalMinor(line: PosCartLine): bigint {
+  const base =
+    parseMinorFromSerialized(line.unitPriceMinor) * BigInt(line.quantity)
+  let add = BigInt(0)
+  for (const a of line.addons) {
+    add +=
+      parseMinorFromSerialized(a.unitPriceMinor) *
+      BigInt(a.quantity) *
+      BigInt(line.quantity)
+  }
+  return base + add
 }
 
 export function PosTerminal({
@@ -57,11 +65,13 @@ export function PosTerminal({
   locationSlug,
   products,
   categories,
+  addonsByCategory,
 }: {
   businessSlug: string
   locationSlug: string
   products: PosProductCard[]
   categories: ProductCategoryRow[]
+  addonsByCategory: Record<string, PosCategoryAddon[]>
 }) {
   const lines = usePosCartStore((s) => s.lines)
   const cartAnnounce = usePosCartStore((s) => s.cartAnnounce)
@@ -81,6 +91,11 @@ export function PosTerminal({
   >(null)
   const [pickerProduct, setPickerProduct] =
     React.useState<PosProductCard | null>(null)
+  const [addonFlow, setAddonFlow] = React.useState<null | {
+    product: PosProductCard
+    priceId: string
+    quantity: number
+  }>(null)
   const [cartOpen, setCartOpen] = React.useState(false)
 
   const cartItemCount = React.useMemo(
@@ -134,6 +149,14 @@ export function PosTerminal({
 
   const receiptHref = `/${businessSlug}/l/${locationSlug}/pos/receipt/${doneTransactionId}`
 
+  const addonDialogList = React.useMemo(() => {
+    if (!addonFlow) return []
+    const pr = addonFlow.product.prices.find((x) => x.id === addonFlow.priceId)
+    const raw = addonsByCategory[addonFlow.product.categoryId] ?? []
+    if (!pr) return []
+    return raw.filter((a) => a.currency === pr.currency)
+  }, [addonFlow, addonsByCategory])
+
   async function onCheckout() {
     if (lines.length === 0) {
       toast.error("Add at least one item to the cart.")
@@ -155,6 +178,10 @@ export function PosTerminal({
           productId: l.productId,
           productPriceId: l.productPriceId,
           quantity: l.quantity,
+          addons: l.addons.map((a) => ({
+            addonId: a.addonId,
+            quantity: a.quantity,
+          })),
         })),
       })
       if (!res.ok) {
@@ -365,7 +392,30 @@ export function PosTerminal({
                 if (!next) setPickerProduct(null)
               }}
               onPickPrice={(p, priceId, quantity) => {
-                addProduct(p, priceId, quantity)
+                setPickerProduct(null)
+                const pr = p.prices.find((x) => x.id === priceId)
+                const raw = addonsByCategory[p.categoryId] ?? []
+                const list = pr ? raw.filter((a) => a.currency === pr.currency) : []
+                if (list.length > 0) {
+                  setAddonFlow({ product: p, priceId, quantity })
+                } else {
+                  addProduct(p, priceId, quantity, [])
+                  setCartOpen(true)
+                }
+              }}
+            />
+            <PosAddonsDialog
+              product={addonFlow?.product ?? null}
+              productPriceId={addonFlow?.priceId ?? null}
+              quantity={addonFlow?.quantity ?? 1}
+              addons={addonDialogList}
+              open={addonFlow !== null}
+              onOpenChange={(next) => {
+                if (!next) setAddonFlow(null)
+              }}
+              onConfirm={(pick) => {
+                addProduct(pick.product, pick.productPriceId, pick.quantity, pick.selections)
+                setAddonFlow(null)
                 setCartOpen(true)
               }}
             />
@@ -443,6 +493,22 @@ export function PosTerminal({
                         <p className="mt-0.5 truncate text-sm text-muted-foreground">
                           {line.priceLabel} · {unit} ea · {line.currency}
                         </p>
+                        {line.addons.length > 0 ? (
+                          <ul className="mt-1.5 list-none space-y-0.5 border-l-2 border-primary/25 pl-2 text-sm text-muted-foreground">
+                            {line.addons.map((a) => {
+                              const au = formatMinorToDecimal2(
+                                parseMinorFromSerialized(a.unitPriceMinor),
+                              )
+                              return (
+                                <li key={a.key} className="tabular-nums">
+                                  + {a.name}
+                                  {a.quantity !== 1 ? ` ×${a.quantity}` : ""} · {au}{" "}
+                                  {a.currency}
+                                </li>
+                              )
+                            })}
+                          </ul>
+                        ) : null}
                       </div>
                       <Button
                         type="button"

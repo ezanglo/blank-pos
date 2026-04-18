@@ -127,6 +127,47 @@ export const productPrice = pgTable(
   ],
 )
 
+/** Sellable add-on (e.g. pearl, oat milk); assigned to categories via `product_category_addon`. */
+export const productAddon = pgTable(
+  "product_addon",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
+    currency: text("currency").notNull(),
+    isActive: boolean("is_active").notNull().default(true),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [index("product_addon_organizationId_idx").on(table.organizationId)],
+)
+
+export const productCategoryAddon = pgTable(
+  "product_category_addon",
+  {
+    id: text("id").primaryKey(),
+    categoryId: text("category_id")
+      .notNull()
+      .references(() => productCategory.id, { onDelete: "cascade" }),
+    addonId: text("addon_id")
+      .notNull()
+      .references(() => productAddon.id, { onDelete: "cascade" }),
+    sortOrder: integer("sort_order").notNull().default(0),
+  },
+  (table) => [
+    index("product_category_addon_categoryId_idx").on(table.categoryId),
+    index("product_category_addon_addonId_idx").on(table.addonId),
+    uniqueIndex("product_category_addon_category_addon_unique").on(table.categoryId, table.addonId),
+  ],
+)
+
 export const inventoryItem = pgTable(
   "inventory_item",
   {
@@ -194,6 +235,7 @@ export const productCategoryRelations = relations(productCategory, ({ many, one 
   }),
   products: many(product),
   variants: many(productCategoryVariant),
+  categoryAddons: many(productCategoryAddon),
 }))
 
 export const productCategoryVariantRelations = relations(productCategoryVariant, ({ one, many }) => ({
@@ -271,6 +313,25 @@ export const productIngredientRelations = relations(productIngredient, ({ one })
   }),
 }))
 
+export const productAddonRelations = relations(productAddon, ({ one, many }) => ({
+  organization: one(organization, {
+    fields: [productAddon.organizationId],
+    references: [organization.id],
+  }),
+  categoryLinks: many(productCategoryAddon),
+}))
+
+export const productCategoryAddonRelations = relations(productCategoryAddon, ({ one }) => ({
+  category: one(productCategory, {
+    fields: [productCategoryAddon.categoryId],
+    references: [productCategory.id],
+  }),
+  addon: one(productAddon, {
+    fields: [productCategoryAddon.addonId],
+    references: [productAddon.id],
+  }),
+}))
+
 export type ProductCategoryRow = typeof productCategory.$inferSelect
 export type ProductCategoryVariantRow = typeof productCategoryVariant.$inferSelect
 export type ProductRow = typeof product.$inferSelect
@@ -278,3 +339,5 @@ export type ProductPriceRow = typeof productPrice.$inferSelect
 export type InventoryItemRow = typeof inventoryItem.$inferSelect
 export type InventoryStockRow = typeof inventoryStock.$inferSelect
 export type ProductIngredientRow = typeof productIngredient.$inferSelect
+export type ProductAddonRow = typeof productAddon.$inferSelect
+export type ProductCategoryAddonRow = typeof productCategoryAddon.$inferSelect

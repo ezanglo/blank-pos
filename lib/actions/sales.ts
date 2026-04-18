@@ -6,8 +6,17 @@ import { and, eq, inArray } from "drizzle-orm"
 
 import { requireCatalogMember } from "@/lib/catalog-access"
 import { getDb } from "@/lib/db"
-import { product, productPrice } from "@/lib/db/schema-catalog"
-import { posTransactionItems, posTransactions } from "@/lib/db/schema-transactions"
+import {
+  product,
+  productAddon,
+  productCategoryAddon,
+  productPrice,
+} from "@/lib/db/schema-catalog"
+import {
+  posTransactionItemAddons,
+  posTransactionItems,
+  posTransactions,
+} from "@/lib/db/schema-transactions"
 import { listSellableProductIdsForLocation } from "@/lib/queries/catalog"
 import { getLocationByOrganizationAndSlug } from "@/lib/queries/location"
 import { findTransactionIdByCheckoutId } from "@/lib/queries/transactions"
@@ -58,6 +67,7 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
 
   const productIds = [...new Set(input.lines.map((l) => l.productId))]
   const priceIds = [...new Set(input.lines.map((l) => l.productPriceId))]
+  const allAddonIds = [...new Set(input.lines.flatMap((l) => (l.addons ?? []).map((a) => a.addonId)))]
 
   const [products, prices] = await Promise.all([
     db
@@ -67,8 +77,39 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
     db.select().from(productPrice).where(inArray(productPrice.id, priceIds)),
   ])
 
+  const addonRows =
+    allAddonIds.length > 0
+      ? await db
+          .select()
+          .from(productAddon)
+          .where(
+            and(eq(productAddon.organizationId, organizationId), inArray(productAddon.id, allAddonIds)),
+          )
+      : []
+  const addonById = new Map(addonRows.map((a) => [a.id, a]))
+
+  const categoryAddonLinks =
+    allAddonIds.length > 0
+      ? await db
+          .select({
+            addonId: productCategoryAddon.addonId,
+            categoryId: productCategoryAddon.categoryId,
+          })
+          .from(productCategoryAddon)
+          .where(inArray(productCategoryAddon.addonId, allAddonIds))
+      : []
+  const categoryAddonKey = new Set(categoryAddonLinks.map((l) => `${l.addonId}:${l.categoryId}`))
+
   const productById = new Map(products.map((p) => [p.id, p]))
   const priceById = new Map(prices.map((p) => [p.id, p]))
+
+  type ResolvedAddon = {
+    addonId: string
+    name: string
+    unitPriceMinor: bigint
+    addonQuantity: number
+    subtotalMinor: bigint
+  }
 
   const resolvedLines: {
     productId: string
@@ -76,6 +117,7 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
     quantity: number
     unitPriceMinor: bigint
     subtotalMinor: bigint
+    addons: ResolvedAddon[]
   }[] = []
 
   for (const line of input.lines) {
@@ -92,14 +134,52 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
       return { ok: false, error: "price", message: "Invalid price selection for a product." }
     }
 
+    const addonsInput = line.addons ?? []
+    const addonIdsSeen = new Set<string>()
+    for (const a of addonsInput) {
+      if (addonIdsSeen.has(a.addonId)) {
+        return { ok: false, error: "validation", message: "Duplicate add-on on a line." }
+      }
+      addonIdsSeen.add(a.addonId)
+    }
+
     const unitPriceMinor = pr.amountMinor
-    const subtotalMinor = unitPriceMinor * BigInt(line.quantity)
+    let productSubtotalMinor = unitPriceMinor * BigInt(line.quantity)
+    const resolvedAddons: ResolvedAddon[] = []
+
+    for (const a of addonsInput) {
+      const ad = addonById.get(a.addonId)
+      if (!ad || !ad.isActive) {
+        return { ok: false, error: "product", message: "One or more add-ons are not available." }
+      }
+      if (ad.currency !== pr.currency) {
+        return { ok: false, error: "price", message: "Add-on currency must match the product price." }
+      }
+
+      if (!categoryAddonKey.has(`${ad.id}:${p.categoryId}`)) {
+        return { ok: false, error: "product", message: "An add-on is not allowed for this product category." }
+      }
+
+      const addonQty = a.quantity ?? 1
+      /** Per-drink add-on units × line qty (e.g. 2 drinks × 1 pearl each). */
+      const addonSubtotal = ad.amountMinor * BigInt(addonQty) * BigInt(line.quantity)
+      resolvedAddons.push({
+        addonId: ad.id,
+        name: ad.name,
+        unitPriceMinor: ad.amountMinor,
+        addonQuantity: addonQty,
+        subtotalMinor: addonSubtotal,
+      })
+      productSubtotalMinor += addonSubtotal
+    }
+
     resolvedLines.push({
       productId: p.id,
       productPriceId: pr.id,
       quantity: line.quantity,
       unitPriceMinor,
-      subtotalMinor,
+      subtotalMinor: productSubtotalMinor,
+      addons: resolvedAddons,
     })
   }
 
@@ -127,8 +207,9 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
       })
 
       for (const line of resolvedLines) {
+        const itemId = randomUUID()
         await tx.insert(posTransactionItems).values({
-          id: randomUUID(),
+          id: itemId,
           transactionId,
           productId: line.productId,
           productPriceId: line.productPriceId,
@@ -137,6 +218,17 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
           discountMinor: ZERO,
           subtotalMinor: line.subtotalMinor,
         })
+        for (const ad of line.addons) {
+          await tx.insert(posTransactionItemAddons).values({
+            id: randomUUID(),
+            transactionItemId: itemId,
+            addonId: ad.addonId,
+            name: ad.name,
+            unitPriceMinor: ad.unitPriceMinor,
+            quantity: ad.addonQuantity,
+            subtotalMinor: ad.subtotalMinor,
+          })
+        }
       }
     })
   } catch (e) {

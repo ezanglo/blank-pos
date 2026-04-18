@@ -106,6 +106,17 @@ export default async function PosReceiptPage({
                   <div className="text-xs text-muted-foreground tabular-nums">
                     {formatMinorToDecimal2(line.unitPriceMinor)} each
                   </div>
+                  {line.addons.length > 0 ? (
+                    <ul className="mt-1.5 list-none space-y-0.5 pl-0 text-xs text-muted-foreground">
+                      {line.addons.map((a) => (
+                        <li key={a.id} className="tabular-nums">
+                          + {a.name}
+                          {a.quantity !== 1 ? ` ×${a.quantity}` : ""} ·{" "}
+                          {formatMinorToDecimal2(a.subtotalMinor)}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </td>
                 <td className="py-2 px-1 text-center align-top tabular-nums">{line.quantity}</td>
                 <td className="py-2 pl-2 text-right align-top font-medium tabular-nums">
