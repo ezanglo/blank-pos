@@ -19,7 +19,7 @@
 | **`listSellableProductIdsForLocation`** (active products × availability mode) | Implemented ([`lib/queries/catalog.ts`](../../lib/queries/catalog.ts)) |
 | Admin UI: **Categories** (+ variants, reorder), **Products** (table, create/edit, delete, image upload, prices dialog), **Inventory** (items + org stock) | Implemented under **`/{businessSlug}/catalog/…`** (see below) |
 | **`POST /api/upload`** for product **`image_url`** (same contract as branding) | Implemented ([`docs/storage-uploads.md`](../storage-uploads.md)) |
-| Server-side **cursor/offset pagination** for large product lists | Deferred |
+| Server-side **offset pagination** + URL filters (`page`, `per`, `q`, `category`) on **`/catalog/products`** | Implemented ([`lib/queries/catalog.ts`](../../lib/queries/catalog.ts), [`lib/catalog-products-url.ts`](../../lib/catalog-products-url.ts)) |
 | **Demo seed** script for sample catalog | Deferred |
 | **Free-text price tiers** with `category_variant_id` null (DB nullable; UI requires a variant per tier today) | Deferred |
 | **Global barcode** uniqueness (only **`(organization_id, sku)`** is unique today) | Deferred |
@@ -69,7 +69,7 @@ UI building blocks live under [`components/catalog/`](../../components/catalog/)
 
 ### Deferred / follow-ups
 
-- [ ] **Pagination** for very large catalogs at the server/query layer.
+- [x] **Pagination** for the products admin list (default **25** / page, max **100** via `per` query param).
 - [ ] **Seed** data for demo orgs.
 - [ ] **Free-text** price **`label`** without variant (column supports null FK; flows do not yet).
 - [ ] **Barcode** uniqueness policy if scanners need hard guarantees beyond SKU.
@@ -128,7 +128,7 @@ UI building blocks live under [`components/catalog/`](../../components/catalog/)
 
 - [ ] Seed script: sample categories, products, composite, prices for demo org.
 - [ ] Automated or documented manual test matrix: composite cost math; cashier cannot mutate catalog; **no cross-org** reads/writes via forged IDs.
-- [ ] Performance: paginated list endpoints for 1k+ products.
+- [x] Performance: paginated product list query + total count (cursor-based paging optional later if needed).
 
 ---
 

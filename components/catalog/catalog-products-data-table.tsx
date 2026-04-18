@@ -9,7 +9,15 @@ import {
   type ColumnDef,
   type VisibilityState,
 } from "@tanstack/react-table"
-import { ChevronDownIcon, PencilIcon, PlusIcon, TableIcon, Trash2Icon } from "lucide-react"
+import {
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  PencilIcon,
+  PlusIcon,
+  TableIcon,
+  Trash2Icon,
+} from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -38,14 +46,22 @@ import {
 import type { ProductCategoryRow } from "@/lib/db/schema-catalog"
 import type { ProductListRow } from "@/lib/queries/catalog"
 
-import { catalogProductsColumnMenuLabel, formatLocationCell, productRowSearchText } from "./catalog-products-utils"
+import { catalogProductsColumnMenuLabel, formatLocationCell } from "./catalog-products-utils"
 
 export function CatalogProductsDataTable({
-  displayProducts,
-  query,
-  setQuery,
+  products,
+  total,
+  page,
+  pageSize,
+  totalPages,
+  hasPrevPage,
+  hasNextPage,
+  onPrevPage,
+  onNextPage,
+  searchDraft,
+  setSearchDraft,
   categoryFilterId,
-  setCategoryFilterId,
+  onCategoryChange,
   categoryFilterLabel,
   categoriesSorted,
   hasCategories,
@@ -54,11 +70,19 @@ export function CatalogProductsDataTable({
   onRequestDelete,
   onOpenPrices,
 }: {
-  displayProducts: ProductListRow[]
-  query: string
-  setQuery: (q: string) => void
+  products: ProductListRow[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+  hasPrevPage: boolean
+  hasNextPage: boolean
+  onPrevPage: () => void
+  onNextPage: () => void
+  searchDraft: string
+  setSearchDraft: (q: string) => void
   categoryFilterId: string
-  setCategoryFilterId: (id: string) => void
+  onCategoryChange: (categoryId: string) => void
   categoryFilterLabel: string
   categoriesSorted: ProductCategoryRow[]
   hasCategories: boolean
@@ -210,7 +234,7 @@ export function CatalogProductsDataTable({
   )
 
   const table = useReactTable({
-    data: displayProducts,
+    data: products,
     columns,
     state: { columnVisibility },
     onColumnVisibilityChange: setColumnVisibility,
@@ -227,15 +251,15 @@ export function CatalogProductsDataTable({
         <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2">
           <Input
             placeholder="Search products…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            value={searchDraft}
+            onChange={(e) => setSearchDraft(e.target.value)}
             aria-label="Search products"
             className="min-w-0 max-w-sm flex-1"
           />
           {hasCategories ? (
             <Select
               value={categoryFilterId || "__all__"}
-              onValueChange={(v) => setCategoryFilterId(!v || v === "__all__" ? "" : v)}
+              onValueChange={(v) => onCategoryChange(!v || v === "__all__" ? "" : v)}
             >
               <SelectTrigger
                 size="default"
@@ -323,27 +347,44 @@ export function CatalogProductsDataTable({
           </TableBody>
         </Table>
       </div>
-      <p className="text-muted-foreground text-sm">
-        {displayProducts.length === 0
-          ? "0 products"
-          : query.trim()
-            ? `${displayProducts.length} match${displayProducts.length === 1 ? "" : "es"}`
-            : `${displayProducts.length} product${displayProducts.length === 1 ? "" : "s"}`}
-      </p>
+      <div className="text-muted-foreground flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <p>
+          {total === 0
+            ? "0 products"
+            : (() => {
+                const from = (page - 1) * pageSize + 1
+                const to = (page - 1) * pageSize + products.length
+                return `Showing ${from}–${to} of ${total} product${total === 1 ? "" : "s"}`
+              })()}
+        </p>
+        {total > 0 ? (
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!hasPrevPage}
+              onClick={onPrevPage}
+              aria-label="Previous page"
+            >
+              <ChevronLeftIcon className="size-4" />
+            </Button>
+            <span className="text-foreground min-w-[7rem] text-center text-xs tabular-nums">
+              Page {page} of {totalPages}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!hasNextPage}
+              onClick={onNextPage}
+              aria-label="Next page"
+            >
+              <ChevronRightIcon className="size-4" />
+            </Button>
+          </div>
+        ) : null}
+      </div>
     </div>
   )
-}
-
-export function filterProductsForDisplay(
-  products: ProductListRow[],
-  query: string,
-  categoryFilterId: string,
-): ProductListRow[] {
-  let list = products
-  if (categoryFilterId) {
-    list = list.filter((r) => r.product.categoryId === categoryFilterId)
-  }
-  const q = query.trim().toLowerCase()
-  if (!q) return list
-  return list.filter((r) => productRowSearchText(r).toLowerCase().includes(q))
 }

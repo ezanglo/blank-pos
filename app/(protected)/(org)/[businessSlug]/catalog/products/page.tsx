@@ -3,11 +3,12 @@ import { notFound } from "next/navigation"
 import { Suspense } from "react"
 
 import { CatalogProductsPanel } from "@/components/catalog/catalog-products-panel"
+import { parseCatalogProductsUrlState } from "@/lib/catalog-products-url"
 import {
+  listCatalogProductsPage,
   listCategoryVariantsForOrganization,
   listInventoryItemsWithStock,
   listProductCategories,
-  listProductsWithCategory,
 } from "@/lib/queries/catalog"
 import { listLocationsForOrganization } from "@/lib/queries/location"
 import { getOrgForUser } from "@/lib/queries/organization"
@@ -29,8 +30,10 @@ export async function generateMetadata({
 
 export default async function CatalogProductsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ businessSlug: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   const { businessSlug } = await params
   const session = await requireSession()
@@ -38,13 +41,21 @@ export default async function CatalogProductsPage({
   if (!ctx) notFound()
   if (ctx.member.role !== "owner" && ctx.member.role !== "manager") notFound()
 
-  const [products, categories, locations, invRows, categoryVariants] = await Promise.all([
-    listProductsWithCategory(ctx.organization.id),
+  const url = parseCatalogProductsUrlState(await searchParams)
+
+  const [pageResult, categories, locations, invRows, categoryVariants] = await Promise.all([
+    listCatalogProductsPage(
+      ctx.organization.id,
+      { search: url.search, categoryId: url.categoryId },
+      url.page,
+      url.pageSize,
+    ),
     listProductCategories(ctx.organization.id),
     listLocationsForOrganization(ctx.organization.id),
     listInventoryItemsWithStock(ctx.organization.id),
     listCategoryVariantsForOrganization(ctx.organization.id),
   ])
+  const { rows: products, total } = pageResult
 
   const inventory = invRows.map((r) => ({
     id: r.item.id,
@@ -60,6 +71,7 @@ export default async function CatalogProductsPage({
       <CatalogProductsPanel
         businessSlug={businessSlug}
         products={products}
+        total={total}
         categories={categories}
         categoryVariants={categoryVariants}
         locations={locDtos}

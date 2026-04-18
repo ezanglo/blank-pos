@@ -1,4 +1,5 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm"
+import { and, asc, eq, ilike, inArray, or, sql } from "drizzle-orm"
+import type { SQL } from "drizzle-orm"
 
 import { getDb } from "@/lib/db"
 import { businessLocation } from "@/lib/db/schema-app"
@@ -81,27 +82,50 @@ export type ProductListRow = {
   ingredientCount: number
 }
 
-export async function listProductsWithCategory(organizationId: string): Promise<ProductListRow[]> {
-  const db = getDb()
-  const rows = await db
-    .select({
-      product,
-      categoryName: productCategory.name,
-      priceCount: sql<number>`(
-        select count(*)::int
-        from product_price
-        where product_price.product_id = ${product.id}
-      )`
-        .mapWith(Number)
-        .as("price_count"),
-    })
-    .from(product)
-    .innerJoin(productCategory, eq(product.categoryId, productCategory.id))
-    .where(eq(product.organizationId, organizationId))
-    .orderBy(asc(product.name))
+export type CatalogProductsListFilters = {
+  /** Trimmed free-text; empty = no filter */
+  search: string
+  /** Empty string = all categories */
+  categoryId: string
+}
 
-  const productIds = rows.map((r) => r.product.id)
-  if (productIds.length === 0) return []
+function escapeLikeMeta(s: string): string {
+  return s.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_")
+}
+
+function buildCatalogProductListWhere(organizationId: string, filters: CatalogProductsListFilters): SQL {
+  const parts: SQL[] = [eq(product.organizationId, organizationId)]
+  if (filters.categoryId.length > 0) {
+    parts.push(eq(product.categoryId, filters.categoryId))
+  }
+  const raw = filters.search.trim()
+  if (raw.length > 0) {
+    const pattern = `%${escapeLikeMeta(raw)}%`
+    parts.push(
+      or(
+        ilike(product.name, pattern),
+        ilike(productCategory.name, pattern),
+        ilike(sql<string>`COALESCE(${product.sku}, '')`, pattern),
+        ilike(sql<string>`COALESCE(${product.qrCode}, '')`, pattern),
+      )!,
+    )
+  }
+  return and(...parts)!
+}
+
+type ProductListBaseRow = {
+  product: typeof product.$inferSelect
+  categoryName: string
+  priceCount: number
+}
+
+async function hydrateProductListRows(
+  organizationId: string,
+  baseRows: ProductListBaseRow[],
+): Promise<ProductListRow[]> {
+  if (baseRows.length === 0) return []
+  const db = getDb()
+  const productIds = baseRows.map((r) => r.product.id)
 
   const [locRows, ingRows] = await Promise.all([
     db
@@ -149,7 +173,7 @@ export async function listProductsWithCategory(organizationId: string): Promise<
     ingredientsByProduct.set(r.productId, list)
   }
 
-  return rows.map((r) => {
+  return baseRows.map((r) => {
     const pid = r.product.id
     const ingList = ingredientsByProduct.get(pid) ?? []
     const first = ingList[0]
@@ -165,6 +189,54 @@ export async function listProductsWithCategory(organizationId: string): Promise<
       ingredientCount: ingList.length,
     }
   })
+}
+
+const productListPriceCountSql = sql<number>`(
+  select count(*)::int
+  from product_price
+  where product_price.product_id = ${product.id}
+)`
+  .mapWith(Number)
+  .as("price_count")
+
+/**
+ * Paginated product list with server-side filters (`search` ILIKE on name, category, SKU, QR payload).
+ */
+export async function listCatalogProductsPage(
+  organizationId: string,
+  filters: CatalogProductsListFilters,
+  page: number,
+  pageSize: number,
+): Promise<{ rows: ProductListRow[]; total: number }> {
+  const db = getDb()
+  const whereClause = buildCatalogProductListWhere(organizationId, filters)
+  const p = Math.max(1, page)
+  const ps = Math.max(1, pageSize)
+  const offset = (p - 1) * ps
+
+  const [countRow] = await db
+    .select({ n: sql<number>`count(*)::int`.mapWith(Number) })
+    .from(product)
+    .innerJoin(productCategory, eq(product.categoryId, productCategory.id))
+    .where(whereClause)
+
+  const total = countRow?.n ?? 0
+
+  const baseRows = await db
+    .select({
+      product,
+      categoryName: productCategory.name,
+      priceCount: productListPriceCountSql,
+    })
+    .from(product)
+    .innerJoin(productCategory, eq(product.categoryId, productCategory.id))
+    .where(whereClause)
+    .orderBy(asc(product.name))
+    .limit(ps)
+    .offset(offset)
+
+  const rows = await hydrateProductListRows(organizationId, baseRows)
+  return { rows, total }
 }
 
 export async function getProductDetailForOrganization(organizationId: string, productId: string) {
