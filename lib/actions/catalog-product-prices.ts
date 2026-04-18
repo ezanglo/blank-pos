@@ -137,6 +137,8 @@ export async function updateProductPrice(
     .limit(1)
   if (dup) throw new Error("This variant already has another price on this product.")
 
+  const currency = await getDefaultCatalogCurrencyCode(ctx.organization.id)
+
   await db.transaction(async (tx) => {
     const resolved = await resolveFromVariant(tx, pRow.categoryId, input.categoryVariantId, input.amount)
     const nextDefault = input.isDefault === undefined ? existing.isDefault : input.isDefault
@@ -150,6 +152,7 @@ export async function updateProductPrice(
       .set({
         label: resolved.label,
         amountMinor: resolved.amountMinor,
+        currency,
         sortOrder: resolved.sortOrder,
         categoryVariantId: resolved.categoryVariantId,
         isDefault: nextDefault,

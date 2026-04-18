@@ -8,6 +8,7 @@ import {
   listCategoryVariantsForOrganization,
   listProductCategories,
 } from "@/lib/queries/catalog"
+import { listCategoryAddonLinksForOrganization } from "@/lib/queries/catalog-addons"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { requireSession } from "@/lib/server-auth"
 
@@ -36,10 +37,11 @@ export default async function CatalogCategoriesPage({
   if (!ctx) notFound()
   if (ctx.member.role !== "owner" && ctx.member.role !== "manager") notFound()
 
-  const [categories, categoryVariants, categoryInstructions] = await Promise.all([
+  const [categories, categoryVariants, categoryInstructions, categoryAddonLinks] = await Promise.all([
     listProductCategories(ctx.organization.id),
     listCategoryVariantsForOrganization(ctx.organization.id),
     listCategoryInstructionsForOrganization(ctx.organization.id),
+    listCategoryAddonLinksForOrganization(ctx.organization.id),
   ])
 
   return (
@@ -49,6 +51,7 @@ export default async function CatalogCategoriesPage({
         categories={categories}
         categoryVariants={categoryVariants}
         categoryInstructions={categoryInstructions}
+        categoryAddonLinks={categoryAddonLinks}
       />
     </Suspense>
   )

@@ -245,7 +245,7 @@ transaction_item_addon   -- Drizzle: lib/db/schema-transactions.ts; child of tra
 - [ ] Inventory items (raw materials/stock)
 - [ ] Composite product builder (recipe from inventory items)
 - [ ] Cost calculation (sum of ingredient costs)
-- [x] **POS checkout** — product grid, cart, **price tiers**, **category-scoped add-ons** (Catalog → Add-ons), payment method (**cash** / **card placeholder**), persisted **`transactions`**, **`transaction_items`**, and **`transaction_item_addon`** when applicable, branded **receipt** with nested add-ons ([phases/phase-03-pos-mvp.md](phases/phase-03-pos-mvp.md))
+- [x] **POS checkout** — product grid, cart, **price tiers**, **category-scoped add-ons** (configured under **Catalog → Categories**), payment method (**cash** / **card placeholder**), persisted **`transactions`**, **`transaction_items`**, and **`transaction_item_addon`** when applicable, branded **receipt** with nested add-ons ([phases/phase-03-pos-mvp.md](phases/phase-03-pos-mvp.md))
 - [ ] Offline mode with local DB
 - [ ] Background sync to the hosted API when online
 
@@ -385,12 +385,12 @@ blank-pos/
 │   ├── (protected)/          # Session required: onboarding, choose-location, org shell
 │   │   └── (org)/            # Business + branch routes
 │   │       └── [businessSlug]/  # Org gate; index redirects to default branch
-│   │           ├── catalog/  # Org-wide catalog: categories, products, add-ons, inventory
+│   │           ├── catalog/  # Org-wide catalog: categories (incl. variants / instructions / add-ons UI), products, inventory
 │   │           ├── settings/ # Locations, team, business (org-wide); /settings/branding → /business
 │   │           └── l/[locationSlug]/  # Branch shell: dashboard, settings/store, …
 │   │   # (future under branch: pos/, …)
 ├── components/
-│   ├── catalog/              # Categories, products, add-ons, inventory admin UI
+│   ├── catalog/              # Categories (+ per-category dialogs), products, inventory admin UI
 │   ├── pos/                  # Cart, numpad, product grid, coupon input (future)
 │   ├── promotions/           # Promotion builder, coupon manager (future)
 │   └── ui/                   # Shared shadcn components
@@ -427,9 +427,9 @@ blank-pos/
 
 Shipped in repo (detail: [phases/phase-02-product-engine.md](phases/phase-02-product-engine.md)):
 
-- **Categories** + **category variants** (preset price labels), reorder, color/icon
+- **Categories** + **category variants** / **special instructions** / **category add-ons** (dialogs, drag reorder for each), category table reorder, color/icon
 - **Products:** CRUD, **`image_url`** via **`POST /api/upload`**, branch availability (**`product_location`**), composite recipes (**`product_ingredient.quantity_milli`**) with bigint cost display
-- **Prices:** org-wide **`product_price`** rows (**`amount_minor`**), managed in-app per **category variant**; default tier + sort order
+- **Prices:** org-wide **`product_price`** rows (**`amount_minor`**, **`currency`** from org/branch default resolver), managed in-app per **category variant**; default tier + sort order
 - **Inventory:** **`inventory_item`** + **`inventory_stock`** (per org)
 - **Queries:** **`listSellableProductIdsForLocation`** for Phase 3 POS prep
 
@@ -470,4 +470,4 @@ Shipped in repo (detail: [phases/phase-02-product-engine.md](phases/phase-02-pro
 
 ---
 
-*Last updated: April 2026 · Version 0.4 (Phase 3 POS + category-scoped add-ons, `transaction_item_addon`)*
+*Last updated: April 2026 · Version 0.5 (catalog add-ons on Categories page; shared currency resolver for prices + add-ons)*

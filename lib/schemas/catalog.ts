@@ -30,6 +30,12 @@ export const catalogCategoryVariantUpdateSchema = catalogCategoryVariantCreateSc
   id: z.string().min(1),
 })
 
+/** Permutation of variant IDs for one category (catalog / POS order). */
+export const catalogCategoryVariantReorderSchema = z.object({
+  categoryId: z.string().min(1),
+  orderedIds: z.array(z.string().min(1)),
+})
+
 export const catalogCategoryInstructionCreateSchema = z.object({
   categoryId: z.string().min(1),
   label: z.string().trim().min(1, "Label is required.").max(200),
@@ -38,6 +44,12 @@ export const catalogCategoryInstructionCreateSchema = z.object({
 
 export const catalogCategoryInstructionUpdateSchema = catalogCategoryInstructionCreateSchema.extend({
   id: z.string().min(1),
+})
+
+/** Permutation of instruction IDs for one category (POS list order). */
+export const catalogCategoryInstructionReorderSchema = z.object({
+  categoryId: z.string().min(1),
+  orderedIds: z.array(z.string().min(1)),
 })
 
 export const catalogInventoryItemCreateSchema = z.object({

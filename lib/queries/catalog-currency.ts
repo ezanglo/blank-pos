@@ -4,6 +4,10 @@ import { getDb } from "@/lib/db"
 import { businessDetails } from "@/lib/db/schema-app"
 import { listLocationsForOrganization } from "@/lib/queries/location"
 
+/**
+ * ISO 4217 code for new/edited catalog prices and add-ons: business Settings default when set,
+ * otherwise the default branch’s currency (first row with `is_default`, else oldest).
+ */
 export async function getDefaultCatalogCurrencyCode(organizationId: string): Promise<string> {
   const db = getDb()
   const [bd] = await db

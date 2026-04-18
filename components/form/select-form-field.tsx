@@ -47,7 +47,9 @@ export function SelectFormField<T extends FieldValues>({
           <FieldContent>
             <Select
               name={field.name}
-              value={field.value ?? null}
+              value={
+                field.value != null && String(field.value) !== "" ? String(field.value) : undefined
+              }
               onValueChange={(value) => {
                 field.onChange(value ?? "")
               }}
@@ -60,7 +62,12 @@ export function SelectFormField<T extends FieldValues>({
                 className={cn("w-full min-w-0", triggerClassName)}
                 onBlur={field.onBlur}
               >
-                <SelectValue placeholder={placeholder} />
+                <SelectValue placeholder={placeholder}>
+                  {field.value != null && String(field.value) !== ""
+                    ? (options.find((o) => o.value === String(field.value))?.label ??
+                      String(field.value))
+                    : null}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {options.map((o) => (

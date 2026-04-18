@@ -6,11 +6,38 @@ import {
   productCategory,
   productCategoryAddon,
   type ProductAddonRow,
+  type ProductCategoryAddonRow,
 } from "@/lib/db/schema-catalog"
+
+/** Joined row for catalog category admin (link + sellable add-on). */
+export type CategoryAddonLinkJoined = {
+  link: ProductCategoryAddonRow
+  addon: ProductAddonRow
+}
 
 /** Add-on row with category IDs it is linked to (POS / admin). */
 export type ProductAddonWithCategories = ProductAddonRow & {
   categoryIds: string[]
+}
+
+export async function listCategoryAddonLinksForOrganization(
+  organizationId: string,
+): Promise<CategoryAddonLinkJoined[]> {
+  const db = getDb()
+  return db
+    .select({
+      link: productCategoryAddon,
+      addon: productAddon,
+    })
+    .from(productCategoryAddon)
+    .innerJoin(productCategory, eq(productCategoryAddon.categoryId, productCategory.id))
+    .innerJoin(productAddon, eq(productCategoryAddon.addonId, productAddon.id))
+    .where(eq(productCategory.organizationId, organizationId))
+    .orderBy(
+      asc(productCategoryAddon.categoryId),
+      asc(productCategoryAddon.sortOrder),
+      asc(productAddon.name),
+    )
 }
 
 export async function listProductAddonsWithCategories(

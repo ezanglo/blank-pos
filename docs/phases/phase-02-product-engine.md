@@ -17,7 +17,7 @@
 | Server actions + Zod (`lib/actions/catalog-*.ts`, [`lib/schemas/catalog.ts`](../../lib/schemas/catalog.ts)); **minor units** / **milli-units** at parse boundaries ([`lib/money.ts`](../../lib/money.ts)) | Implemented |
 | RBAC: **`requireCatalogManager`** (mutations), **`requireCatalogMember`** (reads / POS prep) | Implemented ([`lib/catalog-access.ts`](../../lib/catalog-access.ts)) |
 | **`listSellableProductIdsForLocation`** (active products × availability mode) | Implemented ([`lib/queries/catalog.ts`](../../lib/queries/catalog.ts)) |
-| Admin UI: **Categories** (+ variants, reorder), **Products** (table, create/edit, delete, image upload, prices dialog), **Add-ons** (CRUD + category assignment), **Inventory** (items + org stock) | Implemented under **`/{businessSlug}/catalog/…`** (see below) |
+| Admin UI: **Categories** (category list + per-category dialogs: **variants**, **special instructions**, **add-ons** — drag reorder, no manual sort fields; add-ons created per category, edited in place), **Products** (table, create/edit, delete, image upload, prices dialog), **Inventory** (items + org stock) | Implemented under **`/{businessSlug}/catalog/…`** (see below) |
 | **`POST /api/upload`** for product **`image_url`** (same contract as branding) | Implemented ([`docs/storage-uploads.md`](../storage-uploads.md)) |
 | Server-side **offset pagination** + URL params: **`/catalog/products`** (`page`, `per`, `q`, `category`) and **`/catalog/inventory`** (`page`, `per`, `q`; same helpers) | Implemented ([`lib/queries/catalog.ts`](../../lib/queries/catalog.ts), [`lib/catalog-products-url.ts`](../../lib/catalog-products-url.ts)) |
 | **Demo seed** script for sample catalog | Deferred |
@@ -34,9 +34,8 @@ Catalog is **organization-scoped** (sidebar **Catalog** group). Layout uses **`O
 
 | Route | Purpose |
 |-------|---------|
-| **`/{businessSlug}/catalog/categories`** | Categories, preset variants, drag reorder ([`app/(protected)/(org)/[businessSlug]/catalog/categories/page.tsx`](../../app/(protected)/(org)/[businessSlug]/catalog/categories/page.tsx)) |
+| **`/{businessSlug}/catalog/categories`** | Categories (table with drag reorder), and **per-category** dialogs: **variants** (labels, drag reorder, add/edit/delete), **special instructions** (same), **add-ons** (create new org add-on + link to this category, edit name/price, drag reorder, unlink; **currency** from org/branch default — no currency field in UI). **`/{businessSlug}/catalog/add-ons`** **redirects** here ([`next.config.mjs`](../../next.config.mjs)). ([`.../catalog/categories/page.tsx`](../../app/(protected)/(org)/[businessSlug]/catalog/categories/page.tsx)) |
 | **`/{businessSlug}/catalog/products`** | Product table, filters, dialogs ([`.../catalog/products/page.tsx`](../../app/(protected)/(org)/[businessSlug]/catalog/products/page.tsx)) |
-| **`/{businessSlug}/catalog/add-ons`** | Sellable add-ons (name, price, currency, active) and **which categories** show them on the POS ([`.../catalog/add-ons/page.tsx`](../../app/(protected)/(org)/[businessSlug]/catalog/add-ons/page.tsx)) |
 | **`/{businessSlug}/catalog/inventory`** | Inventory items and stock ([`.../catalog/inventory/page.tsx`](../../app/(protected)/(org)/[businessSlug]/catalog/inventory/page.tsx)) |
 | **`/{businessSlug}/settings/products`** | Redirects to **`/{businessSlug}/catalog/products`** ([`.../settings/products/page.tsx`](../../app/(protected)/(org)/[businessSlug]/settings/products/page.tsx)) |
 
@@ -60,10 +59,11 @@ UI building blocks live under [`components/catalog/`](../../components/catalog/)
 ### Implemented
 
 - [x] Full CRUD for **categories** with `name`, `color`, `icon`, `sort_order`; list reorder and filters on the product table.
-- [x] **`product_category_variant`** per category: preset **labels** with **`sort_order`**; **`product_price.category_variant_id`** with **`label` snapshot** at write time.
+- [x] **`product_category_variant`** per category: preset **labels** with **`sort_order`** (admin order is **drag-and-drop**, not a manual sort field); **`product_price.category_variant_id`** with **`label` snapshot** at write time.
 - [x] Full CRUD for **products**: `name`, `description`, `category_id`, `sku`, **`qr_code`**, **`image_url`** (upload or URL), `is_active`, `is_composite`, `track_inventory`, **availability** (`all_locations` \| `selected_locations_only`), **`product_location`** rows when restricted; timestamps.
 - [x] **`product_location`:** `(product_id, location_id)` unique; server validates IDs belong to the product’s org. Empty selection invalid when mode is **`selected_locations_only`**.
-- [x] **Product prices:** multiple rows per product; **`amount_minor`** (`bigint`), **`currency`**, **`is_default`**, **`sort_order`**; org-wide only (no `location_id`). **Current UI:** each tier is tied to a **category variant** (one price per variant enforced on create).
+- [x] **Product prices:** multiple rows per product; **`amount_minor`** (`bigint`), **`currency`**, **`is_default`**, **`sort_order`**; org-wide only (no `location_id`). **Current UI:** each tier is tied to a **category variant** (one price per variant enforced on create). **`currency`** on insert/update is set from **`getDefaultCatalogCurrencyCode`** (business **`default_currency`**, else default branch, else **`PHP`**); there is **no per-tier currency field** in the product UI.
+- [x] **Category add-ons:** org **`product_addon`** rows linked via **`product_category_addon`**; **create** and **edit** from the category dialog; **order** by drag-and-drop. **Add-on `currency`** is set on create/update by the same **`getDefaultCatalogCurrencyCode`** resolver (not a form field). To hide an add-on on the POS for a category, **unlink** it; **`product_addon.is_active`** remains in the schema for POS filtering and legacy rows—catalog saves normalize **active** when updating add-ons.
 - [x] **Inventory items** org-scoped: `name`, `unit`, **`cost_per_unit_minor`**, `reorder_point`; **inventory_stock** quantity per **`(inventory_item_id, organization_id)`**.
 - [x] **Product ingredients:** **`quantity_milli`** (integer × 1000 for three decimal places); references **inventory_item** only; composite cost summary uses **bigint** helpers in the product form.
 - [x] Server-side authorization: **`owner` / `manager`** for catalog mutations; membership required for reads (cashier-safe POS prep can use **`requireCatalogMember`** on read paths).
@@ -82,7 +82,7 @@ UI building blocks live under [`components/catalog/`](../../components/catalog/)
 
 - **Tax:** still out of scope; `products` / lines may have tax fields at zero.
 - **Promotions:** no UI or tables in this phase.
-- **Currency:** Price rows store `currency`. **Default for new tiers:** **`business_details.default_currency`**, else first **`location.default_currency`**, else **`PHP`** ([`getDefaultCatalogCurrencyCode`](../../lib/queries/catalog-currency.ts)). **POS / receipts** continue to use the **active `location.default_currency`** ([schema-better-auth-alignment.md](../schema-better-auth-alignment.md)).
+- **Currency:** **`product_price`** and **`product_addon`** rows store `currency` for matching at checkout. **Resolved default** for **new/edited** catalog prices and add-ons: **`business_details.default_currency`**, else **default branch** **`location.default_currency`** (see [`listLocationsForOrganization`](../../lib/queries/location.ts) ordering), else **`PHP`** ([`getDefaultCatalogCurrencyCode`](../../lib/queries/catalog-currency.ts)). **POS / receipts** continue to use the **active `location.default_currency`** where applicable ([schema-better-auth-alignment.md](../schema-better-auth-alignment.md)).
 - **Money (exact):** Persist and compute in **integer minor units** (`bigint` on the server). **Never** use IEEE floats for amounts, costs, or running totals. **UI** parses and displays **2 decimal places** at the boundary only. Ingredient quantities use **fixed-scale integers** (`quantity_milli`). See **Risks** below.
 - **Security:** **Application RBAC only** for Phase 2 catalog tables (same pattern as team settings). Optional Postgres RLS remains a later hardening step, not an exit criterion here.
 
@@ -109,7 +109,7 @@ UI building blocks live under [`components/catalog/`](../../components/catalog/)
 
 ## Workstream C — Admin UI (org routes)
 
-- [x] **Categories** + variants + reorder; color/icon fields.
+- [x] **Categories** + variants + special instructions + category add-ons (dialogs); category row drag reorder; variants / instructions / add-on links each use **drag-and-drop** order (no manual sort inputs).
 - [x] **Products** list with search/category filter; create/edit dialog (availability, composite recipe, image upload); **Pricing** dialog; delete confirmation.
 - [x] **Pricing:** tiers per **category variant**; **2 decimal** inputs → **`amount_minor`**.
 - [x] **Inventory** list + item editor; **stock** for the organization.

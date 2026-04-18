@@ -2,7 +2,7 @@
 
 **Goal:** Cashiers complete **checkout** for the **active organization** (v1: org = store): browse products, build a **cart**, pick **price tier**, optionally choose **category-scoped add-ons** (e.g. toppings, milk swaps), record **payment method** (no processor), persist **transactions** and **line items** (including per-line add-on breakdown), view and **browser-print** a **branded receipt**. **No discounts, coupons, or tax configuration** in this phase.
 
-**Prerequisites:** Phase 1 (branding, org + branches, `session.activeOrganizationId`), Phase 2 (products, **`amount_minor`** prices, catalog **filtered by active `location`** per availability rules). Managers configure **add-ons** under **Catalog → Add-ons** and link them to **product categories** so the POS only offers options allowed for that drink’s category.
+**Prerequisites:** Phase 1 (branding, org + branches, `session.activeOrganizationId`), Phase 2 (products, **`amount_minor`** prices, catalog **filtered by active `location`** per availability rules). Managers configure **category-scoped add-ons** (and variants / special instructions) under **Catalog → Categories** — open the **Add-ons** dialog for each category. There is **no** separate add-ons admin route (legacy **`/catalog/add-ons`** redirects to categories).
 
 **References:** [blank-pos-dev-plan.md](../blank-pos-dev-plan.md) §4 (transactions, `transaction_items`, **`transaction_item_addon`**, **`product_addon`**, **`product_category_addon`**), §5 v1 POS bullets.
 
@@ -36,7 +36,7 @@
 ## Workstream A — Schema and persistence
 
 - [ ] Implement `transactions` and `transaction_items` in Drizzle + migrations (if not created earlier as stubs).
-- [ ] **`product_addon`** (org-scoped name, **`amount_minor`**, **`currency`**, **`is_active`**, sort) and **`product_category_addon`** (which categories expose which add-ons, per-category **`sort_order`**). Migration: e.g. `drizzle/0004_product_addons.sql`.
+- [ ] **`product_addon`** (org-scoped name, **`amount_minor`**, **`currency`** — aligned to org/branch default via catalog actions — **`is_active`** for POS filtering, org-level sort) and **`product_category_addon`** (which categories expose which add-ons, per-category **`sort_order`** / drag order). Migration: e.g. `drizzle/0004_product_addons.sql`.
 - [ ] **`transaction_item_addon`** child rows as above; **`checkoutId`** idempotency on **`transactions`** remains optional but recommended.
 - [ ] **Authorization:** same **application RBAC** as catalog (org + membership); **Postgres RLS** for transactions remains **optional** hardening, not required for MVP merge.
 
@@ -93,4 +93,4 @@
 ## Definition of done (checklist)
 
 - [ ] End-to-end demo: product → cart (with optional add-ons) → pay → persisted rows (**including `transaction_item_addon`**) → branded printable receipt (add-ons visible).
-- [ ] Role matrix respected for POS access (cashier cannot open admin catalog edit routes, including **Catalog → Add-ons**).
+- [ ] Role matrix respected for POS access (cashier cannot open admin catalog edit routes, including **Catalog → Categories** / products / inventory).

@@ -13,10 +13,12 @@ import {
   productCategoryAddon,
 } from "@/lib/db/schema-catalog"
 import { parseDecimal2ToMinor } from "@/lib/money"
+import { getDefaultCatalogCurrencyCode } from "@/lib/queries/catalog-currency"
 import {
   catalogAddonCreateSchema,
   catalogAddonSetCategoriesSchema,
   catalogAddonUpdateSchema,
+  catalogCategoryAddonLinksSchema,
 } from "@/lib/schemas/catalog-addons"
 
 export async function createProductAddon(
@@ -26,6 +28,7 @@ export async function createProductAddon(
   const ctx = await requireCatalogManager(businessSlug)
   const input = catalogAddonCreateSchema.parse(raw)
   const amountMinor = parseDecimal2ToMinor(input.amount)
+  const currency = await getDefaultCatalogCurrencyCode(ctx.organization.id)
   const db = getDb()
   const id = randomUUID()
   await db.insert(productAddon).values({
@@ -33,7 +36,7 @@ export async function createProductAddon(
     organizationId: ctx.organization.id,
     name: input.name,
     amountMinor,
-    currency: input.currency.trim().toUpperCase(),
+    currency,
     isActive: true,
     sortOrder: input.sortOrder ?? 0,
   })
@@ -47,6 +50,7 @@ export async function updateProductAddon(
   const ctx = await requireCatalogManager(businessSlug)
   const input = catalogAddonUpdateSchema.parse(raw)
   const amountMinor = parseDecimal2ToMinor(input.amount)
+  const currency = await getDefaultCatalogCurrencyCode(ctx.organization.id)
   const db = getDb()
   const [row] = await db
     .select({ id: productAddon.id })
@@ -57,16 +61,24 @@ export async function updateProductAddon(
     .limit(1)
   if (!row) throw new Error("Add-on not found.")
 
-  await db
-    .update(productAddon)
-    .set({
-      name: input.name,
-      amountMinor,
-      currency: input.currency.trim().toUpperCase(),
-      sortOrder: input.sortOrder ?? 0,
-      isActive: input.isActive ?? true,
-    })
-    .where(eq(productAddon.id, input.id))
+  const patch: {
+    name: string
+    amountMinor: bigint
+    currency: string
+    isActive: boolean
+    sortOrder?: number
+  } = {
+    name: input.name,
+    amountMinor,
+    currency,
+    /** Same idea as variants / instructions: if it exists in catalog, it is offered on the POS; unlink to hide. */
+    isActive: true,
+  }
+  if (input.sortOrder !== undefined && input.sortOrder !== null) {
+    patch.sortOrder = input.sortOrder
+  }
+
+  await db.update(productAddon).set(patch).where(eq(productAddon.id, input.id))
 
   return { ok: true as const }
 }
@@ -135,6 +147,62 @@ export async function setProductAddonCategories(
         id: randomUUID(),
         categoryId,
         addonId: input.addonId,
+        sortOrder: i * 10,
+      })),
+    )
+  }
+
+  return { ok: true as const }
+}
+
+export async function setCategoryAddonLinks(
+  businessSlug: string,
+  raw: z.input<typeof catalogCategoryAddonLinksSchema>,
+) {
+  const ctx = await requireCatalogManager(businessSlug)
+  const input = catalogCategoryAddonLinksSchema.parse(raw)
+  const db = getDb()
+
+  const [cat] = await db
+    .select({ id: productCategory.id })
+    .from(productCategory)
+    .where(
+      and(
+        eq(productCategory.id, input.categoryId),
+        eq(productCategory.organizationId, ctx.organization.id),
+      ),
+    )
+    .limit(1)
+  if (!cat) throw new Error("Category not found.")
+
+  const uniqueAddonIds = [...new Set(input.addonIds)]
+  if (uniqueAddonIds.length !== input.addonIds.length) {
+    throw new Error("Duplicate add-ons in list.")
+  }
+
+  if (uniqueAddonIds.length > 0) {
+    const addonRows = await db
+      .select({ id: productAddon.id })
+      .from(productAddon)
+      .where(
+        and(
+          eq(productAddon.organizationId, ctx.organization.id),
+          inArray(productAddon.id, uniqueAddonIds),
+        ),
+      )
+    if (addonRows.length !== uniqueAddonIds.length) {
+      throw new Error("One or more add-ons are invalid.")
+    }
+  }
+
+  await db.delete(productCategoryAddon).where(eq(productCategoryAddon.categoryId, input.categoryId))
+
+  if (uniqueAddonIds.length > 0) {
+    await db.insert(productCategoryAddon).values(
+      uniqueAddonIds.map((addonId, i) => ({
+        id: randomUUID(),
+        categoryId: input.categoryId,
+        addonId,
         sortOrder: i * 10,
       })),
     )
