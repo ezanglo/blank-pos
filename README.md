@@ -57,4 +57,7 @@ npx shadcn@latest add button
 
 - [docs/storage-uploads.md](docs/storage-uploads.md) — image uploads and `STORAGE_*` env.
 - [docs/phases/phase-01-foundation-branding.md](docs/phases/phase-01-foundation-branding.md)
+- [docs/phases/phase-02-product-engine.md](docs/phases/phase-02-product-engine.md) — catalog (categories, products, **add-ons**, inventory).
+- [docs/phases/phase-03-pos-mvp.md](docs/phases/phase-03-pos-mvp.md) — register, cart, **add-ons**, checkout, receipts.
 - [docs/onboarding-first-run.md](docs/onboarding-first-run.md)
+- [docs/blank-pos-dev-plan.md](docs/blank-pos-dev-plan.md) — schema sketch and roadmap.

@@ -116,7 +116,7 @@ product_category
 product
   id, organization_id  -- → organization.id
   name, description, category_id,
-  sku, barcode, image_url, is_active, is_composite,
+  sku, qr_code, image_url, is_active, is_composite,
   track_inventory,
   availability_mode,  -- all_locations | selected_locations_only
   created_at, updated_at
@@ -135,6 +135,14 @@ product_price
   -- amount_minor: bigint, minor units (e.g. centavos)
   -- Phase 2: org-scoped tiers only (no per-location price rows; add location_id when multi-branch pricing ships)
   -- Current app: create/update flows require a category_variant_id per tier (free-text-only tiers deferred)
+
+-- Category-scoped POS add-ons (see Phase 3; Drizzle: lib/db/schema-catalog.ts)
+product_addon
+  id, organization_id, name, amount_minor, currency, is_active, sort_order, created_at, updated_at
+
+product_category_addon
+  id, category_id, addon_id, sort_order
+  -- unique (category_id, addon_id); defines which add-ons appear for products in that category on the POS
 ```
 
 ### Inventory
@@ -216,6 +224,11 @@ transactions
 transaction_items
   id, transaction_id, product_id, product_price_id,
   quantity, unit_price_minor, discount_minor, subtotal_minor  -- bigint; integer-safe line math
+  -- subtotal_minor: full line total (base + add-ons); unit_price_minor remains the product tier unit only
+
+transaction_item_addon   -- Drizzle: lib/db/schema-transactions.ts; child of transaction_items
+  id, transaction_item_id, addon_id,
+  name, unit_price_minor, quantity, subtotal_minor  -- snapshots at sale time for receipts
 ```
 
 ---
@@ -232,8 +245,7 @@ transaction_items
 - [ ] Inventory items (raw materials/stock)
 - [ ] Composite product builder (recipe from inventory items)
 - [ ] Cost calculation (sum of ingredient costs)
-- [ ] POS terminal screen (cart, price selection, checkout)
-- [ ] Basic transaction recording
+- [x] **POS checkout** — product grid, cart, **price tiers**, **category-scoped add-ons** (Catalog → Add-ons), payment method (**cash** / **card placeholder**), persisted **`transactions`**, **`transaction_items`**, and **`transaction_item_addon`** when applicable, branded **receipt** with nested add-ons ([phases/phase-03-pos-mvp.md](phases/phase-03-pos-mvp.md))
 - [ ] Offline mode with local DB
 - [ ] Background sync to the hosted API when online
 
@@ -373,12 +385,12 @@ blank-pos/
 │   ├── (protected)/          # Session required: onboarding, choose-location, org shell
 │   │   └── (org)/            # Business + branch routes
 │   │       └── [businessSlug]/  # Org gate; index redirects to default branch
-│   │           ├── catalog/  # Org-wide catalog: categories, products, inventory
+│   │           ├── catalog/  # Org-wide catalog: categories, products, add-ons, inventory
 │   │           ├── settings/ # Locations, team, business (org-wide); /settings/branding → /business
 │   │           └── l/[locationSlug]/  # Branch shell: dashboard, settings/store, …
 │   │   # (future under branch: pos/, …)
 ├── components/
-│   ├── catalog/              # Categories, products, inventory admin UI
+│   ├── catalog/              # Categories, products, add-ons, inventory admin UI
 │   ├── pos/                  # Cart, numpad, product grid, coupon input (future)
 │   ├── promotions/           # Promotion builder, coupon manager (future)
 │   └── ui/                   # Shared shadcn components
@@ -386,7 +398,7 @@ blank-pos/
 │   ├── actions/              # Server actions (catalog-*.ts, staff, branding, …)
 │   ├── queries/              # Drizzle read helpers (catalog.ts, location, …)
 │   ├── db/
-│   │   ├── schema-catalog.ts # product_* , inventory_* tables
+│   │   ├── schema-catalog.ts # product_*, product_addon, product_category_addon, inventory_* tables
 │   │   ├── schema-app.ts     # location, business_details, …
 │   │   ├── local.ts          # PGlite / SQLite setup (directional)
 │   │   └── sync.ts           # Sync engine (directional)
@@ -423,14 +435,14 @@ Shipped in repo (detail: [phases/phase-02-product-engine.md](phases/phase-02-pro
 
 ### Phase 3 — POS Terminal (Weeks 5–6)
 
-- Product grid with category filter
-- Cart with quantity, price tier selection
-- Coupon code input field at checkout
-- Automatic promotion evaluation on cart update
-- Discount line items shown clearly in cart and receipt
-- Checkout flow (cash, card placeholder)
-- Transaction recording (local DB first)
-- Receipt view
+**Shipped in repo (detail: [phases/phase-03-pos-mvp.md](phases/phase-03-pos-mvp.md)):**
+
+- Product grid with category filter and search; branch sellable catalog
+- Cart with quantity, **price tier** selection, **category-scoped add-ons** (optional step when the category defines add-ons and currency matches the tier)
+- **Cart line identity:** different add-on selections → separate lines; same product + tier + same add-on signature → quantity merge
+- Checkout flow (**cash**, **card placeholder**); **createSale** persists **`transactions`**, **`transaction_items`**, **`transaction_item_addon`**
+- Branded **receipt** with nested add-on lines under each item
+- **Coupon / automatic promotions** → Phase 6 (not in current POS checkout)
 
 ### Phase 4 — Offline & Sync (Weeks 7–8)
 
@@ -458,4 +470,4 @@ Shipped in repo (detail: [phases/phase-02-product-engine.md](phases/phase-02-pro
 
 ---
 
-*Last updated: April 2026 · Version 0.3 (Phase 2 catalog implementation + schema names aligned to Drizzle)*
+*Last updated: April 2026 · Version 0.4 (Phase 3 POS + category-scoped add-ons, `transaction_item_addon`)*

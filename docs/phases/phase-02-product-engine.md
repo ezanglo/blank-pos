@@ -12,12 +12,12 @@
 
 | Area | State |
 |------|--------|
-| Drizzle schema: **`product_category`**, **`product_category_variant`**, **`product`**, **`product_location`**, **`product_price`**, **`inventory_item`**, **`inventory_stock`**, **`product_ingredient`** (`quantity_milli`) | Implemented ([`lib/db/schema-catalog.ts`](../../lib/db/schema-catalog.ts)) |
+| Drizzle schema: **`product_category`**, **`product_category_variant`**, **`product`**, **`product_location`**, **`product_price`**, **`product_addon`**, **`product_category_addon`**, **`inventory_item`**, **`inventory_stock`**, **`product_ingredient`** (`quantity_milli`) | Implemented ([`lib/db/schema-catalog.ts`](../../lib/db/schema-catalog.ts)); add-ons are configured in admin and consumed on the POS ([`phase-03-pos-mvp.md`](phase-03-pos-mvp.md)) |
 | Org default currency for new prices (`business_details.default_currency` → fallback to first branch → **`PHP`**) | Implemented ([`lib/queries/catalog-currency.ts`](../../lib/queries/catalog-currency.ts)) |
 | Server actions + Zod (`lib/actions/catalog-*.ts`, [`lib/schemas/catalog.ts`](../../lib/schemas/catalog.ts)); **minor units** / **milli-units** at parse boundaries ([`lib/money.ts`](../../lib/money.ts)) | Implemented |
 | RBAC: **`requireCatalogManager`** (mutations), **`requireCatalogMember`** (reads / POS prep) | Implemented ([`lib/catalog-access.ts`](../../lib/catalog-access.ts)) |
 | **`listSellableProductIdsForLocation`** (active products × availability mode) | Implemented ([`lib/queries/catalog.ts`](../../lib/queries/catalog.ts)) |
-| Admin UI: **Categories** (+ variants, reorder), **Products** (table, create/edit, delete, image upload, prices dialog), **Inventory** (items + org stock) | Implemented under **`/{businessSlug}/catalog/…`** (see below) |
+| Admin UI: **Categories** (+ variants, reorder), **Products** (table, create/edit, delete, image upload, prices dialog), **Add-ons** (CRUD + category assignment), **Inventory** (items + org stock) | Implemented under **`/{businessSlug}/catalog/…`** (see below) |
 | **`POST /api/upload`** for product **`image_url`** (same contract as branding) | Implemented ([`docs/storage-uploads.md`](../storage-uploads.md)) |
 | Server-side **offset pagination** + URL params: **`/catalog/products`** (`page`, `per`, `q`, `category`) and **`/catalog/inventory`** (`page`, `per`, `q`; same helpers) | Implemented ([`lib/queries/catalog.ts`](../../lib/queries/catalog.ts), [`lib/catalog-products-url.ts`](../../lib/catalog-products-url.ts)) |
 | **Demo seed** script for sample catalog | Deferred |
@@ -36,6 +36,7 @@ Catalog is **organization-scoped** (sidebar **Catalog** group). Layout uses **`O
 |-------|---------|
 | **`/{businessSlug}/catalog/categories`** | Categories, preset variants, drag reorder ([`app/(protected)/(org)/[businessSlug]/catalog/categories/page.tsx`](../../app/(protected)/(org)/[businessSlug]/catalog/categories/page.tsx)) |
 | **`/{businessSlug}/catalog/products`** | Product table, filters, dialogs ([`.../catalog/products/page.tsx`](../../app/(protected)/(org)/[businessSlug]/catalog/products/page.tsx)) |
+| **`/{businessSlug}/catalog/add-ons`** | Sellable add-ons (name, price, currency, active) and **which categories** show them on the POS ([`.../catalog/add-ons/page.tsx`](../../app/(protected)/(org)/[businessSlug]/catalog/add-ons/page.tsx)) |
 | **`/{businessSlug}/catalog/inventory`** | Inventory items and stock ([`.../catalog/inventory/page.tsx`](../../app/(protected)/(org)/[businessSlug]/catalog/inventory/page.tsx)) |
 | **`/{businessSlug}/settings/products`** | Redirects to **`/{businessSlug}/catalog/products`** ([`.../settings/products/page.tsx`](../../app/(protected)/(org)/[businessSlug]/settings/products/page.tsx)) |
 
@@ -48,8 +49,8 @@ UI building blocks live under [`components/catalog/`](../../components/catalog/)
 | Concern | Location |
 |---------|----------|
 | Catalog tables + enums | [`lib/db/schema-catalog.ts`](../../lib/db/schema-catalog.ts) |
-| Queries (lists, product detail, sellable IDs) | [`lib/queries/catalog.ts`](../../lib/queries/catalog.ts) |
-| Mutations | [`lib/actions/catalog-categories.ts`](../../lib/actions/catalog-categories.ts), [`catalog-category-variants.ts`](../../lib/actions/catalog-category-variants.ts), [`catalog-products.ts`](../../lib/actions/catalog-products.ts), [`catalog-product-prices.ts`](../../lib/actions/catalog-product-prices.ts), [`catalog-inventory.ts`](../../lib/actions/catalog-inventory.ts) |
+| Queries (lists, product detail, sellable IDs) | [`lib/queries/catalog.ts`](../../lib/queries/catalog.ts), [`lib/queries/catalog-addons.ts`](../../lib/queries/catalog-addons.ts) (`listActiveAddonsByCategoryId`, etc.) |
+| Mutations | [`lib/actions/catalog-categories.ts`](../../lib/actions/catalog-categories.ts), [`catalog-category-variants.ts`](../../lib/actions/catalog-category-variants.ts), [`catalog-products.ts`](../../lib/actions/catalog-products.ts), [`catalog-product-prices.ts`](../../lib/actions/catalog-product-prices.ts), [`catalog-addons.ts`](../../lib/actions/catalog-addons.ts), [`catalog-inventory.ts`](../../lib/actions/catalog-inventory.ts) |
 | Access control | [`lib/catalog-access.ts`](../../lib/catalog-access.ts) |
 
 ---

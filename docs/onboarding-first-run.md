@@ -35,7 +35,7 @@ Documented in the root **README**:
 | **`/login`** | Email sign-in ([`app/(auth)/login/`](../app/(auth)/login/)). |
 | **`/onboarding`** | Signed-in wizard when user cannot open a branch yet ([`app/(protected)/onboarding/`](../app/(protected)/onboarding/)). |
 | **`/choose-location`** | When user has **>1** accessible branch; pick org + branch, **`organization.setActive`**, then dashboard ([`app/(protected)/choose-location/`](../app/(protected)/choose-location/)). |
-| **`/{businessSlug}/catalog/categories`**, **`/{businessSlug}/catalog/products`**, **`/{businessSlug}/catalog/inventory`** | Org-wide **Catalog** admin (Phase 2); writes require **`owner`** / **`manager`** ([`docs/phases/phase-02-product-engine.md`](phases/phase-02-product-engine.md)). |
+| **`/{businessSlug}/catalog/categories`**, **`/{businessSlug}/catalog/products`**, **`/{businessSlug}/catalog/add-ons`**, **`/{businessSlug}/catalog/inventory`** | Org-wide **Catalog** admin (Phase 2–3); **add-ons** link sellable options to **product categories** for the POS ([`docs/phases/phase-02-product-engine.md`](phases/phase-02-product-engine.md), [`docs/phases/phase-03-pos-mvp.md`](phases/phase-03-pos-mvp.md)). Writes require **`owner`** / **`manager`**. |
 
 Shared step UI lives under [`components/setup/setup-steps.tsx`](../components/setup/setup-steps.tsx) (reused by [`components/onboarding/onboarding-wizard.tsx`](../components/onboarding/onboarding-wizard.tsx)); there is **no** `/setup` app route.
 
@@ -63,5 +63,6 @@ Shared step UI lives under [`components/setup/setup-steps.tsx`](../components/se
 - [schema-better-auth-alignment.md](schema-better-auth-alignment.md) — tenancy, tables, checklist.
 - [blank-pos-dev-plan.md](blank-pos-dev-plan.md) — schema §4 and §9 folder tree (high level).
 - [phases/phase-02-product-engine.md](phases/phase-02-product-engine.md) — catalog routes and implementation status.
+- [phases/phase-03-pos-mvp.md](phases/phase-03-pos-mvp.md) — POS register, **add-ons**, checkout, receipts.
 - [storage-uploads.md](storage-uploads.md) — uploads env.
 - [security/authorization.md](security/authorization.md) — app-layer access control.

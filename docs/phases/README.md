@@ -10,7 +10,7 @@ Detailed task breakdowns for Blank POS delivery. They follow the frozen stack an
 | --- | --- |
 | 1 — Foundation, auth, tenancy, branding | [phase-01-foundation-branding.md](phase-01-foundation-branding.md) |
 | 2 — Product engine | [phase-02-product-engine.md](phase-02-product-engine.md) |
-| 3 — POS MVP (sales, no promos) | [phase-03-pos-mvp.md](phase-03-pos-mvp.md) |
+| 3 — POS MVP (sales, **category add-ons**, no promos/tax) | [phase-03-pos-mvp.md](phase-03-pos-mvp.md) |
 | 4 — Offline-first and sync | [phase-04-offline-sync.md](phase-04-offline-sync.md) |
 | 5 — Inventory depth and reporting | [phase-05-inventory-reports.md](phase-05-inventory-reports.md) |
 | 6 — Promotions and coupons | [phase-06-promotions-coupons.md](phase-06-promotions-coupons.md) |
