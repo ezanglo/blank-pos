@@ -95,14 +95,15 @@ If you add **Postgres RLS** later:
 
 ---
 
-## Checklist before Phase 2+
+## Checklist — foundation (Phase 1) and catalog (Phase 2)
 
 - [x] **Email** sign-in and **public email sign-up** enabled (`disableSignUp: false`); **Admin** plugin for **`createUser`** (staff).
 - [x] Organization plugin enabled on server and **organizationClient** on client.
 - [x] Auth tables + **`session.activeOrganizationId`** present in DB.
-- [x] App table **`location`** (many per **`organization_id`**); **`business_details`** per **`organization_id`**; **`user_profile`** per **`user.id`**.
+- [x] App table **`location`** (many per **`organization_id`**); **`business_details`** per **`organization_id`** (including optional **`default_currency`** for catalog defaults); **`user_profile`** per **`user.id`**.
 - [x] POS roles assigned only through **`member.role`**.
 - [x] No parallel custom `organizations` / `user_roles` tables duplicating auth.
+- [x] **Phase 2 catalog** tables and org admin UI — see [`lib/db/schema-catalog.ts`](../lib/db/schema-catalog.ts) and [phases/phase-02-product-engine.md](phases/phase-02-product-engine.md) (`/{businessSlug}/catalog/…`).
 
 Optional:
 

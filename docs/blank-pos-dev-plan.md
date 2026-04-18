@@ -102,42 +102,45 @@ POS-specific **default currency** and **site address** for receipts: read from t
 
 ### Products & Categories
 
+**Drizzle / Postgres names** (see [`lib/db/schema-catalog.ts`](lib/db/schema-catalog.ts)) — logical “categories” / “products” in UI map to these tables.
+
 **Money:** Store monetary amounts as **integer minor units** (`bigint`), e.g. `amount_minor`, `cost_per_unit_minor`. Compute in **bigint** on the server; **do not** use floats for prices or costs. **UI** shows two decimal places. See [docs/phases/phase-02-product-engine.md](phases/phase-02-product-engine.md).
 
-**Catalog vs branches:** `products` are **org-scoped**. **Availability** defaults to all branches; optional **`product_locations`** restricts which `location` rows may sell the product. Price tiers remain **org-wide** in Phase 2 (no `location_id` on `product_prices` yet).
+**Catalog vs branches:** **`product`** rows are **org-scoped**. **Availability** defaults to all branches; optional **`product_location`** rows restrict which **`location`** may sell the product. Price tiers remain **org-wide** in Phase 2 (no `location_id` on **`product_price`** yet). **Admin catalog UI** lives at **`/{businessSlug}/catalog/…`** (org shell, not under **`/l/{locationSlug}`**).
 
 ```sql
-categories
+product_category
   id, organization_id  -- → organization.id
   name, color, icon, sort_order, created_at
 
-products
+product
   id, organization_id  -- → organization.id
   name, description, category_id,
   sku, barcode, image_url, is_active, is_composite,
   track_inventory,
-  availability_mode,  -- e.g. all_locations | selected_locations_only
+  availability_mode,  -- all_locations | selected_locations_only
   created_at, updated_at
 
-product_locations   -- optional rows when availability_mode = selected_locations_only
+product_location   -- optional rows when availability_mode = selected_locations_only
   id, product_id, location_id  -- location.organization_id must match product's org
 
 product_category_variant   -- preset price labels per category (e.g. Small / Medium / Large)
   id, category_id, label, sort_order, created_at
   -- unique (category_id, label); sort_order drives ordering when linked from product_price
 
-product_prices
+product_price
   id, product_id, label, amount_minor, currency
   category_variant_id  -- nullable → product_category_variant.id; label snapshot at write time
   is_default, sort_order  -- sort_order often mirrors variant.sort_order when linked
   -- amount_minor: bigint, minor units (e.g. centavos)
   -- Phase 2: org-scoped tiers only (no per-location price rows; add location_id when multi-branch pricing ships)
+  -- Current app: create/update flows require a category_variant_id per tier (free-text-only tiers deferred)
 ```
 
 ### Inventory
 
 ```sql
-inventory_items
+inventory_item
   id, organization_id, name, unit, cost_per_unit_minor,  -- bigint minor units per inventory unit
   reorder_point, created_at, updated_at
   -- prefer inventory_stock for quantity; omit denormalized current_stock unless you add it deliberately
@@ -145,6 +148,7 @@ inventory_items
 inventory_stock
   id, inventory_item_id, organization_id, quantity, updated_at
 
+-- Planned for Phase 5 (not migrated in repo yet); see docs/phases/phase-05-inventory-reports.md
 inventory_movements
   id, inventory_item_id, organization_id, type (in|out|adjustment),
   quantity, reference_id, note, created_at
@@ -153,9 +157,9 @@ inventory_movements
 ### Composite Products (Product Creation from Inventory)
 
 ```sql
-product_ingredients
-  id, product_id, inventory_item_id, quantity_fixed_scale
-  -- quantity_fixed_scale: integer at a documented scale (e.g. milli-units); avoid float
+product_ingredient
+  id, product_id, inventory_item_id, quantity_milli
+  -- quantity_milli: integer = quantity × 1000 (three decimal places); avoid float
   -- Defines the recipe/BOM for a composite product; used for COGS and Phase 5 deduct
 ```
 
@@ -369,25 +373,27 @@ blank-pos/
 │   ├── (protected)/          # Session required: onboarding, choose-location, org shell
 │   │   └── (org)/            # Business + branch routes
 │   │       └── [businessSlug]/  # Org gate; index redirects to default branch
+│   │           ├── catalog/  # Org-wide catalog: categories, products, inventory
 │   │           ├── settings/ # Locations, team, business (org-wide); /settings/branding → /business
 │   │           └── l/[locationSlug]/  # Branch shell: dashboard, settings/store, …
-│   │   # (future under branch: pos/, products/, …)
+│   │   # (future under branch: pos/, …)
 ├── components/
-│   ├── pos/                  # Cart, numpad, product grid, coupon input
-│   ├── products/
-│   ├── inventory/
-│   ├── promotions/           # Promotion builder, coupon manager
+│   ├── catalog/              # Categories, products, inventory admin UI
+│   ├── pos/                  # Cart, numpad, product grid, coupon input (future)
+│   ├── promotions/           # Promotion builder, coupon manager (future)
 │   └── ui/                   # Shared shadcn components
 ├── lib/
+│   ├── actions/              # Server actions (catalog-*.ts, staff, branding, …)
+│   ├── queries/              # Drizzle read helpers (catalog.ts, location, …)
 │   ├── db/
-│   │   ├── local.ts          # PGlite / SQLite setup
-│   │   ├── upload-client.ts  # optional: shared upload helpers
-│   │   └── sync.ts           # Sync engine
+│   │   ├── schema-catalog.ts # product_* , inventory_* tables
+│   │   ├── schema-app.ts     # location, business_details, …
+│   │   ├── local.ts          # PGlite / SQLite setup (directional)
+│   │   └── sync.ts           # Sync engine (directional)
+│   ├── catalog-access.ts     # requireCatalogManager / requireCatalogMember
 │   ├── auth.ts               # better-auth config
 │   └── utils.ts
-├── server/
-│   ├── actions/              # Next.js Server Actions
-│   └── api/                  # Route handlers if needed
+├── app/api/                  # e.g. POST /api/upload
 ├── store/                    # Zustand stores (cart, sync status)
 ├── hooks/
 └── types/
@@ -407,11 +413,13 @@ blank-pos/
 
 ### Phase 2 — Product Engine (Weeks 3–4)
 
-- Category CRUD with color/icon picker
-- Product CRUD (simple products)
-- Multiple price tiers per product
-- Inventory item management
-- Composite product builder (ingredient list + cost calculator)
+Shipped in repo (detail: [phases/phase-02-product-engine.md](phases/phase-02-product-engine.md)):
+
+- **Categories** + **category variants** (preset price labels), reorder, color/icon
+- **Products:** CRUD, **`image_url`** via **`POST /api/upload`**, branch availability (**`product_location`**), composite recipes (**`product_ingredient.quantity_milli`**) with bigint cost display
+- **Prices:** org-wide **`product_price`** rows (**`amount_minor`**), managed in-app per **category variant**; default tier + sort order
+- **Inventory:** **`inventory_item`** + **`inventory_stock`** (per org)
+- **Queries:** **`listSellableProductIdsForLocation`** for Phase 3 POS prep
 
 ### Phase 3 — POS Terminal (Weeks 5–6)
 
@@ -450,4 +458,4 @@ blank-pos/
 
 ---
 
-*Last updated: April 2026 · Version 0.2 (Promotions & Coupons added)*
+*Last updated: April 2026 · Version 0.3 (Phase 2 catalog implementation + schema names aligned to Drizzle)*

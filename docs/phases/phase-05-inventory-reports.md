@@ -2,7 +2,7 @@
 
 **Goal:** Inventory is **operationally trustworthy**: movements and adjustments are logged, **composite sales** can **auto-deduct** ingredients per policy, **low-stock** signals fire, and managers have **daily sales** plus **product performance** views. Reporting reads primarily from the **hosted Postgres** / app API (authoritative after Phase 4 sync); local DB optional for cached aggregates—document choice.
 
-**Prerequisites:** Phase 3–4: transactions persisted/synced; Phase 2: `inventory_stock`, `product_ingredients`, `track_inventory` semantics defined.
+**Prerequisites:** Phase 3–4: transactions persisted/synced; Phase 2: **`inventory_stock`**, **`product_ingredient`** (`quantity_milli`), **`track_inventory`** semantics defined.
 
 **References:** [blank-pos-dev-plan.md](../blank-pos-dev-plan.md) §4 (`inventory_movements`), §5 v1.1.
 

@@ -83,7 +83,7 @@
 
 ## Dependencies for later phases
 
-- Phase 2 needs: stable **`organization.id`**, **`location.id`**, role checks, **default currency** from **`location`**.
+- Phase 2 needs: stable **`organization.id`**, **`location.id`**, role checks, **default currency** from **`location`** (and optional **`business_details.default_currency`** for new catalog prices). **Catalog admin** ships at **`/{businessSlug}/catalog/*`** — see [phase-02-product-engine.md](phase-02-product-engine.md).
 
 ---
 

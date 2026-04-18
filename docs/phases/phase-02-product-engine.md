@@ -4,22 +4,76 @@
 
 **Prerequisites:** Phase 1 complete (auth, **`organization` + `member`**, roles on **`member.role`**, **`location`** with `default_currency`, **`business_details`**; Drizzle migrations).
 
-**References:** [blank-pos-dev-plan.md](../blank-pos-dev-plan.md) §4 (keep in sync with this doc for column names).
+**References:** [blank-pos-dev-plan.md](../blank-pos-dev-plan.md) §4 (physical table names — keep in sync with [`lib/db/schema-catalog.ts`](../../lib/db/schema-catalog.ts)).
 
 ---
 
-## Outcomes (exit criteria)
+## Status summary
 
-- [ ] Full CRUD for **categories** with `name`, `color`, `icon`, `sort_order`; list is sortable and used as filters later by POS.
-- [ ] **`product_category_variant`** per category: preset **labels** (e.g. Small / Medium / Large) with **`sort_order`** for consistent POS ordering; optional **`product_price.category_variant_id`** FK (restrict on delete) with **`label` denormalized** at write time; custom tiers use `category_variant_id` null + free-text `label`.
-- [ ] Full CRUD for **products**: `name`, `description`, `category_id`, `sku`, `barcode`, `image_url` (optional—can be Storage later), `is_active`, `is_composite`, `track_inventory`, **availability** (all locations vs selected branches), timestamps.
-- [ ] **`product_locations`** (when availability is “selected only”): rows `(product_id, location_id)`; all `location_id` values must belong to the product’s `organization_id`. Empty selection invalid.
-- [ ] **product_prices:** multiple rows per product; `label`, optional **`category_variant_id`**, **`amount_minor`** (`bigint`, integer **minor units**), `currency`; **no** `location_id` on price rows in Phase 2 (org-wide tiers only).
-- [ ] **inventory_items** org-scoped: `name`, `unit`, **`cost_per_unit_minor`** (`bigint`), `reorder_point`; prefer **inventory_stock** as quantity source of truth (not a denormalized float on the item).
-- [ ] **inventory_stock:** quantity per **`(inventory_item_id, organization_id)`**; UI for initial quantity / adjustments can stay minimal if Phase 5 owns movements.
-- [ ] **product_ingredients:** `(inventory_item_id, quantity_fixed_scale)` — store quantity as an **integer at a fixed scale** (e.g. milli-units), not a float; validation (no cycles, positive quantities; ingredients reference **inventory_items** only).
-- [ ] **Computed composite cost** in UI: sum using **bigint** math from `cost_per_unit_minor` and scaled quantities; display with **2 decimal places** (major.minor) without float round-trip.
-- [ ] Server-side authorization: **`owner` / `manager`** for catalog mutations; **`cashier`** read-only on catalog reads used by POS (align with matrix; refine in Phase 7). **No reliance on RLS** for enforcement in Phase 2.
+| Area | State |
+|------|--------|
+| Drizzle schema: **`product_category`**, **`product_category_variant`**, **`product`**, **`product_location`**, **`product_price`**, **`inventory_item`**, **`inventory_stock`**, **`product_ingredient`** (`quantity_milli`) | Implemented ([`lib/db/schema-catalog.ts`](../../lib/db/schema-catalog.ts)) |
+| Org default currency for new prices (`business_details.default_currency` → fallback to first branch → **`PHP`**) | Implemented ([`lib/queries/catalog-currency.ts`](../../lib/queries/catalog-currency.ts)) |
+| Server actions + Zod (`lib/actions/catalog-*.ts`, [`lib/schemas/catalog.ts`](../../lib/schemas/catalog.ts)); **minor units** / **milli-units** at parse boundaries ([`lib/money.ts`](../../lib/money.ts)) | Implemented |
+| RBAC: **`requireCatalogManager`** (mutations), **`requireCatalogMember`** (reads / POS prep) | Implemented ([`lib/catalog-access.ts`](../../lib/catalog-access.ts)) |
+| **`listSellableProductIdsForLocation`** (active products × availability mode) | Implemented ([`lib/queries/catalog.ts`](../../lib/queries/catalog.ts)) |
+| Admin UI: **Categories** (+ variants, reorder), **Products** (table, create/edit, delete, image upload, prices dialog), **Inventory** (items + org stock) | Implemented under **`/{businessSlug}/catalog/…`** (see below) |
+| **`POST /api/upload`** for product **`image_url`** (same contract as branding) | Implemented ([`docs/storage-uploads.md`](../storage-uploads.md)) |
+| Server-side **cursor/offset pagination** for large product lists | Deferred |
+| **Demo seed** script for sample catalog | Deferred |
+| **Free-text price tiers** with `category_variant_id` null (DB nullable; UI requires a variant per tier today) | Deferred |
+| **Global barcode** uniqueness (only **`(organization_id, sku)`** is unique today) | Deferred |
+| Optional **`created_by` / `updated_by`** on catalog rows | Deferred |
+| **`inventory_movements`** table | Phase 5 ([phase-05-inventory-reports.md](phase-05-inventory-reports.md)) — not in Drizzle yet |
+
+---
+
+## Routing (actual paths)
+
+Catalog is **organization-scoped** (sidebar **Catalog** group). Layout uses **`OrgAppShellLoader`** with **no** active branch segment — managers edit the shared catalog once per business.
+
+| Route | Purpose |
+|-------|---------|
+| **`/{businessSlug}/catalog/categories`** | Categories, preset variants, drag reorder ([`app/(protected)/(org)/[businessSlug]/catalog/categories/page.tsx`](../../app/(protected)/(org)/[businessSlug]/catalog/categories/page.tsx)) |
+| **`/{businessSlug}/catalog/products`** | Product table, filters, dialogs ([`.../catalog/products/page.tsx`](../../app/(protected)/(org)/[businessSlug]/catalog/products/page.tsx)) |
+| **`/{businessSlug}/catalog/inventory`** | Inventory items and stock ([`.../catalog/inventory/page.tsx`](../../app/(protected)/(org)/[businessSlug]/catalog/inventory/page.tsx)) |
+| **`/{businessSlug}/settings/products`** | Redirects to **`/{businessSlug}/catalog/products`** ([`.../settings/products/page.tsx`](../../app/(protected)/(org)/[businessSlug]/settings/products/page.tsx)) |
+
+UI building blocks live under [`components/catalog/`](../../components/catalog/).
+
+---
+
+## Code map
+
+| Concern | Location |
+|---------|----------|
+| Catalog tables + enums | [`lib/db/schema-catalog.ts`](../../lib/db/schema-catalog.ts) |
+| Queries (lists, product detail, sellable IDs) | [`lib/queries/catalog.ts`](../../lib/queries/catalog.ts) |
+| Mutations | [`lib/actions/catalog-categories.ts`](../../lib/actions/catalog-categories.ts), [`catalog-category-variants.ts`](../../lib/actions/catalog-category-variants.ts), [`catalog-products.ts`](../../lib/actions/catalog-products.ts), [`catalog-product-prices.ts`](../../lib/actions/catalog-product-prices.ts), [`catalog-inventory.ts`](../../lib/actions/catalog-inventory.ts) |
+| Access control | [`lib/catalog-access.ts`](../../lib/catalog-access.ts) |
+
+---
+
+## Outcomes (exit criteria) — implemented vs deferred
+
+### Implemented
+
+- [x] Full CRUD for **categories** with `name`, `color`, `icon`, `sort_order`; list reorder and filters on the product table.
+- [x] **`product_category_variant`** per category: preset **labels** with **`sort_order`**; **`product_price.category_variant_id`** with **`label` snapshot** at write time.
+- [x] Full CRUD for **products**: `name`, `description`, `category_id`, `sku`, `barcode`, **`image_url`** (upload or URL), `is_active`, `is_composite`, `track_inventory`, **availability** (`all_locations` \| `selected_locations_only`), **`product_location`** rows when restricted; timestamps.
+- [x] **`product_location`:** `(product_id, location_id)` unique; server validates IDs belong to the product’s org. Empty selection invalid when mode is **`selected_locations_only`**.
+- [x] **Product prices:** multiple rows per product; **`amount_minor`** (`bigint`), **`currency`**, **`is_default`**, **`sort_order`**; org-wide only (no `location_id`). **Current UI:** each tier is tied to a **category variant** (one price per variant enforced on create).
+- [x] **Inventory items** org-scoped: `name`, `unit`, **`cost_per_unit_minor`**, `reorder_point`; **inventory_stock** quantity per **`(inventory_item_id, organization_id)`**.
+- [x] **Product ingredients:** **`quantity_milli`** (integer × 1000 for three decimal places); references **inventory_item** only; composite cost summary uses **bigint** helpers in the product form.
+- [x] Server-side authorization: **`owner` / `manager`** for catalog mutations; membership required for reads (cashier-safe POS prep can use **`requireCatalogMember`** on read paths).
+
+### Deferred / follow-ups
+
+- [ ] **Pagination** for very large catalogs at the server/query layer.
+- [ ] **Seed** data for demo orgs.
+- [ ] **Free-text** price **`label`** without variant (column supports null FK; flows do not yet).
+- [ ] **Barcode** uniqueness policy if scanners need hard guarantees beyond SKU.
+- [ ] **Audit** columns on mutable catalog entities for Phase 4 LWW.
 
 ---
 
@@ -27,78 +81,75 @@
 
 - **Tax:** still out of scope; `products` / lines may have tax fields at zero.
 - **Promotions:** no UI or tables in this phase.
-- **Currency:** Price rows store `currency`. **Default for new tiers:** prefer **`business_details.default_currency`** when that column exists; otherwise a documented fallback (e.g. default **`location`** for the org). **POS / receipts** continue to use the **active `location.default_currency`** ([schema-better-auth-alignment.md](../schema-better-auth-alignment.md)).
-- **Money (exact):** Persist and compute in **integer minor units** (`bigint` in Postgres and TypeScript server code). **Never** use IEEE floats for amounts, costs, or running totals. **UI** parses and displays **2 decimal places** at the boundary only. For `quantity × cost`, use integer widening multiply and **one** explicit rounding step to minor units per line where needed (document half-up or chosen mode). See **Risks** below.
+- **Currency:** Price rows store `currency`. **Default for new tiers:** **`business_details.default_currency`**, else first **`location.default_currency`**, else **`PHP`** ([`getDefaultCatalogCurrencyCode`](../../lib/queries/catalog-currency.ts)). **POS / receipts** continue to use the **active `location.default_currency`** ([schema-better-auth-alignment.md](../schema-better-auth-alignment.md)).
+- **Money (exact):** Persist and compute in **integer minor units** (`bigint` on the server). **Never** use IEEE floats for amounts, costs, or running totals. **UI** parses and displays **2 decimal places** at the boundary only. Ingredient quantities use **fixed-scale integers** (`quantity_milli`). See **Risks** below.
 - **Security:** **Application RBAC only** for Phase 2 catalog tables (same pattern as team settings). Optional Postgres RLS remains a later hardening step, not an exit criterion here.
 
 ---
 
 ## Workstream A — Schema and migrations
 
-- [ ] Add tables: `categories`, **`product_category_variant`**, `products` (include **availability mode**), **`product_locations`**, `product_prices` (with optional **`category_variant_id`**), `inventory_items`, `inventory_stock`, `product_ingredients` per [blank-pos-dev-plan.md](../blank-pos-dev-plan.md) §4 and this doc.
-- [ ] Optional: **`business_details.default_currency`** for org-level catalog pricing defaults.
-- [ ] Indexes: `(organization_id)` on all org tables; `(product_id)` on prices/ingredients/locations; **`(inventory_item_id, organization_id)`** unique on stock; `(category_id)` on products.
-- [ ] Foreign keys with `ON DELETE` behavior defined (restrict vs cascade—document choices; e.g. delete category: restrict if products exist, or soft-delete categories).
-- [ ] **Do not** block Phase 2 on Postgres **RLS**; if RLS is added later, policies must mirror the same org/location rules as application code.
+- [x] Tables listed in **Status summary** per [`lib/db/schema-catalog.ts`](../../lib/db/schema-catalog.ts) and [blank-pos-dev-plan.md](../blank-pos-dev-plan.md) §4.
+- [x] **`business_details.default_currency`** for org-level catalog pricing defaults ([`lib/db/schema-app.ts`](../../lib/db/schema-app.ts)).
+- [x] Indexes and FKs as in Drizzle schema (including **`(organization_id, sku)`** uniqueness; multiple null SKUs allowed per Postgres rules).
+- [x] **Do not** block Phase 2 on Postgres **RLS**; if RLS is added later, policies must mirror the same org/location rules as application code.
 
 ---
 
 ## Workstream B — Server layer
 
-- [ ] Drizzle queries or repository modules per aggregate: `categories`, `products`, `inventory`.
-- [ ] **Server actions** (or route handlers) with:
-  - [ ] Zod validation for all inputs; **money fields as `bigint` / validated integer strings** mapped to minor units—**not** `z.number()` for currency amounts unless you immediately convert to integer and never use float math.
-  - [ ] Role checks using session + **`member`** (same `organizationId` as active org); **mutations** restricted to **`owner` | `manager`**.
-  - [ ] **Location-filtered product lists** for POS prep: only products available at the requested `location_id` under the same org.
-- [ ] **Transactions** for multi-step writes (e.g. create product + default price tier + availability rows + ingredients list).
-- [ ] **Barcode/SKU uniqueness** optional constraint per `(organization_id, sku)` and same for barcode if used.
+- [x] Drizzle queries in [`lib/queries/catalog.ts`](../../lib/queries/catalog.ts) (and related loaders on each page).
+- [x] **Server actions** with Zod validation; money as **validated strings → bigint**; **mutations** gated by **`requireCatalogManager`**.
+- [x] **`listSellableProductIdsForLocation`** for branch-filtered product IDs (Phase 3 POS).
+- [x] **Transactions** for multi-step writes (e.g. create product + prices + locations + ingredients).
+- [x] **SKU** uniqueness per org (enforced in application / unique index); barcode optional without global unique constraint.
 
 ---
 
 ## Workstream C — Admin UI (org routes)
 
-- [ ] **Categories** list + create/edit/delete; color/icon pickers using shadcn patterns.
-- [ ] **Products** list with filters (category, active, composite); detail form with tabs: General (**availability**: all branches vs multi-select locations), Pricing, Ingredients (if composite), Inventory link (`track_inventory` remains a Phase 5 flag for simple products).
-- [ ] **Pricing** sub-UI: add/remove tiers (org-wide only in Phase 2); inputs show **2 decimals**, wire to **`amount_minor`**.
-- [ ] **Inventory** list + item editor; **stock for this organization** (single quantity per item row in `inventory_stock`).
-- [ ] **Composite builder:** ingredient search, scaled quantity inputs, live cost summary, validation errors (e.g. empty recipe for `is_composite`).
+- [x] **Categories** + variants + reorder; color/icon fields.
+- [x] **Products** list with search/category filter; create/edit dialog (availability, composite recipe, image upload); **Pricing** dialog; delete confirmation.
+- [x] **Pricing:** tiers per **category variant**; **2 decimal** inputs → **`amount_minor`**.
+- [x] **Inventory** list + item editor; **stock** for the organization.
+- [x] **Composite:** ingredient lines, scaled quantity inputs, live cost summary, validation for composite without ingredients.
 
 ---
 
 ## Workstream D — Data integrity and UX
 
-- [ ] Prevent toggling `is_composite` off while ingredients exist without confirm cleanup.
-- [ ] Empty states, loading skeletons, optimistic UI only where rollback is trivial.
-- [ ] **Audit fields:** `created_by` / `updated_by` optional; minimum `updated_at` for LWW sync in Phase 4.
+- [x] Validation for availability mode + location rows; composite / ingredient rules at save.
+- [x] Empty states and loading paths in catalog panels; error surfaces for failed actions.
+- [ ] Optional **`updated_by`** / **`created_by`** (deferred).
 
 ---
 
 ## Workstream E — Quality
 
 - [ ] Seed script: sample categories, products, composite, prices for demo org.
-- [ ] Manual test matrix: create composite → change ingredient cost → composite cost updates **without float drift**; cashier cannot mutate catalog; **no cross-org** reads/writes via forged IDs.
-- [ ] Performance: list endpoints paginated (cursor or offset) for 1k+ products.
+- [ ] Automated or documented manual test matrix: composite cost math; cashier cannot mutate catalog; **no cross-org** reads/writes via forged IDs.
+- [ ] Performance: paginated list endpoints for 1k+ products.
 
 ---
 
 ## Dependencies for later phases
 
-- Phase 3 needs: active products **per location** using availability rules; resolvable **default price tier** (`is_default` or deterministic `sort_order` on `product_prices`).
-- Phase 4 needs: `updated_at` on mutable entities for LWW.
+- Phase 3 needs: active products **per location** using availability rules; resolvable **default price tier** (`is_default` + `sort_order` on **`product_price`**).
+- Phase 4 needs: `updated_at` on mutable entities for LWW (already on several catalog tables; audit fields still optional).
 - Phase 5 may introduce **per-location stock** if needed; Phase 2 keeps **`inventory_stock`** at **`(inventory_item_id, organization_id)`** unless you explicitly extend it earlier.
 
 ---
 
 ## Risks and mitigations
 
-- **Money rounding / drift:** **Integer minor units + bigint math** only; parse display at edges; document rounding for any division (e.g. ingredient line). Never float.
-- **Authorization gaps:** Tests or manual matrix for **RBAC** and org scoping (including `product_locations` rows constrained to org’s branches).
-- **Composite without ingredients:** block `is_composite=true` with zero ingredients at save time.
+- **Money rounding / drift:** **Integer minor units + bigint math** only; parse display at edges; ingredient lines use **milli** scale. Never float in persistence paths.
+- **Authorization gaps:** Keep **`requireCatalogManager`** on every mutation; test **forbidden** paths for **`cashier`**.
+- **Composite without ingredients:** blocked at save time in server actions.
 
 ---
 
 ## Definition of done (checklist)
 
-- [ ] Manager can maintain full catalog demo without SQL.
-- [ ] Cashier (test user) cannot mutate catalog via server actions.
-- [ ] Drizzle migrations reviewed in PR description; **RBAC** and **money representation** called out explicitly (**RLS not required** for merge).
+- [x] Manager can maintain a full catalog in the UI without SQL.
+- [x] Catalog mutations require **`owner` \| `manager`** (`requireCatalogManager`).
+- [x] Drizzle migrations in tree; **RBAC** and **money representation** documented; **RLS not required** for this phase.

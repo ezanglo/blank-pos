@@ -1,11 +1,11 @@
 # Image uploads and object storage
 
-Blank POS stores **image URLs as text** in Postgres (for example `business_details.logo_image_url`). **Binary files are never stored in the database.**
+Blank POS stores **image URLs as text** in Postgres (for example **`business_details.logo_image_url`** and **`product.image_url`** for catalog photos). **Binary files are never stored in the database.**
 
 ## API
 
 - **`POST /api/upload`** (authenticated): `multipart/form-data` with a single field **`file`** (JPEG, PNG, WebP, or GIF). Maximum size **4 MiB**.
-- Response: **`{ "url": "<public-or-same-origin-url>" }`** — persist this string on the row that needs the image (branding, future product catalog, etc.).
+- Response: **`{ "url": "<public-or-same-origin-url>" }`** — persist this string on the row that needs the image (branding, **catalog product image**, etc.).
 - Object keys are **install-scoped** and server-generated: `media/{uuid}.{ext}` under the configured backend.
 
 ## Storage modes (`STORAGE_MODE`)

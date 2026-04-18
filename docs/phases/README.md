@@ -17,3 +17,5 @@ Detailed task breakdowns for Blank POS delivery. They follow the frozen stack an
 | 7 — Operations, hardening, QA | [phase-07-operations-qa.md](phase-07-operations-qa.md) |
 
 Run phases in order unless a later phase explicitly allows parallel prep (called out per doc).
+
+**Phase 2:** the [phase-02-product-engine.md](phase-02-product-engine.md) doc includes a **status summary** and **routing table** kept in sync with the repo’s **`/{businessSlug}/catalog/*`** implementation.

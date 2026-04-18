@@ -10,7 +10,7 @@
 
 ## Outcomes (exit criteria)
 
-- [ ] **Organization context** via **`session.activeOrganizationId`** and routes; **branch context** from **`/{businessSlug}/l/{locationSlug}`**. Product grid lists only products **available at that location** (Phase 2 `availability_mode` + `product_locations`).
+- [ ] **Organization context** via **`session.activeOrganizationId`** and routes; **branch context** from **`/{businessSlug}/l/{locationSlug}`**. Product grid lists only products **available at that location** (Phase 2 **`product.availability_mode`** + optional **`product_location`** rows).
 - [ ] **POS grid** of active products with category filter and search (name/SKU/barcode partial match).
 - [ ] **Cart** supports add/remove, quantity stepper, empty cart; shows line subtotals and **grand subtotal** (no tax line).
 - [ ] **Price tier selection** per line or per cart policy—**pick one UX** and document it (recommended: per line default to org-wide default tier; allow change per line before checkout).
@@ -40,7 +40,7 @@
 
 ## Workstream B — POS application logic
 
-- [ ] Resolve **sellable price** for product: use **`product_prices`** for this org only (fallback rule from Phase 2: `is_default` or sort); **no** location branch in v1.
+- [ ] Resolve **sellable price** for product: use **`product_price`** rows for this org only (fallback rule from Phase 2: `is_default` or sort); **no** location branch in v1.
 - [ ] **Stock display (read-only optional):** if `inventory_stock` exists, show low/zero badge for simple products with `track_inventory`—**optional** in Phase 3; do not block checkout on stock in MVP unless product policy demands it (**MVP default:** warn only, no hard block).
 - [ ] Server action: **createSale** in a single DB transaction (header + lines); validate all `product_id` belong to org and prices match.
 
