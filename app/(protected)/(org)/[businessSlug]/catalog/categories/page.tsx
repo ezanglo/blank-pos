@@ -3,7 +3,11 @@ import { notFound } from "next/navigation"
 import { Suspense } from "react"
 
 import { CatalogCategoriesPanel } from "@/components/catalog/catalog-categories-panel"
-import { listCategoryVariantsForOrganization, listProductCategories } from "@/lib/queries/catalog"
+import {
+  listCategoryInstructionsForOrganization,
+  listCategoryVariantsForOrganization,
+  listProductCategories,
+} from "@/lib/queries/catalog"
 import { getOrgForUser } from "@/lib/queries/organization"
 import { requireSession } from "@/lib/server-auth"
 
@@ -32,9 +36,10 @@ export default async function CatalogCategoriesPage({
   if (!ctx) notFound()
   if (ctx.member.role !== "owner" && ctx.member.role !== "manager") notFound()
 
-  const [categories, categoryVariants] = await Promise.all([
+  const [categories, categoryVariants, categoryInstructions] = await Promise.all([
     listProductCategories(ctx.organization.id),
     listCategoryVariantsForOrganization(ctx.organization.id),
+    listCategoryInstructionsForOrganization(ctx.organization.id),
   ])
 
   return (
@@ -43,6 +48,7 @@ export default async function CatalogCategoriesPage({
         businessSlug={businessSlug}
         categories={categories}
         categoryVariants={categoryVariants}
+        categoryInstructions={categoryInstructions}
       />
     </Suspense>
   )

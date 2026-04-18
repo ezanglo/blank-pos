@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation"
 
 import { PosTerminal } from "@/components/pos/pos-terminal"
-import { listProductCategories } from "@/lib/queries/catalog"
+import { listInstructionsByCategoryIdForPos, listProductCategories } from "@/lib/queries/catalog"
 import { listActiveAddonsByCategoryId } from "@/lib/queries/catalog-addons"
 import { listPosProductsForLocation } from "@/lib/queries/pos"
 import { getLocationByOrganizationAndSlug } from "@/lib/queries/location"
@@ -23,10 +23,11 @@ export default async function PosPage({
   const location = await getLocationByOrganizationAndSlug(ctx.organization.id, locationSlug)
   if (!location) notFound()
 
-  const [categories, products, addonsByCategory] = await Promise.all([
+  const [categories, products, addonsByCategory, instructionsByCategory] = await Promise.all([
     listProductCategories(ctx.organization.id),
     listPosProductsForLocation(ctx.organization.id, location.id, { search: "", categoryId: "" }),
     listActiveAddonsByCategoryId(ctx.organization.id),
+    listInstructionsByCategoryIdForPos(ctx.organization.id),
   ])
 
   return (
@@ -38,6 +39,7 @@ export default async function PosPage({
           products={products}
           categories={categories}
           addonsByCategory={addonsByCategory}
+          instructionsByCategory={instructionsByCategory}
         />
       </div>
     </div>

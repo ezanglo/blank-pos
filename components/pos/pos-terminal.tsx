@@ -35,6 +35,7 @@ import {
   sumMinor,
 } from "@/lib/money"
 import type { PosProductCard } from "@/lib/pos/pos-types"
+import type { PosCategoryInstruction } from "@/lib/queries/catalog"
 import type { PosCategoryAddon } from "@/lib/queries/catalog-addons"
 import { usePosCartStore, type PosCartLine } from "@/lib/stores/pos-cart-store"
 import { cn } from "@/lib/utils"
@@ -66,12 +67,14 @@ export function PosTerminal({
   products,
   categories,
   addonsByCategory,
+  instructionsByCategory,
 }: {
   businessSlug: string
   locationSlug: string
   products: PosProductCard[]
   categories: ProductCategoryRow[]
   addonsByCategory: Record<string, PosCategoryAddon[]>
+  instructionsByCategory: Record<string, PosCategoryInstruction[]>
 }) {
   const lines = usePosCartStore((s) => s.lines)
   const cartAnnounce = usePosCartStore((s) => s.cartAnnounce)
@@ -157,6 +160,11 @@ export function PosTerminal({
     return raw.filter((a) => a.currency === pr.currency)
   }, [addonFlow, addonsByCategory])
 
+  const instructionDialogList = React.useMemo(() => {
+    if (!addonFlow) return []
+    return instructionsByCategory[addonFlow.product.categoryId] ?? []
+  }, [addonFlow, instructionsByCategory])
+
   async function onCheckout() {
     if (lines.length === 0) {
       toast.error("Add at least one item to the cart.")
@@ -181,6 +189,9 @@ export function PosTerminal({
           addons: l.addons.map((a) => ({
             addonId: a.addonId,
             quantity: a.quantity,
+          })),
+          instructions: l.instructions.map((i) => ({
+            instructionId: i.instructionId,
           })),
         })),
       })
@@ -396,10 +407,11 @@ export function PosTerminal({
                 const pr = p.prices.find((x) => x.id === priceId)
                 const raw = addonsByCategory[p.categoryId] ?? []
                 const list = pr ? raw.filter((a) => a.currency === pr.currency) : []
-                if (list.length > 0) {
+                const instrList = instructionsByCategory[p.categoryId] ?? []
+                if (list.length > 0 || instrList.length > 0) {
                   setAddonFlow({ product: p, priceId, quantity })
                 } else {
-                  addProduct(p, priceId, quantity, [])
+                  addProduct(p, priceId, quantity, [], [])
                   setCartOpen(true)
                 }
               }}
@@ -409,12 +421,19 @@ export function PosTerminal({
               productPriceId={addonFlow?.priceId ?? null}
               quantity={addonFlow?.quantity ?? 1}
               addons={addonDialogList}
+              instructions={instructionDialogList}
               open={addonFlow !== null}
               onOpenChange={(next) => {
                 if (!next) setAddonFlow(null)
               }}
               onConfirm={(pick) => {
-                addProduct(pick.product, pick.productPriceId, pick.quantity, pick.selections)
+                addProduct(
+                  pick.product,
+                  pick.productPriceId,
+                  pick.quantity,
+                  pick.selections,
+                  pick.instructionSelections,
+                )
                 setAddonFlow(null)
                 setCartOpen(true)
               }}
@@ -507,6 +526,13 @@ export function PosTerminal({
                                 </li>
                               )
                             })}
+                          </ul>
+                        ) : null}
+                        {line.instructions.length > 0 ? (
+                          <ul className="mt-1.5 list-none space-y-0.5 border-l-2 border-muted-foreground/20 pl-2 text-xs text-muted-foreground">
+                            {line.instructions.map((ins) => (
+                              <li key={ins.key}>Kitchen: {ins.label}</li>
+                            ))}
                           </ul>
                         ) : null}
                       </div>

@@ -51,6 +51,24 @@ export const productCategoryVariant = pgTable(
   ],
 )
 
+/** Kitchen / prep hints (e.g. less ice, extra hot); scoped per category like variants. */
+export const productCategoryInstruction = pgTable(
+  "product_category_instruction",
+  {
+    id: text("id").primaryKey(),
+    categoryId: text("category_id")
+      .notNull()
+      .references(() => productCategory.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("product_category_instruction_categoryId_idx").on(table.categoryId),
+    uniqueIndex("product_category_instruction_category_label_unique").on(table.categoryId, table.label),
+  ],
+)
+
 export const product = pgTable(
   "product",
   {
@@ -235,6 +253,7 @@ export const productCategoryRelations = relations(productCategory, ({ many, one 
   }),
   products: many(product),
   variants: many(productCategoryVariant),
+  instructions: many(productCategoryInstruction),
   categoryAddons: many(productCategoryAddon),
 }))
 
@@ -244,6 +263,13 @@ export const productCategoryVariantRelations = relations(productCategoryVariant,
     references: [productCategory.id],
   }),
   prices: many(productPrice),
+}))
+
+export const productCategoryInstructionRelations = relations(productCategoryInstruction, ({ one }) => ({
+  category: one(productCategory, {
+    fields: [productCategoryInstruction.categoryId],
+    references: [productCategory.id],
+  }),
 }))
 
 export const productRelations = relations(product, ({ one, many }) => ({
@@ -334,6 +360,7 @@ export const productCategoryAddonRelations = relations(productCategoryAddon, ({ 
 
 export type ProductCategoryRow = typeof productCategory.$inferSelect
 export type ProductCategoryVariantRow = typeof productCategoryVariant.$inferSelect
+export type ProductCategoryInstructionRow = typeof productCategoryInstruction.$inferSelect
 export type ProductRow = typeof product.$inferSelect
 export type ProductPriceRow = typeof productPrice.$inferSelect
 export type InventoryItemRow = typeof inventoryItem.$inferSelect

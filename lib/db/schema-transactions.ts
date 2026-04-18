@@ -4,7 +4,7 @@ import { sql } from "drizzle-orm"
 
 import { organization, user } from "./auth-schema"
 import { businessLocation } from "./schema-app"
-import { product, productAddon, productPrice } from "./schema-catalog"
+import { product, productAddon, productCategoryInstruction, productPrice } from "./schema-catalog"
 
 /** MVP: single-step checkout persists `completed` only. */
 export const transactionStatusValues = ["completed"] as const
@@ -92,6 +92,25 @@ export const posTransactionItemAddons = pgTable(
   (table) => [index("transaction_item_addon_transactionItemId_idx").on(table.transactionItemId)],
 )
 
+/** Snapshot label for kitchen/receipt; does not affect line subtotal. */
+export const posTransactionItemInstructions = pgTable(
+  "transaction_item_instruction",
+  {
+    id: text("id").primaryKey(),
+    transactionItemId: text("transaction_item_id")
+      .notNull()
+      .references(() => posTransactionItems.id, { onDelete: "cascade" }),
+    instructionId: text("instruction_id")
+      .notNull()
+      .references(() => productCategoryInstruction.id, { onDelete: "restrict" }),
+    label: text("label").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+  },
+  (table) => [
+    index("transaction_item_instruction_transactionItemId_idx").on(table.transactionItemId),
+  ],
+)
+
 export const posTransactionsRelations = relations(posTransactions, ({ one, many }) => ({
   organization: one(organization, {
     fields: [posTransactions.organizationId],
@@ -122,6 +141,7 @@ export const posTransactionItemsRelations = relations(posTransactionItems, ({ on
     references: [productPrice.id],
   }),
   addons: many(posTransactionItemAddons),
+  instructions: many(posTransactionItemInstructions),
 }))
 
 export const posTransactionItemAddonsRelations = relations(posTransactionItemAddons, ({ one }) => ({
@@ -135,6 +155,18 @@ export const posTransactionItemAddonsRelations = relations(posTransactionItemAdd
   }),
 }))
 
+export const posTransactionItemInstructionsRelations = relations(posTransactionItemInstructions, ({ one }) => ({
+  transactionItem: one(posTransactionItems, {
+    fields: [posTransactionItemInstructions.transactionItemId],
+    references: [posTransactionItems.id],
+  }),
+  instruction: one(productCategoryInstruction, {
+    fields: [posTransactionItemInstructions.instructionId],
+    references: [productCategoryInstruction.id],
+  }),
+}))
+
 export type PosTransactionRow = typeof posTransactions.$inferSelect
 export type PosTransactionItemRow = typeof posTransactionItems.$inferSelect
 export type PosTransactionItemAddonRow = typeof posTransactionItemAddons.$inferSelect
+export type PosTransactionItemInstructionRow = typeof posTransactionItemInstructions.$inferSelect

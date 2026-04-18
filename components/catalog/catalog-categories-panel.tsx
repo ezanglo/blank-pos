@@ -29,6 +29,7 @@ import {
 } from "@tanstack/react-table"
 import {
   ChevronDownIcon,
+  ClipboardListIcon,
   GripVerticalIcon,
   Layers2Icon,
   PencilIcon,
@@ -67,6 +68,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import {
+  createCategoryInstruction,
+  deleteCategoryInstruction,
+  updateCategoryInstruction,
+} from "@/lib/actions/catalog-category-instructions"
+import {
   createCategoryVariant,
   deleteCategoryVariant,
   updateCategoryVariant,
@@ -77,7 +83,11 @@ import {
   reorderProductCategories,
   updateProductCategory,
 } from "@/lib/actions/catalog-categories"
-import type { ProductCategoryRow, ProductCategoryVariantRow } from "@/lib/db/schema-catalog"
+import type {
+  ProductCategoryInstructionRow,
+  ProductCategoryRow,
+  ProductCategoryVariantRow,
+} from "@/lib/db/schema-catalog"
 
 function sortCategories(rows: ProductCategoryRow[]) {
   return [...rows].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
@@ -177,10 +187,12 @@ export function CatalogCategoriesPanel({
   businessSlug,
   categories,
   categoryVariants,
+  categoryInstructions,
 }: {
   businessSlug: string
   categories: ProductCategoryRow[]
   categoryVariants: ProductCategoryVariantRow[]
+  categoryInstructions: ProductCategoryInstructionRow[]
 }) {
   const router = useRouter()
   const categoriesRef = useRef(categories)
@@ -214,14 +226,31 @@ export function CatalogCategoriesPanel({
     return m
   }, [categoryVariants])
 
+  const instructionCountByCategoryId = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const i of categoryInstructions) {
+      m.set(i.categoryId, (m.get(i.categoryId) ?? 0) + 1)
+    }
+    return m
+  }, [categoryInstructions])
+
+  const instructionLabelsSearchByCategoryId = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const i of categoryInstructions) {
+      const cur = m.get(i.categoryId) ?? ""
+      m.set(i.categoryId, `${cur} ${i.label}`)
+    }
+    return m
+  }, [categoryInstructions])
+
   const displayData = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return ordered
     return ordered.filter((row) => {
-      const blob = `${row.sortOrder} ${row.name} ${row.icon ?? ""} ${variantLabelsSearchByCategoryId.get(row.id) ?? ""}`
+      const blob = `${row.sortOrder} ${row.name} ${row.icon ?? ""} ${variantLabelsSearchByCategoryId.get(row.id) ?? ""} ${instructionLabelsSearchByCategoryId.get(row.id) ?? ""}`
       return blob.toLowerCase().includes(q)
     })
-  }, [ordered, query, variantLabelsSearchByCategoryId])
+  }, [ordered, query, variantLabelsSearchByCategoryId, instructionLabelsSearchByCategoryId])
 
   const sortableId = useMemo(() => `category-dnd-${businessSlug}`, [businessSlug])
   const sensors = useSensors(
@@ -309,6 +338,36 @@ export function CatalogCategoriesPanel({
         },
       },
       {
+        id: "instructions",
+        header: "Instructions",
+        accessorFn: (row) => instructionCountByCategoryId.get(row.id) ?? 0,
+        cell: ({ row }) => {
+          const n = instructionCountByCategoryId.get(row.original.id) ?? 0
+          const label = n === 1 ? "1 instruction" : `${n} instructions`
+          return (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-auto gap-0 px-1 font-normal hover:bg-muted/80"
+              onClick={() => {
+                setInstrError(null)
+                setInstructionsView("list")
+                setInstrEdit(null)
+                setNewInstrLabel("")
+                setNewInstrSort("0")
+                setInstructionsCategory(row.original)
+              }}
+              aria-label={`${row.original.name}: ${label}`}
+            >
+              <Badge variant="outline" className="text-muted-foreground gap-1 font-normal">
+                <ClipboardListIcon className="size-3 shrink-0" />
+                {label}
+              </Badge>
+            </Button>
+          )
+        },
+      },
+      {
         id: "actions",
         header: "",
         enableHiding: false,
@@ -339,7 +398,7 @@ export function CatalogCategoriesPanel({
         ),
       },
     ],
-    [variantCountByCategoryId],
+    [variantCountByCategoryId, instructionCountByCategoryId],
   )
 
   const table = useReactTable({
@@ -370,12 +429,29 @@ export function CatalogCategoriesPanel({
   const [variantBusy, setVariantBusy] = useState(false)
   const [variantError, setVariantError] = useState<string | null>(null)
 
+  const [instructionsCategory, setInstructionsCategory] = useState<ProductCategoryRow | null>(null)
+  const [instructionsView, setInstructionsView] = useState<"list" | "edit">("list")
+  const [instrEdit, setInstrEdit] = useState<ProductCategoryInstructionRow | null>(null)
+  const [newInstrLabel, setNewInstrLabel] = useState("")
+  const [newInstrSort, setNewInstrSort] = useState("0")
+  const [iEditLabel, setIEditLabel] = useState("")
+  const [iEditSort, setIEditSort] = useState("0")
+  const [instrBusy, setInstrBusy] = useState(false)
+  const [instrError, setInstrError] = useState<string | null>(null)
+
   const variantsForOpenCategory = useMemo(() => {
     if (!variantsCategory) return []
     return categoryVariants
       .filter((v) => v.categoryId === variantsCategory.id)
       .sort((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label))
   }, [categoryVariants, variantsCategory])
+
+  const instructionsForOpenCategory = useMemo(() => {
+    if (!instructionsCategory) return []
+    return categoryInstructions
+      .filter((i) => i.categoryId === instructionsCategory.id)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label))
+  }, [categoryInstructions, instructionsCategory])
 
   const resetForm = (row?: ProductCategoryRow | null) => {
     setFormError(null)
@@ -512,7 +588,9 @@ export function CatalogCategoriesPanel({
                           ? "Name"
                           : column.id === "variants"
                             ? "Variants"
-                            : column.id
+                            : column.id === "instructions"
+                              ? "Instructions"
+                              : column.id
                     return (
                       <DropdownMenuCheckboxItem
                         key={column.id}
@@ -870,6 +948,195 @@ export function CatalogCategoriesPanel({
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setVariantsCategory(null)}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!instructionsCategory}
+        onOpenChange={(o) => {
+          if (!o) {
+            setInstructionsCategory(null)
+            setInstructionsView("list")
+            setInstrEdit(null)
+            setInstrError(null)
+          }
+        }}
+      >
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {instructionsView === "edit"
+                ? "Edit special instruction"
+                : `Special instructions · ${instructionsCategory?.name ?? ""}`}
+            </DialogTitle>
+            <DialogDescription>
+              Kitchen and prep notes for this category (e.g. sugar level, ice, allergens). Staff can select these on
+              the POS; they appear on receipts and do not change price.
+            </DialogDescription>
+          </DialogHeader>
+
+          {instructionsView === "edit" && instrEdit && instructionsCategory ? (
+            <div className="grid gap-4">
+              <RootFormError message={instrError ?? undefined} />
+              <Field>
+                <FieldLabel>Label</FieldLabel>
+                <Input value={iEditLabel} onChange={(e) => setIEditLabel(e.target.value)} />
+              </Field>
+              <Field>
+                <FieldLabel>Sort order</FieldLabel>
+                <Input value={iEditSort} onChange={(e) => setIEditSort(e.target.value)} inputMode="numeric" />
+              </Field>
+              <DialogFooter className="gap-2 sm:justify-between">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setInstructionsView("list")
+                    setInstrEdit(null)
+                    setInstrError(null)
+                  }}
+                >
+                  Back
+                </Button>
+                <Button
+                  type="button"
+                  disabled={instrBusy}
+                  onClick={async () => {
+                    setInstrBusy(true)
+                    setInstrError(null)
+                    try {
+                      await updateCategoryInstruction(businessSlug, {
+                        id: instrEdit.id,
+                        categoryId: instructionsCategory.id,
+                        label: iEditLabel,
+                        sortOrder: Number(iEditSort) || 0,
+                      })
+                      setInstructionsView("list")
+                      setInstrEdit(null)
+                      router.refresh()
+                    } catch (e) {
+                      setInstrError(e instanceof Error ? e.message : "Something went wrong.")
+                    } finally {
+                      setInstrBusy(false)
+                    }
+                  }}
+                >
+                  Save
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              <RootFormError message={instrError ?? undefined} />
+              <div className="space-y-2 rounded-xl border">
+                {instructionsForOpenCategory.length === 0 ? (
+                  <p className="text-muted-foreground p-4 text-sm">No special instructions yet.</p>
+                ) : (
+                  <ul className="divide-y">
+                    {instructionsForOpenCategory.map((i) => (
+                      <li key={i.id} className="flex items-center justify-between gap-2 px-3 py-2">
+                        <div>
+                          <p className="text-sm font-medium">{i.label}</p>
+                          <p className="text-muted-foreground text-xs">Order {i.sortOrder}</p>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            type="button"
+                            size="icon-sm"
+                            variant="ghost"
+                            aria-label="Edit instruction"
+                            onClick={() => {
+                              setInstrEdit(i)
+                              setIEditLabel(i.label)
+                              setIEditSort(String(i.sortOrder))
+                              setInstructionsView("edit")
+                              setInstrError(null)
+                            }}
+                          >
+                            <PencilIcon className="size-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon-sm"
+                            variant="ghost"
+                            aria-label="Delete instruction"
+                            onClick={async () => {
+                              if (!instructionsCategory) return
+                              setInstrBusy(true)
+                              setInstrError(null)
+                              try {
+                                await deleteCategoryInstruction(businessSlug, instructionsCategory.id, i.id)
+                                router.refresh()
+                              } catch (e) {
+                                setInstrError(e instanceof Error ? e.message : "Something went wrong.")
+                              } finally {
+                                setInstrBusy(false)
+                              }
+                            }}
+                          >
+                            <Trash2Icon className="size-4" />
+                          </Button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="border-t pt-4">
+                <p className="mb-2 text-sm font-medium">Add instruction</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel>Label</FieldLabel>
+                    <Input
+                      value={newInstrLabel}
+                      onChange={(e) => setNewInstrLabel(e.target.value)}
+                      placeholder="25% sugar"
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel>Sort order</FieldLabel>
+                    <Input
+                      value={newInstrSort}
+                      onChange={(e) => setNewInstrSort(e.target.value)}
+                      inputMode="numeric"
+                    />
+                  </Field>
+                </div>
+                <Button
+                  type="button"
+                  className="mt-3"
+                  variant="secondary"
+                  disabled={instrBusy || !instructionsCategory}
+                  onClick={async () => {
+                    if (!instructionsCategory) return
+                    setInstrBusy(true)
+                    setInstrError(null)
+                    try {
+                      await createCategoryInstruction(businessSlug, {
+                        categoryId: instructionsCategory.id,
+                        label: newInstrLabel,
+                        sortOrder: Number(newInstrSort) || 0,
+                      })
+                      setNewInstrLabel("")
+                      setNewInstrSort("0")
+                      router.refresh()
+                    } catch (e) {
+                      setInstrError(e instanceof Error ? e.message : "Something went wrong.")
+                    } finally {
+                      setInstrBusy(false)
+                    }
+                  }}
+                >
+                  Add instruction
+                </Button>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setInstructionsCategory(null)}>
                   Close
                 </Button>
               </DialogFooter>

@@ -12,3 +12,12 @@ export function posCartAddonSignature(
     .map((a) => `${a.id}:${a.q}`)
     .join("|")
 }
+
+/** Merge key for special instructions (sorted instruction ids, no quantity). */
+export function posCartInstructionSignature(instructions: { instructionId: string }[]): string {
+  if (instructions.length === 0) return ""
+  return [...instructions]
+    .map((i) => i.instructionId)
+    .sort((a, b) => a.localeCompare(b))
+    .join("|")
+}

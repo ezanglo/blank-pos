@@ -4,7 +4,12 @@ import { getDb } from "@/lib/db"
 import { user } from "@/lib/db/auth-schema"
 import { businessDetails, businessLocation } from "@/lib/db/schema-app"
 import { product, productPrice } from "@/lib/db/schema-catalog"
-import { posTransactionItemAddons, posTransactionItems, posTransactions } from "@/lib/db/schema-transactions"
+import {
+  posTransactionItemAddons,
+  posTransactionItemInstructions,
+  posTransactionItems,
+  posTransactions,
+} from "@/lib/db/schema-transactions"
 
 export type TransactionReceiptAddonLine = {
   id: string
@@ -12,6 +17,11 @@ export type TransactionReceiptAddonLine = {
   quantity: number
   unitPriceMinor: bigint
   subtotalMinor: bigint
+}
+
+export type TransactionReceiptInstructionLine = {
+  id: string
+  label: string
 }
 
 export type TransactionReceiptLine = {
@@ -22,6 +32,7 @@ export type TransactionReceiptLine = {
   unitPriceMinor: bigint
   subtotalMinor: bigint
   addons: TransactionReceiptAddonLine[]
+  instructions: TransactionReceiptInstructionLine[]
 }
 
 export type TransactionReceiptBundle = {
@@ -107,6 +118,22 @@ export async function getTransactionReceiptBundle(
     addonsByItem.set(a.transactionItemId, list)
   }
 
+  const instructionRows =
+    itemIds.length > 0
+      ? await db
+          .select()
+          .from(posTransactionItemInstructions)
+          .where(inArray(posTransactionItemInstructions.transactionItemId, itemIds))
+          .orderBy(asc(posTransactionItemInstructions.sortOrder), asc(posTransactionItemInstructions.id))
+      : []
+
+  const instructionsByItem = new Map<string, TransactionReceiptInstructionLine[]>()
+  for (const row of instructionRows) {
+    const list = instructionsByItem.get(row.transactionItemId) ?? []
+    list.push({ id: row.id, label: row.label })
+    instructionsByItem.set(row.transactionItemId, list)
+  }
+
   const lines: TransactionReceiptLine[] = linesWithLabels.map((r) => ({
     id: r.item.id,
     productName: r.productName,
@@ -115,6 +142,7 @@ export async function getTransactionReceiptBundle(
     unitPriceMinor: r.item.unitPriceMinor,
     subtotalMinor: r.item.subtotalMinor,
     addons: addonsByItem.get(r.item.id) ?? [],
+    instructions: instructionsByItem.get(r.item.id) ?? [],
   }))
 
   return {

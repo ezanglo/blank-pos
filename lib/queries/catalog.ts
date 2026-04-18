@@ -8,6 +8,7 @@ import {
   inventoryStock,
   product,
   productCategory,
+  productCategoryInstruction,
   productCategoryVariant,
   productIngredient,
   productLocation,
@@ -51,6 +52,56 @@ export async function listCategoryVariantsForOrganization(
     .where(eq(productCategory.organizationId, organizationId))
     .orderBy(asc(productCategoryVariant.sortOrder), asc(productCategoryVariant.label))
     .then((rows) => rows.map((r) => r.v))
+}
+
+export type CategoryInstructionListRow = typeof productCategoryInstruction.$inferSelect
+
+export async function listCategoryInstructionsForOrganization(
+  organizationId: string,
+): Promise<CategoryInstructionListRow[]> {
+  const db = getDb()
+  return db
+    .select({ i: productCategoryInstruction })
+    .from(productCategoryInstruction)
+    .innerJoin(productCategory, eq(productCategoryInstruction.categoryId, productCategory.id))
+    .where(eq(productCategory.organizationId, organizationId))
+    .orderBy(asc(productCategoryInstruction.sortOrder), asc(productCategoryInstruction.label))
+    .then((rows) => rows.map((r) => r.i))
+}
+
+/** POS: preset instructions per category (no price). */
+export type PosCategoryInstruction = {
+  id: string
+  label: string
+  sortOrder: number
+}
+
+export async function listInstructionsByCategoryIdForPos(
+  organizationId: string,
+): Promise<Record<string, PosCategoryInstruction[]>> {
+  const db = getDb()
+  const rows = await db
+    .select({ categoryId: productCategoryInstruction.categoryId, row: productCategoryInstruction })
+    .from(productCategoryInstruction)
+    .innerJoin(productCategory, eq(productCategoryInstruction.categoryId, productCategory.id))
+    .where(eq(productCategory.organizationId, organizationId))
+    .orderBy(
+      asc(productCategoryInstruction.categoryId),
+      asc(productCategoryInstruction.sortOrder),
+      asc(productCategoryInstruction.label),
+    )
+
+  const out: Record<string, PosCategoryInstruction[]> = {}
+  for (const r of rows) {
+    const list = out[r.categoryId] ?? []
+    list.push({
+      id: r.row.id,
+      label: r.row.label,
+      sortOrder: r.row.sortOrder,
+    })
+    out[r.categoryId] = list
+  }
+  return out
 }
 
 export type InventoryItemWithStock = {

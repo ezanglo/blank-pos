@@ -9,11 +9,14 @@ import { getDb } from "@/lib/db"
 import {
   product,
   productAddon,
+  productCategory,
   productCategoryAddon,
+  productCategoryInstruction,
   productPrice,
 } from "@/lib/db/schema-catalog"
 import {
   posTransactionItemAddons,
+  posTransactionItemInstructions,
   posTransactionItems,
   posTransactions,
 } from "@/lib/db/schema-transactions"
@@ -68,6 +71,9 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
   const productIds = [...new Set(input.lines.map((l) => l.productId))]
   const priceIds = [...new Set(input.lines.map((l) => l.productPriceId))]
   const allAddonIds = [...new Set(input.lines.flatMap((l) => (l.addons ?? []).map((a) => a.addonId)))]
+  const allInstructionIds = [
+    ...new Set(input.lines.flatMap((l) => (l.instructions ?? []).map((i) => i.instructionId))),
+  ]
 
   const [products, prices] = await Promise.all([
     db
@@ -100,6 +106,21 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
       : []
   const categoryAddonKey = new Set(categoryAddonLinks.map((l) => `${l.addonId}:${l.categoryId}`))
 
+  const instructionRows =
+    allInstructionIds.length > 0
+      ? await db
+          .select({ instruction: productCategoryInstruction })
+          .from(productCategoryInstruction)
+          .innerJoin(productCategory, eq(productCategoryInstruction.categoryId, productCategory.id))
+          .where(
+            and(
+              eq(productCategory.organizationId, organizationId),
+              inArray(productCategoryInstruction.id, allInstructionIds),
+            ),
+          )
+      : []
+  const instructionById = new Map(instructionRows.map((r) => [r.instruction.id, r.instruction]))
+
   const productById = new Map(products.map((p) => [p.id, p]))
   const priceById = new Map(prices.map((p) => [p.id, p]))
 
@@ -111,6 +132,12 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
     subtotalMinor: bigint
   }
 
+  type ResolvedInstruction = {
+    instructionId: string
+    label: string
+    sortOrder: number
+  }
+
   const resolvedLines: {
     productId: string
     productPriceId: string
@@ -118,6 +145,7 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
     unitPriceMinor: bigint
     subtotalMinor: bigint
     addons: ResolvedAddon[]
+    instructions: ResolvedInstruction[]
   }[] = []
 
   for (const line of input.lines) {
@@ -147,6 +175,8 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
     let productSubtotalMinor = unitPriceMinor * BigInt(line.quantity)
     const resolvedAddons: ResolvedAddon[] = []
 
+    const instructionsInput = line.instructions ?? []
+
     for (const a of addonsInput) {
       const ad = addonById.get(a.addonId)
       if (!ad || !ad.isActive) {
@@ -173,6 +203,27 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
       productSubtotalMinor += addonSubtotal
     }
 
+    const resolvedInstructions: ResolvedInstruction[] = []
+    let sortIdx = 0
+    for (const ins of instructionsInput) {
+      const row = instructionById.get(ins.instructionId)
+      if (!row) {
+        return { ok: false, error: "product", message: "One or more special instructions are not available." }
+      }
+      if (row.categoryId !== p.categoryId) {
+        return {
+          ok: false,
+          error: "product",
+          message: "A special instruction is not allowed for this product category.",
+        }
+      }
+      resolvedInstructions.push({
+        instructionId: row.id,
+        label: row.label,
+        sortOrder: sortIdx++,
+      })
+    }
+
     resolvedLines.push({
       productId: p.id,
       productPriceId: pr.id,
@@ -180,6 +231,7 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
       unitPriceMinor,
       subtotalMinor: productSubtotalMinor,
       addons: resolvedAddons,
+      instructions: resolvedInstructions,
     })
   }
 
@@ -227,6 +279,15 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
             unitPriceMinor: ad.unitPriceMinor,
             quantity: ad.addonQuantity,
             subtotalMinor: ad.subtotalMinor,
+          })
+        }
+        for (const ins of line.instructions) {
+          await tx.insert(posTransactionItemInstructions).values({
+            id: randomUUID(),
+            transactionItemId: itemId,
+            instructionId: ins.instructionId,
+            label: ins.label,
+            sortOrder: ins.sortOrder,
           })
         }
       }

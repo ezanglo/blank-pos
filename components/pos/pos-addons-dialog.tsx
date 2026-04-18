@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import type { PosCategoryInstruction } from "@/lib/queries/catalog"
 import type { PosCategoryAddon } from "@/lib/queries/catalog-addons"
 import type { PosProductCard } from "@/lib/pos/pos-types"
 import { formatMinorToDecimal2, parseMinorFromSerialized } from "@/lib/money"
@@ -25,6 +26,7 @@ export type PosAddonDialogPick = {
   quantity: number
   /** Per-unit add-on quantities (each selected add-on defaults to 1). */
   selections: { addonId: string; name: string; unitPriceMinor: string; currency: string; quantity: number }[]
+  instructionSelections: { instructionId: string; label: string }[]
 }
 
 type Props = {
@@ -32,6 +34,7 @@ type Props = {
   productPriceId: string | null
   quantity: number
   addons: PosCategoryAddon[]
+  instructions: PosCategoryInstruction[]
   open: boolean
   onOpenChange: (open: boolean) => void
   onConfirm: (pick: PosAddonDialogPick) => void
@@ -42,20 +45,34 @@ export function PosAddonsDialog({
   productPriceId,
   quantity,
   addons,
+  instructions,
   open,
   onOpenChange,
   onConfirm,
 }: Props) {
-  const [selected, setSelected] = React.useState<Set<string>>(() => new Set())
+  const [selectedAddons, setSelectedAddons] = React.useState<Set<string>>(() => new Set())
+  const [selectedInstructions, setSelectedInstructions] = React.useState<Set<string>>(() => new Set())
 
   React.useEffect(() => {
-    if (open) setSelected(new Set())
+    if (open) {
+      setSelectedAddons(new Set())
+      setSelectedInstructions(new Set())
+    }
   }, [open, product?.id, productPriceId])
 
   const priceRow = product && productPriceId ? product.prices.find((p) => p.id === productPriceId) : null
 
-  function toggle(id: string, checked: boolean) {
-    setSelected((prev) => {
+  function toggleAddon(id: string, checked: boolean) {
+    setSelectedAddons((prev) => {
+      const next = new Set(prev)
+      if (checked) next.add(id)
+      else next.delete(id)
+      return next
+    })
+  }
+
+  function toggleInstruction(id: string, checked: boolean) {
+    setSelectedInstructions((prev) => {
       const next = new Set(prev)
       if (checked) next.add(id)
       else next.delete(id)
@@ -66,7 +83,7 @@ export function PosAddonsDialog({
   function confirm() {
     if (!product || !productPriceId || !priceRow) return
     const selections = addons
-      .filter((a) => selected.has(a.id))
+      .filter((a) => selectedAddons.has(a.id))
       .map((a) => ({
         addonId: a.id,
         name: a.name,
@@ -74,7 +91,10 @@ export function PosAddonsDialog({
         currency: a.currency,
         quantity: 1,
       }))
-    onConfirm({ product, productPriceId, quantity, selections })
+    const instructionSelections = instructions
+      .filter((i) => selectedInstructions.has(i.id))
+      .map((i) => ({ instructionId: i.id, label: i.label }))
+    onConfirm({ product, productPriceId, quantity, selections, instructionSelections })
     onOpenChange(false)
   }
 
@@ -99,7 +119,11 @@ export function PosAddonsDialog({
                 </div>
                 <div className="min-w-0 flex-1 space-y-1">
                   <DialogTitle className="text-left text-xl leading-snug font-semibold tracking-tight">
-                    Add-ons
+                    {addons.length > 0 && instructions.length > 0
+                      ? "Add-ons & instructions"
+                      : addons.length > 0
+                        ? "Add-ons"
+                        : "Special instructions"}
                   </DialogTitle>
                   <DialogDescription className="text-left text-sm">
                     {product.name}
@@ -116,38 +140,76 @@ export function PosAddonsDialog({
               </div>
             </>
           ) : (
-            <DialogTitle className="sr-only">Add-ons</DialogTitle>
+            <DialogTitle className="sr-only">Item options</DialogTitle>
           )}
         </DialogHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
-          {!product || addons.length === 0 ? (
-            <p className="px-2 py-6 text-center text-base text-muted-foreground">No add-ons for this category.</p>
+          {!product || (addons.length === 0 && instructions.length === 0) ? (
+            <p className="px-2 py-6 text-center text-base text-muted-foreground">No options for this category.</p>
           ) : (
-            <ul className="flex flex-col gap-2" role="list" aria-label="Add-ons">
-              {addons.map((a) => {
-                const unit = formatMinorToDecimal2(parseMinorFromSerialized(a.amountMinor))
-                const isOn = selected.has(a.id)
-                return (
-                  <li key={a.id}>
-                    <label
-                      className={cn(
-                        "flex min-h-16 cursor-pointer items-center gap-3 rounded-2xl border-2 border-border bg-background px-4 py-3 shadow-sm",
-                        isOn && "border-primary/50 bg-muted/40",
-                      )}
-                    >
-                      <Checkbox checked={isOn} onCheckedChange={(v) => toggle(a.id, v === true)} />
-                      <div className="min-w-0 flex-1">
-                        <span className="font-semibold leading-tight">{a.name}</span>
-                        <span className="text-muted-foreground mt-0.5 block text-xs">
-                          +{unit} {a.currency}
-                        </span>
-                      </div>
-                    </label>
-                  </li>
-                )
-              })}
-            </ul>
+            <div className="flex flex-col gap-6">
+              {addons.length > 0 ? (
+                <section aria-label="Add-ons">
+                  <h3 className="mb-2 px-1 text-sm font-semibold text-muted-foreground">Add-ons</h3>
+                  <ul className="flex flex-col gap-2" role="list">
+                    {addons.map((a) => {
+                      const unit = formatMinorToDecimal2(parseMinorFromSerialized(a.amountMinor))
+                      const isOn = selectedAddons.has(a.id)
+                      return (
+                        <li key={a.id}>
+                          <label
+                            className={cn(
+                              "flex min-h-16 cursor-pointer items-center gap-3 rounded-2xl border-2 border-border bg-background px-4 py-3 shadow-sm",
+                              isOn && "border-primary/50 bg-muted/40",
+                            )}
+                          >
+                            <Checkbox
+                              checked={isOn}
+                              onCheckedChange={(v) => toggleAddon(a.id, v === true)}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <span className="font-semibold leading-tight">{a.name}</span>
+                              <span className="text-muted-foreground mt-0.5 block text-xs">
+                                +{unit} {a.currency}
+                              </span>
+                            </div>
+                          </label>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </section>
+              ) : null}
+              {instructions.length > 0 ? (
+                <section aria-label="Special instructions">
+                  <h3 className="mb-2 px-1 text-sm font-semibold text-muted-foreground">
+                    Special instructions
+                  </h3>
+                  <ul className="flex flex-col gap-2" role="list">
+                    {instructions.map((i) => {
+                      const isOn = selectedInstructions.has(i.id)
+                      return (
+                        <li key={i.id}>
+                          <label
+                            className={cn(
+                              "flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border-2 border-border bg-background px-4 py-3 shadow-sm",
+                              isOn && "border-primary/50 bg-muted/40",
+                            )}
+                          >
+                            <Checkbox
+                              checked={isOn}
+                              onCheckedChange={(v) => toggleInstruction(i.id, v === true)}
+                            />
+                            <span className="min-w-0 flex-1 font-semibold leading-tight">{i.label}</span>
+                          </label>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </section>
+              ) : null}
+            </div>
           )}
         </div>
 

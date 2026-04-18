@@ -30,6 +30,16 @@ export const catalogCategoryVariantUpdateSchema = catalogCategoryVariantCreateSc
   id: z.string().min(1),
 })
 
+export const catalogCategoryInstructionCreateSchema = z.object({
+  categoryId: z.string().min(1),
+  label: z.string().trim().min(1, "Label is required.").max(200),
+  sortOrder: z.coerce.number().int().min(0).max(1_000_000).optional(),
+})
+
+export const catalogCategoryInstructionUpdateSchema = catalogCategoryInstructionCreateSchema.extend({
+  id: z.string().min(1),
+})
+
 export const catalogInventoryItemCreateSchema = z.object({
   name: z.string().trim().min(1, "Name is required.").max(200),
   unit: z.string().trim().min(1, "Unit is required.").max(64),

@@ -117,6 +117,13 @@ export default async function PosReceiptPage({
                       ))}
                     </ul>
                   ) : null}
+                  {line.instructions.length > 0 ? (
+                    <ul className="mt-1.5 list-none space-y-0.5 pl-0 text-xs text-muted-foreground">
+                      {line.instructions.map((ins) => (
+                        <li key={ins.id}>Kitchen: {ins.label}</li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </td>
                 <td className="py-2 px-1 text-center align-top tabular-nums">{line.quantity}</td>
                 <td className="py-2 pl-2 text-right align-top font-medium tabular-nums">

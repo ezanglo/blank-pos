@@ -2,7 +2,7 @@
 
 import { create } from "zustand"
 
-import { posCartAddonSignature } from "@/lib/pos/pos-addon-signature"
+import { posCartAddonSignature, posCartInstructionSignature } from "@/lib/pos/pos-addon-signature"
 import { pickDefaultProductPriceId, type PosProductCard } from "@/lib/pos/pos-types"
 
 export type PosCartAddonLine = {
@@ -25,6 +25,7 @@ export type PosCartLine = {
   currency: string
   quantity: number
   addons: PosCartAddonLine[]
+  instructions: PosCartInstructionLine[]
 }
 
 export type PosCartAddonSelection = {
@@ -33,6 +34,17 @@ export type PosCartAddonSelection = {
   unitPriceMinor: string
   currency: string
   quantity: number
+}
+
+export type PosCartInstructionLine = {
+  key: string
+  instructionId: string
+  label: string
+}
+
+export type PosCartInstructionSelection = {
+  instructionId: string
+  label: string
 }
 
 function newLineKey(): string {
@@ -46,6 +58,7 @@ function lineFromTier(
   key: string,
   quantity: number,
   addonSelections: PosCartAddonSelection[],
+  instructionSelections: PosCartInstructionSelection[],
 ): PosCartLine | null {
   const pr = p.prices.find((x) => x.id === productPriceId)
   if (!pr) return null
@@ -58,6 +71,11 @@ function lineFromTier(
     currency: s.currency,
     quantity: Math.max(1, Math.min(99, Math.floor(s.quantity))),
   }))
+  const instructions: PosCartInstructionLine[] = instructionSelections.map((s) => ({
+    key: newLineKey(),
+    instructionId: s.instructionId,
+    label: s.label,
+  }))
   return {
     key,
     productId: p.id,
@@ -68,6 +86,7 @@ function lineFromTier(
     currency: pr.currency,
     quantity: q,
     addons,
+    instructions,
   }
 }
 
@@ -75,7 +94,8 @@ type PosCartState = {
   lines: PosCartLine[]
   cartAnnounce: string
   /**
-   * Merges with an existing line only when product, price tier, and add-on signature match.
+   * Merges with an existing line only when product, price tier, add-on signature, and instruction
+   * signature match.
    * `productPriceId` optional: when set, adds that tier; otherwise uses default tier.
    * `quantity` optional: units to add (default 1). Merging adds this many to the matched line.
    */
@@ -84,6 +104,7 @@ type PosCartState = {
     productPriceId?: string,
     quantity?: number,
     addonSelections?: PosCartAddonSelection[],
+    instructionSelections?: PosCartInstructionSelection[],
   ) => void
   removeLine: (key: string) => void
   setQuantity: (key: string, quantity: number) => void
@@ -94,21 +115,23 @@ type PosCartState = {
 export const usePosCartStore = create<PosCartState>((set) => ({
   lines: [],
   cartAnnounce: "",
-  addProduct: (p, productPriceId, quantity = 1, addonSelections = []) => {
+  addProduct: (p, productPriceId, quantity = 1, addonSelections = [], instructionSelections = []) => {
     const tier = productPriceId ?? pickDefaultProductPriceId(p.prices)
     if (!tier) {
       set({ cartAnnounce: `${p.name} has no price.` })
       return
     }
     const addQty = Math.max(1, Math.min(9999, Math.floor(quantity)))
-    const incomingSig = posCartAddonSignature(addonSelections)
+    const incomingAddonSig = posCartAddonSignature(addonSelections)
+    const incomingInstrSig = posCartInstructionSignature(instructionSelections)
     const key = newLineKey()
     set((state) => {
       const hit = state.lines.find(
         (l) =>
           l.productId === p.id &&
           l.productPriceId === tier &&
-          posCartAddonSignature(l.addons) === incomingSig,
+          posCartAddonSignature(l.addons) === incomingAddonSig &&
+          posCartInstructionSignature(l.instructions) === incomingInstrSig,
       )
       if (hit) {
         const lines = state.lines.map((l) =>
@@ -117,7 +140,7 @@ export const usePosCartStore = create<PosCartState>((set) => ({
         const nextQty = lines.find((x) => x.key === hit.key)!.quantity
         return { lines, cartAnnounce: `${p.name}, quantity ${nextQty}` }
       }
-      const line = lineFromTier(p, tier, key, addQty, addonSelections)
+      const line = lineFromTier(p, tier, key, addQty, addonSelections, instructionSelections)
       if (!line) return state
       return {
         lines: [...state.lines, line],
