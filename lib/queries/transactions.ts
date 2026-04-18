@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm"
+import { and, asc, desc, eq, inArray } from "drizzle-orm"
 
 import { getDb } from "@/lib/db"
 import { user } from "@/lib/db/auth-schema"
@@ -52,6 +52,23 @@ export async function findTransactionIdByCheckoutId(
     .select({ id: posTransactions.id })
     .from(posTransactions)
     .where(and(eq(posTransactions.organizationId, organizationId), eq(posTransactions.checkoutId, checkoutId)))
+    .limit(1)
+  return row?.id ?? null
+}
+
+/** Most recent completed sale at this branch (for POS “last receipt” shortcut). */
+export async function getLatestTransactionIdForLocation(
+  organizationId: string,
+  locationId: string,
+): Promise<string | null> {
+  const db = getDb()
+  const [row] = await db
+    .select({ id: posTransactions.id })
+    .from(posTransactions)
+    .where(
+      and(eq(posTransactions.organizationId, organizationId), eq(posTransactions.locationId, locationId)),
+    )
+    .orderBy(desc(posTransactions.createdAt))
     .limit(1)
   return row?.id ?? null
 }

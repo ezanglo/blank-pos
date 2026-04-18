@@ -127,3 +127,29 @@
     @apply font-sans;
     }
 }
+
+/* Receipt print isolation (see #pos-receipt-root). Only applies when a receipt is on the page. */
+@media print {
+  body:has(#pos-receipt-root) * {
+    visibility: hidden;
+  }
+  body:has(#pos-receipt-root) #pos-receipt-root,
+  body:has(#pos-receipt-root) #pos-receipt-root * {
+    visibility: visible;
+  }
+  body:has(#pos-receipt-root) #pos-receipt-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 12mm 10mm;
+    background: #fff;
+    color: #000;
+    font-size: 11pt;
+  }
+  body:has(#pos-receipt-root) #pos-receipt-root .no-print {
+    display: none !important;
+  }
+}

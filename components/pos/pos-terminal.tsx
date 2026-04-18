@@ -2,6 +2,7 @@
 
 import {
   ChefHatIcon,
+  FileTextIcon,
   Layers2Icon,
   MinusIcon,
   PlusIcon,
@@ -11,13 +12,30 @@ import {
   XIcon,
 } from "lucide-react"
 import Image from "next/image"
-import Link from "next/link"
 import * as React from "react"
 import { toast } from "sonner"
 
+import { loadPosReceiptPreview } from "@/lib/actions/pos-receipt"
 import { PosAddonsDialog } from "@/components/pos/pos-addons-dialog"
 import { PosPricePickerDialog } from "@/components/pos/pos-price-picker-dialog"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { PosReceiptDocument } from "@/components/pos/pos-receipt-document"
+import { PrintReceiptButton } from "@/components/pos/print-receipt-button"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { ButtonGroup } from "@/components/ui/button-group"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -43,6 +61,7 @@ import {
 import type { PosProductCard } from "@/lib/pos/pos-types"
 import type { PosCategoryInstruction } from "@/lib/queries/catalog"
 import type { PosCategoryAddon } from "@/lib/queries/catalog-addons"
+import type { PosReceiptPreviewModel } from "@/lib/pos/receipt-preview"
 import { usePosCartStore, type PosCartLine } from "@/lib/stores/pos-cart-store"
 import { cn } from "@/lib/utils"
 
@@ -67,6 +86,294 @@ function lineSubtotalMinor(line: PosCartLine): bigint {
   return base + add
 }
 
+/** Matches Tailwind `lg:` (1024px). Initial `false` keeps SSR + first paint aligned; updates in useLayoutEffect. */
+function useViewportMinLg() {
+  const [isLg, setIsLg] = React.useState(false)
+  React.useLayoutEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)")
+    const apply = () => setIsLg(mq.matches)
+    apply()
+    mq.addEventListener("change", apply)
+    return () => mq.removeEventListener("change", apply)
+  }, [])
+  return isLg
+}
+
+function LastReceiptBadge({
+  transactionId,
+  onOpen,
+  compact,
+}: {
+  transactionId: string | null
+  onOpen: () => void
+  /** Narrow toolbar: shorter label */
+  compact?: boolean
+}) {
+  if (!transactionId) return null
+  return (
+    <Badge
+      variant="secondary"
+      render={<button type="button" />}
+      className={cn(
+        "h-7 max-w-[min(100%,12rem)] shrink-0 cursor-pointer truncate px-2 py-0 text-[11px] font-semibold sm:h-6 sm:text-xs",
+        compact && "max-w-36 sm:max-w-48",
+      )}
+      title="Open last sale receipt for this branch"
+      aria-label="Open receipt for last sale at this branch"
+      onClick={onOpen}
+    >
+      <FileTextIcon data-icon="inline-start" className="size-3 shrink-0" />
+      {compact ? <span className="truncate">Receipt</span> : <span className="truncate">Last receipt</span>}
+    </Badge>
+  )
+}
+
+type PosCartPanelInnerProps = {
+  lines: PosCartLine[]
+  products: PosProductCard[]
+  addonsByCategory: Record<string, PosCategoryAddon[]>
+  instructionsByCategory: Record<string, PosCategoryInstruction[]>
+  cartAnnounce: string
+  grandMinor: bigint
+  paymentMethod: (typeof transactionPaymentMethodValues)[number]
+  setPaymentMethod: (v: (typeof transactionPaymentMethodValues)[number]) => void
+  submitting: boolean
+  onCheckout: () => void
+  onCloseCart: () => void
+  lastOrderTransactionId: string | null
+  onOpenLastReceipt: () => void
+  removeLine: (key: string) => void
+  setQuantity: (key: string, qty: number) => void
+  setLineOptionsEdit: React.Dispatch<
+    React.SetStateAction<null | { lineKey: string; variant: "addons" | "instructions" }>
+  >
+}
+
+function PosCartPanelInner({
+  lines,
+  products,
+  addonsByCategory,
+  instructionsByCategory,
+  cartAnnounce,
+  grandMinor,
+  paymentMethod,
+  setPaymentMethod,
+  submitting,
+  onCheckout,
+  onCloseCart,
+  lastOrderTransactionId,
+  onOpenLastReceipt,
+  removeLine,
+  setQuantity,
+  setLineOptionsEdit,
+}: PosCartPanelInnerProps) {
+  const payFieldId = React.useId()
+
+  return (
+    <>
+      <div className="flex shrink-0 items-center gap-2 border-b border-border/70 pb-2">
+        <h2 className="text-base font-semibold tracking-tight">Cart</h2>
+        <LastReceiptBadge transactionId={lastOrderTransactionId} onOpen={onOpenLastReceipt} />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="ml-auto size-11 shrink-0 rounded-xl"
+          aria-label="Close cart"
+          onClick={onCloseCart}
+        >
+          <XIcon />
+        </Button>
+      </div>
+
+      <div aria-live="polite" aria-atomic className="sr-only">
+        {cartAnnounce}
+      </div>
+
+      {lines.length === 0 ? (
+        <div className="flex min-h-0 flex-1 flex-col justify-center px-1 py-4">
+          <p className="text-center text-sm leading-snug text-muted-foreground">
+            Tap a product, choose price and quantity. To change price, remove the line and add again.
+          </p>
+        </div>
+      ) : (
+        <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overscroll-y-contain pr-0.5 [-webkit-overflow-scrolling:touch]">
+          {lines.map((line) => {
+            const sub = lineSubtotalMinor(line)
+            const unit = formatMinorToDecimal2(parseMinorFromSerialized(line.unitPriceMinor))
+            const pCard = products.find((p) => p.id === line.productId)
+            const addonChoices = pCard
+              ? (addonsByCategory[pCard.categoryId] ?? []).filter((a) => a.currency === line.currency)
+              : []
+            const instructionChoices = pCard ? (instructionsByCategory[pCard.categoryId] ?? []) : []
+            const showAddonBtn = addonChoices.length > 0
+            const showInstrBtn = instructionChoices.length > 0
+            return (
+              <li
+                key={line.key}
+                className="rounded-lg border border-border/80 bg-background/90 px-2.5 py-2 shadow-sm"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="line-clamp-2 min-w-0 flex-1 text-base leading-snug font-semibold">
+                      {line.productName}
+                    </p>
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      {showAddonBtn ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          title="Add-ons"
+                          className={cn(
+                            "size-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground",
+                            line.addons.length > 0 && "text-primary",
+                          )}
+                          onClick={() =>
+                            setLineOptionsEdit({ lineKey: line.key, variant: "addons" })
+                          }
+                          aria-label={`Add-ons for ${line.productName}`}
+                        >
+                          <Layers2Icon className="size-4" />
+                        </Button>
+                      ) : null}
+                      {showInstrBtn ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          title="Special instructions"
+                          className={cn(
+                            "size-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground",
+                            line.instructions.length > 0 && "text-primary",
+                          )}
+                          onClick={() =>
+                            setLineOptionsEdit({
+                              lineKey: line.key,
+                              variant: "instructions",
+                            })
+                          }
+                          aria-label={`Special instructions for ${line.productName}`}
+                        >
+                          <ChefHatIcon className="size-4" />
+                        </Button>
+                      ) : null}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        title="Remove line"
+                        className="size-8 shrink-0 rounded-lg text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => removeLine(line.key)}
+                        aria-label={`Remove ${line.productName}`}
+                      >
+                        <Trash2Icon className="size-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {line.priceLabel} · {unit} ea · {line.currency}
+                  </p>
+                  {line.addons.length > 0 ? (
+                    <ul className="mt-1 list-none space-y-0 border-l border-primary/30 pl-1.5 text-xs text-muted-foreground">
+                      {line.addons.map((a) => {
+                        const au = formatMinorToDecimal2(parseMinorFromSerialized(a.unitPriceMinor))
+                        return (
+                          <li key={a.key} className="tabular-nums leading-tight">
+                            + {a.name}
+                            {a.quantity !== 1 ? ` ×${a.quantity}` : ""} · {au} {a.currency}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  ) : null}
+                  {line.instructions.length > 0 ? (
+                    <ul className="mt-1 list-none space-y-0 border-l border-muted-foreground/25 pl-1.5 text-[11px] leading-tight text-muted-foreground">
+                      {line.instructions.map((ins) => (
+                        <li key={ins.key}>Kitchen: {ins.label}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+                <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-border/50 pt-1.5">
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="size-8 rounded-lg"
+                      aria-label="Decrease quantity"
+                      onClick={() => setQuantity(line.key, line.quantity - 1)}
+                    >
+                      <MinusIcon className="size-4" />
+                    </Button>
+                    <span className="min-w-8 text-center text-sm font-bold tabular-nums">
+                      {line.quantity}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="size-8 rounded-lg"
+                      aria-label="Increase quantity"
+                      onClick={() => setQuantity(line.key, line.quantity + 1)}
+                    >
+                      <PlusIcon className="size-4" />
+                    </Button>
+                  </div>
+                  <span className="text-sm font-bold tabular-nums">{formatMinorToDecimal2(sub)}</span>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+
+      <div className="mt-auto shrink-0 space-y-2.5 border-t border-border/80 pt-2.5">
+        <div className="flex items-center justify-between text-base font-bold">
+          <span className="text-muted-foreground">Subtotal</span>
+          <span className="text-foreground tabular-nums">{formatMinorToDecimal2(grandMinor)}</span>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={payFieldId} className="sr-only">
+            Payment method
+          </Label>
+          <Select
+            value={paymentMethod}
+            onValueChange={(v) => {
+              if (v && v in PAYMENT_METHOD_LABEL) {
+                setPaymentMethod(v as (typeof transactionPaymentMethodValues)[number])
+              }
+            }}
+          >
+            <SelectTrigger id={payFieldId} className="min-h-12 w-full rounded-2xl text-base">
+              <SelectValue placeholder="Payment method">
+                {(val: string | null) =>
+                  val && val in PAYMENT_METHOD_LABEL
+                    ? PAYMENT_METHOD_LABEL[val as keyof typeof PAYMENT_METHOD_LABEL]
+                    : "Payment method"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="cash">{PAYMENT_METHOD_LABEL.cash}</SelectItem>
+              <SelectItem value="card_placeholder">{PAYMENT_METHOD_LABEL.card_placeholder}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Button
+          type="button"
+          size="lg"
+          className="min-h-12 w-full rounded-2xl text-base font-semibold"
+          disabled={submitting || lines.length === 0}
+          onClick={onCheckout}
+        >
+          {submitting ? "Processing…" : "Complete sale"}
+        </Button>
+      </div>
+    </>
+  )
+}
+
 export function PosTerminal({
   businessSlug,
   locationSlug,
@@ -74,6 +381,7 @@ export function PosTerminal({
   categories,
   addonsByCategory,
   instructionsByCategory,
+  initialLastOrderTransactionId,
 }: {
   businessSlug: string
   locationSlug: string
@@ -81,6 +389,8 @@ export function PosTerminal({
   categories: ProductCategoryRow[]
   addonsByCategory: Record<string, PosCategoryAddon[]>
   instructionsByCategory: Record<string, PosCategoryInstruction[]>
+  /** Latest DB sale at this branch; updated in-session after each checkout. */
+  initialLastOrderTransactionId: string | null
 }) {
   const lines = usePosCartStore((s) => s.lines)
   const cartAnnounce = usePosCartStore((s) => s.cartAnnounce)
@@ -107,6 +417,16 @@ export function PosTerminal({
     variant: "addons" | "instructions"
   }>(null)
   const [cartOpen, setCartOpen] = React.useState(false)
+  const [receiptSheetTxId, setReceiptSheetTxId] = React.useState<string | null>(null)
+  const [receiptModel, setReceiptModel] = React.useState<PosReceiptPreviewModel | null>(null)
+  const [receiptLoading, setReceiptLoading] = React.useState(false)
+  const [lastOrderTransactionId, setLastOrderTransactionId] = React.useState<string | null>(
+    () => initialLastOrderTransactionId,
+  )
+
+  React.useEffect(() => {
+    setLastOrderTransactionId(initialLastOrderTransactionId)
+  }, [initialLastOrderTransactionId])
 
   const cartItemCount = React.useMemo(
     () => lines.reduce((n, l) => n + l.quantity, 0),
@@ -145,6 +465,30 @@ export function PosTerminal({
     }
   }, [lines, lineOptionsEdit])
 
+  React.useEffect(() => {
+    if (!receiptSheetTxId) {
+      setReceiptModel(null)
+      setReceiptLoading(false)
+      return
+    }
+    let cancelled = false
+    setReceiptLoading(true)
+    setReceiptModel(null)
+    void loadPosReceiptPreview(businessSlug, receiptSheetTxId).then((m) => {
+      if (cancelled) return
+      setReceiptLoading(false)
+      if (m) {
+        setReceiptModel(m)
+      } else {
+        toast.error("Could not load receipt.")
+        setReceiptSheetTxId(null)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [receiptSheetTxId, businessSlug])
+
   const filteredProducts = React.useMemo(() => {
     const q = search.trim().toLowerCase()
     return products.filter((p) => {
@@ -163,8 +507,6 @@ export function PosTerminal({
     () => sumMinor(lines.map((l) => lineSubtotalMinor(l))),
     [lines]
   )
-
-  const receiptHref = `/${businessSlug}/l/${locationSlug}/pos/receipt/${doneTransactionId}`
 
   const lineOptionsLine = React.useMemo(
     () => (lineOptionsEdit ? lines.find((l) => l.key === lineOptionsEdit.lineKey) : null),
@@ -227,6 +569,7 @@ export function PosTerminal({
         toast.error(res.message)
         return
       }
+      setLastOrderTransactionId(res.transactionId)
       setDoneTransactionId(res.transactionId)
       reset()
     } catch {
@@ -238,7 +581,42 @@ export function PosTerminal({
 
   function onNewSale() {
     setDoneTransactionId(null)
+    setReceiptSheetTxId(null)
+    setReceiptModel(null)
     reset()
+  }
+
+  function openReceiptSheet() {
+    if (!doneTransactionId) return
+    setReceiptSheetTxId(doneTransactionId)
+    setDoneTransactionId(null)
+  }
+
+  function openLastOrderReceipt() {
+    if (!lastOrderTransactionId) return
+    setReceiptSheetTxId(lastOrderTransactionId)
+  }
+
+  const isLgViewport = useViewportMinLg()
+  const cartPanelControlsId = isLgViewport ? "pos-cart-sidebar" : "pos-cart-sheet"
+
+  const cartPanelProps: PosCartPanelInnerProps = {
+    lines,
+    products,
+    addonsByCategory,
+    instructionsByCategory,
+    cartAnnounce,
+    grandMinor,
+    paymentMethod,
+    setPaymentMethod,
+    submitting,
+    onCheckout,
+    onCloseCart: () => setCartOpen(false),
+    lastOrderTransactionId,
+    onOpenLastReceipt: openLastOrderReceipt,
+    removeLine,
+    setQuantity,
+    setLineOptionsEdit,
   }
 
   const cartTrigger = (
@@ -247,7 +625,7 @@ export function PosTerminal({
       variant="ghost"
       size="icon"
       aria-expanded={cartOpen}
-      aria-controls="pos-cart-sidebar"
+      aria-controls={cartPanelControlsId}
       aria-label={cartOpen ? "Close cart" : "Open cart"}
       onClick={() => setCartOpen((o) => !o)}
       className="relative size-14 shrink-0 overflow-visible rounded-2xl lg:size-13 [&_svg:not([class*='size-'])]:size-7 lg:[&_svg:not([class*='size-'])]:size-6"
@@ -261,49 +639,8 @@ export function PosTerminal({
     </Button>
   )
 
-  if (doneTransactionId) {
-    return (
-      <div className="mx-auto flex w-full max-w-lg touch-manipulation flex-col gap-6 rounded-2xl border bg-card p-6 text-center shadow-sm sm:p-8">
-        <div className="flex justify-center">
-          <div className="rounded-full bg-primary/10 p-5 text-primary sm:p-4">
-            <StoreIcon className="size-12 sm:size-10" />
-          </div>
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-xl sm:font-semibold">
-            Sale complete
-          </h1>
-          <p className="mt-2 text-base text-muted-foreground sm:text-sm">
-            Transaction saved. You can print the receipt or start another sale.
-          </p>
-        </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <Link
-            href={receiptHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(
-              buttonVariants({ size: "lg" }),
-              "inline-flex min-h-12 justify-center py-3 text-base sm:min-h-10 sm:py-2 sm:text-sm"
-            )}
-          >
-            Print receipt
-          </Link>
-          <Button
-            type="button"
-            variant="outline"
-            size="lg"
-            className="min-h-12 text-base sm:min-h-10 sm:text-sm"
-            onClick={onNewSale}
-          >
-            New sale
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
   return (
+    <>
     <div className="relative flex min-h-0 flex-1 touch-manipulation flex-col overflow-hidden">
       <div className="relative z-0 flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row lg:items-stretch">
         <div
@@ -312,7 +649,7 @@ export function PosTerminal({
         >
           <div className="shrink-0 space-y-2 sm:space-y-3">
             <div className="flex min-w-0 items-center gap-2 overflow-visible sm:gap-3">
-              <h1 className="min-w-0 shrink-0 truncate text-xl font-bold tracking-tight sm:text-2xl">
+              <h1 className="hidden min-w-0 shrink-0 truncate text-xl font-bold tracking-tight lg:block sm:text-2xl">
                 Register
               </h1>
               <div className="flex min-w-0 flex-1 items-center justify-end gap-2 overflow-visible">
@@ -328,6 +665,11 @@ export function PosTerminal({
                   autoComplete="off"
                   inputMode="search"
                   enterKeyHint="search"
+                />
+                <LastReceiptBadge
+                  transactionId={lastOrderTransactionId}
+                  onOpen={openLastOrderReceipt}
+                  compact
                 />
                 {cartTrigger}
               </div>
@@ -462,13 +804,28 @@ export function PosTerminal({
           </div>
         </div>
 
-        {cartOpen ? (
-          <button
-            type="button"
-            className="absolute inset-0 z-10 bg-black/30 lg:hidden"
-            aria-label="Close cart"
-            onClick={() => setCartOpen(false)}
-          />
+        {!isLgViewport ? (
+          <Sheet open={cartOpen} onOpenChange={setCartOpen}>
+            <SheetContent
+              id="pos-cart-sheet"
+              side="right"
+              showCloseButton={false}
+              aria-label="Shopping cart"
+              className={cn(
+                "flex min-h-0 flex-col gap-2 border-border/80 bg-background text-popover-foreground shadow-xl",
+                /* Flush to viewport right; override Sheet defaults (w-3/4, translate nudge, radius). */
+                "inset-y-0! left-auto! right-0! h-dvh! max-h-dvh! max-w-none!",
+                "w-[min(100dvw,420px)]! sm:w-[min(100dvw,420px)]! sm:max-w-[420px]!",
+                "gap-0 rounded-none border-l p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] [&>button]:hidden",
+              )}
+            >
+              <SheetHeader className="sr-only">
+                <SheetTitle>Shopping cart</SheetTitle>
+                <SheetDescription>Review items and complete the sale.</SheetDescription>
+              </SheetHeader>
+              <PosCartPanelInner {...cartPanelProps} />
+            </SheetContent>
+          </Sheet>
         ) : null}
 
         <aside
@@ -476,248 +833,129 @@ export function PosTerminal({
           aria-label="Shopping cart"
           aria-hidden={!cartOpen}
           className={cn(
-            "flex min-h-0 flex-col gap-2 border-border/80 bg-background p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-xl",
-            "max-lg:absolute max-lg:inset-y-0 max-lg:right-0 max-lg:z-20 max-lg:w-[min(100%,420px)] max-lg:max-w-[92vw] max-lg:border-l",
-            "max-lg:transition-transform max-lg:duration-200 max-lg:ease-out",
-            cartOpen
-              ? "max-lg:right-2 max-lg:translate-x-0"
-              : "max-lg:pointer-events-none max-lg:right-0 max-lg:translate-x-full",
-            "lg:relative lg:z-0 lg:max-w-none lg:translate-x-0 lg:bg-muted/15 lg:shadow-none lg:transition-[width,opacity,margin] lg:duration-200 lg:ease-out",
+            "hidden min-h-0 flex-col gap-2 border-border/80 bg-background p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-xl lg:flex",
+            "lg:relative lg:z-0 lg:bg-muted/15 lg:shadow-none lg:transition-[width,opacity,margin] lg:duration-200 lg:ease-out",
             cartOpen
               ? "lg:ml-3 lg:w-[min(100%,320px)] lg:min-w-[280px] lg:border-l lg:opacity-100"
-              : "lg:pointer-events-none lg:m-0 lg:w-0 lg:min-w-0 lg:overflow-hidden lg:border-0 lg:p-0 lg:opacity-0"
+              : "lg:pointer-events-none lg:m-0 lg:w-0 lg:min-w-0 lg:overflow-hidden lg:border-0 lg:p-0 lg:opacity-0",
           )}
         >
-          <div className="flex shrink-0 items-center gap-2 border-b border-border/70 pb-2">
-            <h2 className="text-base font-semibold tracking-tight">Cart</h2>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="ml-auto size-11 shrink-0 rounded-xl"
-              aria-label="Close cart"
-              onClick={() => setCartOpen(false)}
-            >
-              <XIcon />
-            </Button>
-          </div>
-
-          <div aria-live="polite" aria-atomic className="sr-only">
-            {cartAnnounce}
-          </div>
-
-          {lines.length === 0 ? (
-            <div className="flex min-h-0 flex-1 flex-col justify-center px-1 py-4">
-              <p className="text-center text-sm leading-snug text-muted-foreground">
-                Tap a product, choose price and quantity. To change price,
-                remove the line and add again.
-              </p>
-            </div>
-          ) : (
-            <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overscroll-y-contain pr-0.5 [-webkit-overflow-scrolling:touch]">
-              {lines.map((line) => {
-                const sub = lineSubtotalMinor(line)
-                const unit = formatMinorToDecimal2(
-                  parseMinorFromSerialized(line.unitPriceMinor)
-                )
-                const pCard = products.find((p) => p.id === line.productId)
-                const addonChoices = pCard
-                  ? (addonsByCategory[pCard.categoryId] ?? []).filter(
-                      (a) => a.currency === line.currency,
-                    )
-                  : []
-                const instructionChoices = pCard
-                  ? (instructionsByCategory[pCard.categoryId] ?? [])
-                  : []
-                const showAddonBtn = addonChoices.length > 0
-                const showInstrBtn = instructionChoices.length > 0
-                return (
-                  <li
-                    key={line.key}
-                    className="rounded-lg border border-border/80 bg-background/90 px-2.5 py-2 shadow-sm"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="line-clamp-2 min-w-0 flex-1 text-base leading-snug font-semibold">
-                          {line.productName}
-                        </p>
-                        <div className="flex shrink-0 items-center gap-0.5">
-                          {showAddonBtn ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              title="Add-ons"
-                              className={cn(
-                                "size-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground",
-                                line.addons.length > 0 && "text-primary",
-                              )}
-                              onClick={() =>
-                                setLineOptionsEdit({ lineKey: line.key, variant: "addons" })
-                              }
-                              aria-label={`Add-ons for ${line.productName}`}
-                            >
-                              <Layers2Icon className="size-4" />
-                            </Button>
-                          ) : null}
-                          {showInstrBtn ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              title="Special instructions"
-                              className={cn(
-                                "size-8 shrink-0 rounded-lg text-muted-foreground hover:text-foreground",
-                                line.instructions.length > 0 && "text-primary",
-                              )}
-                              onClick={() =>
-                                setLineOptionsEdit({
-                                  lineKey: line.key,
-                                  variant: "instructions",
-                                })
-                              }
-                              aria-label={`Special instructions for ${line.productName}`}
-                            >
-                              <ChefHatIcon className="size-4" />
-                            </Button>
-                          ) : null}
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            title="Remove line"
-                            className="size-8 shrink-0 rounded-lg text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => removeLine(line.key)}
-                            aria-label={`Remove ${line.productName}`}
-                          >
-                            <Trash2Icon className="size-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                        {line.priceLabel} · {unit} ea · {line.currency}
-                      </p>
-                      {line.addons.length > 0 ? (
-                        <ul className="mt-1 list-none space-y-0 border-l border-primary/30 pl-1.5 text-xs text-muted-foreground">
-                          {line.addons.map((a) => {
-                            const au = formatMinorToDecimal2(
-                              parseMinorFromSerialized(a.unitPriceMinor),
-                            )
-                            return (
-                              <li key={a.key} className="tabular-nums leading-tight">
-                                + {a.name}
-                                {a.quantity !== 1 ? ` ×${a.quantity}` : ""} · {au}{" "}
-                                {a.currency}
-                              </li>
-                            )
-                          })}
-                        </ul>
-                      ) : null}
-                      {line.instructions.length > 0 ? (
-                        <ul className="mt-1 list-none space-y-0 border-l border-muted-foreground/25 pl-1.5 text-[11px] leading-tight text-muted-foreground">
-                          {line.instructions.map((ins) => (
-                            <li key={ins.key}>Kitchen: {ins.label}</li>
-                          ))}
-                        </ul>
-                      ) : null}
-                    </div>
-                    <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-border/50 pt-1.5">
-                      <div className="flex items-center gap-1">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="size-8 rounded-lg"
-                          aria-label="Decrease quantity"
-                          onClick={() =>
-                            setQuantity(line.key, line.quantity - 1)
-                          }
-                        >
-                          <MinusIcon className="size-4" />
-                        </Button>
-                        <span className="min-w-8 text-center text-sm font-bold tabular-nums">
-                          {line.quantity}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="size-8 rounded-lg"
-                          aria-label="Increase quantity"
-                          onClick={() =>
-                            setQuantity(line.key, line.quantity + 1)
-                          }
-                        >
-                          <PlusIcon className="size-4" />
-                        </Button>
-                      </div>
-                      <span className="text-sm font-bold tabular-nums">
-                        {formatMinorToDecimal2(sub)}
-                      </span>
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-
-          <div className="mt-auto shrink-0 space-y-2.5 border-t border-border/80 pt-2.5">
-            <div className="flex items-center justify-between text-base font-bold">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span className="text-foreground tabular-nums">
-                {formatMinorToDecimal2(grandMinor)}
-              </span>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="pos-pay" className="sr-only">
-                Payment method
-              </Label>
-              <Select
-                value={paymentMethod}
-                onValueChange={(v) => {
-                  if (v && v in PAYMENT_METHOD_LABEL) {
-                    setPaymentMethod(
-                      v as (typeof transactionPaymentMethodValues)[number]
-                    )
-                  }
-                }}
-              >
-                <SelectTrigger
-                  id="pos-pay"
-                  className="min-h-12 w-full rounded-2xl text-base"
-                >
-                  <SelectValue placeholder="Payment method">
-                    {(val: string | null) =>
-                      val && val in PAYMENT_METHOD_LABEL
-                        ? PAYMENT_METHOD_LABEL[
-                            val as keyof typeof PAYMENT_METHOD_LABEL
-                          ]
-                        : "Payment method"
-                    }
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cash">
-                    {PAYMENT_METHOD_LABEL.cash}
-                  </SelectItem>
-                  <SelectItem value="card_placeholder">
-                    {PAYMENT_METHOD_LABEL.card_placeholder}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button
-              type="button"
-              size="lg"
-              className="min-h-12 w-full rounded-2xl text-base font-semibold"
-              disabled={submitting || lines.length === 0}
-              onClick={onCheckout}
-            >
-              {submitting ? "Processing…" : "Complete sale"}
-            </Button>
-          </div>
+          {isLgViewport ? <PosCartPanelInner {...cartPanelProps} /> : null}
         </aside>
       </div>
     </div>
+
+    <Dialog
+      open={doneTransactionId !== null}
+      onOpenChange={(open) => {
+        if (!open) setDoneTransactionId(null)
+      }}
+    >
+      <DialogContent className="max-w-md text-center" showCloseButton>
+        <DialogHeader className="items-center space-y-4">
+          <div className="rounded-full bg-primary/10 p-5 text-primary">
+            <StoreIcon className="size-10" />
+          </div>
+          <DialogTitle className="text-xl font-semibold">Sale complete</DialogTitle>
+          <DialogDescription className="text-base">
+            Transaction saved. You can print the receipt or start another sale.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+          <Button
+            type="button"
+            size="lg"
+            className="min-h-12 text-base sm:min-h-10 sm:text-sm"
+            onClick={openReceiptSheet}
+          >
+            Print receipt
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            className="min-h-12 text-base sm:min-h-10 sm:text-sm"
+            onClick={onNewSale}
+          >
+            New sale
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <Sheet
+      open={receiptSheetTxId !== null}
+      onOpenChange={(open) => {
+        if (!open) {
+          setReceiptSheetTxId(null)
+          setReceiptModel(null)
+        }
+      }}
+    >
+      <SheetContent
+        side="right"
+        showCloseButton={false}
+        aria-label="Receipt preview"
+        className={cn(
+          "flex min-h-0 flex-col gap-0 border-border/80 bg-background text-popover-foreground shadow-xl",
+          "inset-y-0! left-auto! right-0! h-dvh! max-h-dvh! max-w-none!",
+          "w-[min(100dvw,420px)]! sm:w-[min(100dvw,420px)]! sm:max-w-[420px]!",
+          "overflow-hidden rounded-none border-l p-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] [&>button]:hidden",
+        )}
+      >
+        <SheetHeader className="sr-only">
+          <SheetTitle>Receipt</SheetTitle>
+          <SheetDescription>Preview and print the transaction receipt.</SheetDescription>
+        </SheetHeader>
+        <div className="flex shrink-0 items-center gap-2 border-b border-border/70 px-3 py-2">
+          <h2 className="text-base font-semibold tracking-tight">Receipt</h2>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="ml-auto size-11 shrink-0 rounded-xl"
+            aria-label="Close receipt"
+            onClick={() => {
+              setReceiptSheetTxId(null)
+              setReceiptModel(null)
+            }}
+          >
+            <XIcon />
+          </Button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 py-3 [-webkit-overflow-scrolling:touch]">
+          {receiptLoading ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Loading receipt…</p>
+          ) : receiptModel ? (
+            <PosReceiptDocument
+              model={receiptModel}
+              className="max-w-none py-0"
+              footerSlot={
+                <>
+                  <PrintReceiptButton />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-9 rounded-4xl px-3"
+                    onClick={() => {
+                      setReceiptSheetTxId(null)
+                      setReceiptModel(null)
+                    }}
+                  >
+                    Done
+                  </Button>
+                </>
+              }
+              belowSlot={
+                <p className="mt-4 text-center text-xs text-muted-foreground">
+                  For best results, enable background graphics in the print dialog if you want logo colors.
+                </p>
+              }
+            />
+          ) : null}
+        </div>
+      </SheetContent>
+    </Sheet>
+    </>
   )
 }

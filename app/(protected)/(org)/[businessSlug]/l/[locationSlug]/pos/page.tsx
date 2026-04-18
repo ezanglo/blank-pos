@@ -6,6 +6,7 @@ import { listActiveAddonsByCategoryId } from "@/lib/queries/catalog-addons"
 import { listPosProductsForLocation } from "@/lib/queries/pos"
 import { getLocationByOrganizationAndSlug } from "@/lib/queries/location"
 import { getOrgForUser } from "@/lib/queries/organization"
+import { getLatestTransactionIdForLocation } from "@/lib/queries/transactions"
 import { requireSession } from "@/lib/server-auth"
 
 export const dynamic = "force-dynamic"
@@ -23,12 +24,14 @@ export default async function PosPage({
   const location = await getLocationByOrganizationAndSlug(ctx.organization.id, locationSlug)
   if (!location) notFound()
 
-  const [categories, products, addonsByCategory, instructionsByCategory] = await Promise.all([
-    listProductCategories(ctx.organization.id),
-    listPosProductsForLocation(ctx.organization.id, location.id, { search: "", categoryId: "" }),
-    listActiveAddonsByCategoryId(ctx.organization.id),
-    listInstructionsByCategoryIdForPos(ctx.organization.id),
-  ])
+  const [categories, products, addonsByCategory, instructionsByCategory, initialLastOrderTransactionId] =
+    await Promise.all([
+      listProductCategories(ctx.organization.id),
+      listPosProductsForLocation(ctx.organization.id, location.id, { search: "", categoryId: "" }),
+      listActiveAddonsByCategoryId(ctx.organization.id),
+      listInstructionsByCategoryIdForPos(ctx.organization.id),
+      getLatestTransactionIdForLocation(ctx.organization.id, location.id),
+    ])
 
   return (
     <div className="flex min-h-0 flex-1 touch-manipulation flex-col pb-[max(0.5rem,env(safe-area-inset-bottom))]">
@@ -40,6 +43,7 @@ export default async function PosPage({
           categories={categories}
           addonsByCategory={addonsByCategory}
           instructionsByCategory={instructionsByCategory}
+          initialLastOrderTransactionId={initialLastOrderTransactionId}
         />
       </div>
     </div>
