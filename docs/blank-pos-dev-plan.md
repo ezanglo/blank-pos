@@ -157,10 +157,10 @@ inventory_item
 inventory_stock
   id, inventory_item_id, organization_id, quantity, updated_at
 
--- Planned for Phase 4 (not migrated in repo yet); see docs/phases/phase-04-inventory-reports.md
+-- Phase 4: inventory_movements (migrated); Drizzle: lib/db/schema-inventory-movements.ts; doc: docs/phases/phase-04-inventory-reports.md
 inventory_movements
   id, inventory_item_id, organization_id, type (in|out|adjustment),
-  quantity, reference_id, note, created_at
+  quantity, reference_id, note, user_id, created_at
 ```
 
 ### Composite Products (Product Creation from Inventory)
@@ -349,6 +349,7 @@ Organization "Brew & Bean Main"  ← one physical store (address on org)
 | Manage promotions | ✅ | ✅ | ❌ |
 | Apply coupon at checkout | ✅ | ✅ | ✅ |
 | View reports | ✅ | ✅ | ❌ |
+| Branch dashboard (sales KPIs, chart, recent activity) | ✅ | ✅ | ❌ |
 | Process sales | ✅ | ✅ | ✅ |
 | Void transactions | ✅ | ✅ | ❌ |
 | Manage users | ✅ | ❌ | ❌ |
@@ -451,13 +452,12 @@ Shipped in repo (detail: [phases/phase-02-product-engine.md](phases/phase-02-pro
 
 ### Phase 4 — Inventory & Reports (Weeks 7–8)
 
-Detail: [phases/phase-04-inventory-reports.md](phases/phase-04-inventory-reports.md).
+**Shipped in repo** (detail: [phases/phase-04-inventory-reports.md](phases/phase-04-inventory-reports.md)):
 
-- Auto-deduct inventory on sale (composite policy)
-- Inventory adjustment UI and **`inventory_movements`**
-- Low stock alerts
-- Daily/weekly sales report and product performance view
-- Transaction list for managers
+- **`inventory_movements`** + **auto-deduct** on completed composite sales (idempotent per transaction); row locks on **`inventory_stock`**
+- **Adjustment** flow and **movements** log (catalog admin); low-stock **dashboard** banner + deep link to inventory
+- **Reports** (branch, manager/owner): **daily** summary, **product** sales with **status** filter + **CSV** export, **transactions** list with **status**, pagination, **line-item** drill-down route; **`Suspense`** loading shell; transaction **status labels** in UI
+- **Dashboard** (same branch URL for all roles): **owner/manager** — KPIs (**today** + **last 7 UTC days**) and **14-day** gross-subtotal chart from **`lib/queries/reports.ts`**; **recent sales** with **Lines** / **Receipt** side sheets (server actions); **cashier** — branch shell + **Open register** only (no analytics; aligns with **View reports** = manager+ in the matrix above)
 
 ### Phase 5 — Promotions & Coupons (Weeks 9–10)
 

@@ -58,6 +58,8 @@
 - [ ] Extend daily summary: **discount total** and top promotions by usage.
 - [ ] Ensure Phase 4 reporting SQL still valid or update aggregates to account for `discount_amount`.
 
+**Baseline (Phase 4 shipped):** branch **Reports** and the **manager/owner dashboard** already read sales aggregates from [`lib/queries/reports.ts`](../../lib/queries/reports.ts) (`getDailySalesSummary`, `getDailySalesSeries`, product/transaction queries). Phase 5 extends those queries (and receipts) once **`discount_amount`** / **`transaction_promotions`** exist—no need to duplicate dashboard KPI logic elsewhere.
+
 ---
 
 ## Workstream E — Quality

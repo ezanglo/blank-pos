@@ -22,7 +22,7 @@ Documented in the root **README**:
 
 1. **PostgreSQL** and **`DATABASE_URL`**.
 2. **`.env`** from [`.env.example`](../.env.example): `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` / `NEXT_PUBLIC_APP_URL`, **`STORAGE_*`** ([storage-uploads.md](storage-uploads.md)).
-3. **`pnpm db:migrate`** before first use. If upgrading from an older schema, **reset the database** and re-run migrations (see README).
+3. **`pnpm db:migrate`** before first use. Use the **same `DATABASE_URL`** for Next.js (e.g. `.env.local`) and for CLI migrations so every environment’s schema matches what the app expects. If upgrading from an older schema, **reset the database** and re-run migrations (see README).
 
 **Optional demo data (POS / catalog):** after migrations, **`pnpm db:seed:coffee`** loads a sample coffee-shop catalog for an org (see [phases/phase-03-pos-mvp.md](phases/phase-03-pos-mvp.md) — *Optional — demo catalog seed*).
 
@@ -66,5 +66,6 @@ Shared step UI lives under [`components/setup/setup-steps.tsx`](../components/se
 - [blank-pos-dev-plan.md](blank-pos-dev-plan.md) — schema §4 and §9 folder tree (high level).
 - [phases/phase-02-product-engine.md](phases/phase-02-product-engine.md) — catalog routes and implementation status.
 - [phases/phase-03-pos-mvp.md](phases/phase-03-pos-mvp.md) — POS register, **category add-ons**, checkout, receipts.
+- [phases/phase-04-inventory-reports.md](phases/phase-04-inventory-reports.md) — inventory movements, reports, **branch dashboard** (manager/owner analytics).
 - [storage-uploads.md](storage-uploads.md) — uploads env.
 - [security/authorization.md](security/authorization.md) — app-layer access control.

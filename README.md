@@ -9,7 +9,7 @@ Phase 1 foundation: **Next.js 16**, **better-auth** (email/password + organizati
    - **`BETTER_AUTH_SECRET`** (32+ characters) and **`BETTER_AUTH_URL`** / **`NEXT_PUBLIC_APP_URL`** for local dev (typically `http://localhost:3000`).
    - **`STORAGE_MODE=local`** for local image uploads to `public/uploads/`, or configure **cloud** S3-compatible storage (required on Vercel). See [docs/storage-uploads.md](docs/storage-uploads.md).
 
-2. Apply migrations from the repo root. If you are **upgrading from an older schema** (e.g. `store_branding`, username-only auth), **drop and recreate** the database (or `DROP SCHEMA public CASCADE; CREATE SCHEMA public;`) so the current baseline migration applies cleanly:
+2. Apply migrations from the repo root with the **same `DATABASE_URL`** the app loads (e.g. `.env.local` for local dev). If the CLI and Next.js point at different databases, migrations can look “done” while tables are missing at runtime. If you are **upgrading from an older schema** (e.g. `store_branding`, username-only auth), **drop and recreate** the database (or `DROP SCHEMA public CASCADE; CREATE SCHEMA public;`) so the current baseline migration applies cleanly:
 
    ```bash
    pnpm db:migrate

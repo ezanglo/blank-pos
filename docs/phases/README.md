@@ -11,7 +11,7 @@ Detailed task breakdowns for Blank POS delivery. They follow the frozen stack an
 | 1 — Foundation, auth, tenancy, branding | [phase-01-foundation-branding.md](phase-01-foundation-branding.md) |
 | 2 — Product engine | [phase-02-product-engine.md](phase-02-product-engine.md) |
 | 3 — POS MVP (sales, **category add-ons**, queue ticket + call-out name + prep hints, no promos/tax) | [phase-03-pos-mvp.md](phase-03-pos-mvp.md) |
-| 4 — Inventory depth and reporting | [phase-04-inventory-reports.md](phase-04-inventory-reports.md) |
+| 4 — Inventory depth and reporting | [phase-04-inventory-reports.md](phase-04-inventory-reports.md) (exit criteria + **Repo sync** table: reports extensions, role-scoped dashboard, `lib/queries/reports.ts`) |
 | 5 — Promotions and coupons | [phase-05-promotions-coupons.md](phase-05-promotions-coupons.md) |
 | 6 — Operations, hardening, QA | [phase-06-operations-qa.md](phase-06-operations-qa.md) |
 | 7 — Customers and loyalty (planned) | [phase-07-customers-loyalty.md](phase-07-customers-loyalty.md) |
