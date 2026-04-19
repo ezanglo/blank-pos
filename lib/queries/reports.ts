@@ -69,6 +69,125 @@ export async function getDailySalesSummary(
   }
 }
 
+/** One UTC calendar day bucket (YYYY-MM-DD) for charting. */
+export type DailySalesSeriesRow = {
+  day: string
+  transactionCount: number
+  grossSubtotalMinor: bigint
+}
+
+/**
+ * Aggregates sales by UTC calendar day for a location (all transaction statuses unless `status` set).
+ */
+export async function getDailySalesSeries(
+  organizationId: string,
+  locationId: string,
+  from: Date,
+  to: Date,
+  status?: TransactionStatus,
+): Promise<DailySalesSeriesRow[]> {
+  const db = getDb()
+  const parts = [
+    eq(posTransactions.organizationId, organizationId),
+    eq(posTransactions.locationId, locationId),
+    gte(posTransactions.createdAt, from),
+    lte(posTransactions.createdAt, to),
+  ]
+  if (status) parts.push(eq(posTransactions.status, status))
+
+  const utcDay = sql`(${posTransactions.createdAt} AT TIME ZONE 'UTC')::date`
+
+  const rows = await db
+    .select({
+      day: sql<string>`to_char(${utcDay}, 'YYYY-MM-DD')`,
+      transactionCount: sql<number>`count(*)::int`.mapWith(Number),
+      grossSubtotalMinor: sum(posTransactions.subtotalAmountMinor),
+    })
+    .from(posTransactions)
+    .where(and(...parts)!)
+    .groupBy(utcDay)
+    .orderBy(asc(utcDay))
+
+  return rows.map((r) => {
+    const raw = r.grossSubtotalMinor
+    const grossSubtotalMinor = typeof raw === "bigint" ? raw : BigInt(String(raw ?? 0))
+    return {
+      day: r.day,
+      transactionCount: r.transactionCount ?? 0,
+      grossSubtotalMinor,
+    }
+  })
+}
+
+/** Fill missing UTC calendar days with zeros so charts have a point per day in [startIso, endIso] inclusive. */
+export function fillDailySalesSeriesGaps(
+  rows: DailySalesSeriesRow[],
+  startIsoDay: string,
+  endIsoDay: string,
+): DailySalesSeriesRow[] {
+  const byDay = new Map(rows.map((r) => [r.day, r]))
+  const out: DailySalesSeriesRow[] = []
+  const start = parseReportDayStartUtc(startIsoDay)
+  const end = parseReportDayStartUtc(endIsoDay)
+  if (!start || !end) return rows
+
+  for (let d = new Date(start.getTime()); d.getTime() <= end.getTime(); d.setUTCDate(d.getUTCDate() + 1)) {
+    const key = d.toISOString().slice(0, 10)
+    const hit = byDay.get(key)
+    out.push(
+      hit ?? {
+        day: key,
+        transactionCount: 0,
+        grossSubtotalMinor: BigInt(0),
+      },
+    )
+  }
+  return out
+}
+
+/** ISO date string (UTC) for "today" on the server. */
+export function utcTodayIsoDate(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+/** Start of UTC day `daysAgo` before `endIso` (0 = same day as endIso). */
+export function utcCalendarDayStartIso(endIso: string, daysBeforeEnd: number): string | null {
+  const end = parseReportDayStartUtc(endIso)
+  if (!end) return null
+  const d = new Date(end)
+  d.setUTCDate(d.getUTCDate() - daysBeforeEnd)
+  return d.toISOString().slice(0, 10)
+}
+
+export async function listRecentTransactionsForLocation(
+  organizationId: string,
+  locationId: string,
+  take: number,
+): Promise<TransactionListRow[]> {
+  const db = getDb()
+  const n = Math.min(50, Math.max(1, take))
+  const rows = await db
+    .select({
+      id: posTransactions.id,
+      createdAt: posTransactions.createdAt,
+      status: posTransactions.status,
+      totalMinor: posTransactions.totalAmountMinor,
+      queueNumber: posTransactions.queueNumber,
+    })
+    .from(posTransactions)
+    .where(and(eq(posTransactions.organizationId, organizationId), eq(posTransactions.locationId, locationId)))
+    .orderBy(desc(posTransactions.createdAt))
+    .limit(n)
+
+  return rows.map((r) => ({
+    id: r.id,
+    createdAt: r.createdAt,
+    status: r.status,
+    totalMinor: typeof r.totalMinor === "bigint" ? r.totalMinor : BigInt(String(r.totalMinor)),
+    queueNumber: r.queueNumber,
+  }))
+}
+
 export type ProductSalesRow = {
   productId: string
   productName: string
