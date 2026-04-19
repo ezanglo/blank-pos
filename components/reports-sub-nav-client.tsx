@@ -12,9 +12,11 @@ export function ReportsSubNavClient({
   locationSlug: string
 }) {
   const pathname = usePathname()
-  const tail = pathname.split("/reports/")[1]?.split("/")[0] ?? ""
-  const active =
-    tail === "products" ? "products" : tail === "transactions" ? "transactions" : "daily"
+  const active = pathname.includes("/reports/products")
+    ? "products"
+    : pathname.includes("/reports/transactions")
+      ? "transactions"
+      : "daily"
 
   return <ReportsSubNav businessSlug={businessSlug} locationSlug={locationSlug} active={active} />
 }

@@ -1,6 +1,12 @@
 import { notFound } from "next/navigation"
 
-import { getDailySalesSummary, parseReportDayEndUtc, parseReportDayStartUtc } from "@/lib/queries/reports"
+import { transactionStatusLabels, transactionStatusValues } from "@/lib/db/schema-transactions"
+import {
+  getDailySalesSummary,
+  parseReportDayEndUtc,
+  parseReportDayStartUtc,
+  parseTransactionStatusFilter,
+} from "@/lib/queries/reports"
 import { getLocationForUserByBusinessAndLocationSlug } from "@/lib/queries/location"
 import { formatMinorToDecimal2 } from "@/lib/money"
 import { requireSession } from "@/lib/server-auth"
@@ -30,11 +36,14 @@ export default async function ReportsDailyPage({
 
   const sp = await searchParams
   const day = parseDate(sp)
+  const statusParam =
+    typeof sp.status === "string" && sp.status.length > 0 ? sp.status : "all"
+  const status = parseTransactionStatusFilter(statusParam === "all" ? undefined : statusParam)
   const from = parseReportDayStartUtc(day)
   const to = parseReportDayEndUtc(day)
   if (!from || !to) notFound()
 
-  const summary = await getDailySalesSummary(row.organization.id, row.location.id, from, to)
+  const summary = await getDailySalesSummary(row.organization.id, row.location.id, from, to, status)
 
   return (
     <div className="space-y-4">
@@ -47,6 +56,21 @@ export default async function ReportsDailyPage({
             defaultValue={day}
             className="border-input bg-background h-9 rounded-md border px-2 text-sm"
           />
+        </label>
+        <label className="grid gap-1 text-sm">
+          <span className="text-muted-foreground">Status</span>
+          <select
+            name="status"
+            defaultValue={statusParam}
+            className="border-input bg-background h-9 min-w-40 rounded-md border px-2 text-sm"
+          >
+            <option value="all">All</option>
+            {transactionStatusValues.map((s) => (
+              <option key={s} value={s}>
+                {transactionStatusLabels[s]}
+              </option>
+            ))}
+          </select>
         </label>
         <button
           type="submit"

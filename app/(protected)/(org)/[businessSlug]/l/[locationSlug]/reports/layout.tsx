@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation"
+import { Suspense } from "react"
 
+import { ReportsContentSkeleton } from "@/components/reports-content-skeleton"
 import { ReportsSubNavClient } from "@/components/reports-sub-nav-client"
 import { getLocationForUserByBusinessAndLocationSlug } from "@/lib/queries/location"
 import { requireSession } from "@/lib/server-auth"
@@ -32,7 +34,7 @@ export default async function ReportsLayout({
         </p>
       </div>
       <ReportsSubNavClient businessSlug={businessSlug} locationSlug={locationSlug} />
-      {children}
+      <Suspense fallback={<ReportsContentSkeleton />}>{children}</Suspense>
     </div>
   )
 }

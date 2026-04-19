@@ -2,10 +2,12 @@ import { notFound } from "next/navigation"
 
 import { formatMinorToDecimal2 } from "@/lib/money"
 import { getLocationForUserByBusinessAndLocationSlug } from "@/lib/queries/location"
+import { transactionStatusLabels, transactionStatusValues } from "@/lib/db/schema-transactions"
 import {
   getProductSalesForRange,
   parseReportDayEndUtc,
   parseReportDayStartUtc,
+  parseTransactionStatusFilter,
 } from "@/lib/queries/reports"
 import { requireSession } from "@/lib/server-auth"
 
@@ -38,11 +40,24 @@ export default async function ReportsProductsPage({
   const def = defaultRange()
   const fromStr = typeof sp.from === "string" && sp.from ? sp.from : def.from
   const toStr = typeof sp.to === "string" && sp.to ? sp.to : def.to
+  const statusParam =
+    typeof sp.status === "string" && sp.status.length > 0 ? sp.status : "all"
+  const status = parseTransactionStatusFilter(statusParam === "all" ? undefined : statusParam)
   const from = parseReportDayStartUtc(fromStr)
   const to = parseReportDayEndUtc(toStr)
   if (!from || !to) notFound()
 
-  const products = await getProductSalesForRange(row.organization.id, row.location.id, from, to)
+  const products = await getProductSalesForRange(
+    row.organization.id,
+    row.location.id,
+    from,
+    to,
+    status,
+  )
+
+  const csvQs = new URLSearchParams({ from: fromStr, to: toStr })
+  if (statusParam !== "all") csvQs.set("status", statusParam)
+  const csvHref = `/${businessSlug}/l/${locationSlug}/reports/products/csv?${csvQs.toString()}`
 
   return (
     <div className="space-y-4">
@@ -65,12 +80,33 @@ export default async function ReportsProductsPage({
             className="border-input bg-background h-9 rounded-md border px-2 text-sm"
           />
         </label>
+        <label className="grid gap-1 text-sm">
+          <span className="text-muted-foreground">Status</span>
+          <select
+            name="status"
+            defaultValue={statusParam}
+            className="border-input bg-background h-9 min-w-40 rounded-md border px-2 text-sm"
+          >
+            <option value="all">All</option>
+            {transactionStatusValues.map((s) => (
+              <option key={s} value={s}>
+                {transactionStatusLabels[s]}
+              </option>
+            ))}
+          </select>
+        </label>
         <button
           type="submit"
           className="bg-primary text-primary-foreground h-9 rounded-md px-3 text-sm font-medium"
         >
           Apply
         </button>
+        <a
+          href={csvHref}
+          className="border-input bg-background text-foreground inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium"
+        >
+          Download CSV
+        </a>
       </form>
 
       <div className="overflow-hidden rounded-lg border">

@@ -6,6 +6,8 @@
 
 **References:** [blank-pos-dev-plan.md](../blank-pos-dev-plan.md) §4 (`inventory_movements`), §5 v1.1.
 
+**Testing:** Automated tests for deduction idempotency and reporting are **deferred** until there is a shared test harness for server actions and queries; spot-check with SQL and manual flows for now.
+
 ---
 
 ## Direction — tier-scoped recipes and `track_inventory` (revisit before build)
@@ -20,13 +22,13 @@ This section records **intent only**; nothing here is required for Phase 3 POS. 
 
 ## Outcomes (exit criteria)
 
-- [ ] **`inventory_movements`** implemented with **`organization_id`**, `type` in (`in`, `out`, `adjustment`), `quantity`, `reference_id` (nullable FK to transaction line or adjustment batch), `note`, `created_at`, `user_id` optional.
-- [ ] **Adjustment UI:** manager can record stock correction with reason; writes movement + updates `inventory_stock` in one DB transaction.
-- [ ] **Auto-deduct on sale:** when a completed sale includes a **composite** product, create `inventory_movements` of type `out` for each ingredient with quantity `sale_qty × recipe_qty`; update `inventory_stock`; **idempotent** per transaction id (reprocessing sale must not double-deduct).
-- [ ] **Low-stock alerts:** configurable per `inventory_item` `reorder_point`; dashboard widget or list page “Below reorder” for this **organization** (store).
-- [ ] **Daily sales summary:** date range default “today”; metrics: gross subtotal, transaction count, average basket (subtotal only—no tax).
-- [ ] **Product sales report:** units sold and revenue per product for range; export CSV optional stretch.
-- [ ] **Transaction list** page (manager): filter by date, status (org implied by active tenant); drill-down to lines.
+- [x] **`inventory_movements`** implemented with **`organization_id`**, `type` in (`in`, `out`, `adjustment`), `quantity`, `reference_id` (nullable FK to transaction line or adjustment batch), `note`, `created_at`, `user_id` optional.
+- [x] **Adjustment UI:** manager can record stock correction with reason; writes movement + updates `inventory_stock` in one DB transaction.
+- [x] **Auto-deduct on sale:** when a completed sale includes a **composite** product, create `inventory_movements` of type `out` for each ingredient with quantity `sale_qty × recipe_qty`; update `inventory_stock`; **idempotent** per transaction id (reprocessing sale must not double-deduct).
+- [x] **Low-stock alerts:** configurable per `inventory_item` `reorder_point`; dashboard widget or list page “Below reorder” for this **organization** (store).
+- [x] **Daily sales summary:** date picker (single UTC calendar day); metrics: gross subtotal, transaction count, average basket (subtotal only—no tax); optional **status** filter.
+- [x] **Product sales report:** units sold and revenue per product for range; **CSV** download (same filters as the table).
+- [x] **Transaction list** page (manager): filter by date, **status**; **drill-down** to line items; pagination.
 
 ---
 
@@ -39,40 +41,40 @@ This section records **intent only**; nothing here is required for Phase 3 POS. 
 
 ## Workstream A — Schema and triggers
 
-- [ ] Ensure **`inventory_movements`** access is scoped by **application RBAC** to the organization (optional Postgres RLS later, aligned with [docs/security/authorization.md](../security/authorization.md)).
-- [ ] Add indexes for reporting queries: **`(organization_id, created_at)`** on `transactions`; `(transaction_id)` on `transaction_items`; **`(inventory_item_id, organization_id, created_at)`** on movements.
-- [ ] **Server-side hook** after sale completion: call `applyInventoryDeduction(txId)` once (Postgres function or application transaction).
+- [x] Ensure **`inventory_movements`** access is scoped by **application RBAC** to the organization (optional Postgres RLS later, aligned with [docs/security/authorization.md](../security/authorization.md)).
+- [x] Add indexes for reporting queries: **`(organization_id, created_at)`** on `transactions`; `(transaction_id)` on `transaction_items`; **`(inventory_item_id, organization_id, created_at)`** on movements.
+- [x] **Server-side hook** after sale completion: call `applyInventoryDeduction(txId)` once (Postgres function or application transaction).
 
 ---
 
 ## Workstream B — Deduction rules (explicit)
 
-- [ ] **Composite products:** always deduct ingredients on sale completion (unless `is_composite` false). When **tier-scoped recipes** exist (see **Direction** above), resolve the recipe for the sold **`product_price`** / tier, not the product default alone.
-- [ ] **Simple products with `track_inventory`:** if you map simple products to a single `inventory_item` in a future schema, defer here—**Phase 4 MVP:** only composite deduction required per master roadmap; document if simple product stock is out of scope.
-- [ ] **Insufficient stock:** policy choice—**recommend:** allow sale with **warning** + negative stock forbidden **or** block sale—pick one and implement consistently in POS + server.
+- [x] **Composite products:** always deduct ingredients on sale completion (unless `is_composite` false). When **tier-scoped recipes** exist (see **Direction** above), resolve the recipe for the sold **`product_price`** / tier, not the product default alone.
+- [ ] **Simple products with `track_inventory`:** not in Phase 4 MVP (composite deduction only); map simple sellables to `inventory_item` in a later slice if needed.
+- [x] **Insufficient stock:** policy choice—**recommend:** allow sale with **warning** + negative stock forbidden **or** block sale—pick one and implement consistently in POS + server.
 
 ---
 
 ## Workstream C — Admin and reporting UI
 
-- [ ] **Movements** log table with filters.
-- [ ] **Adjustments** flow separate from “stealth edits” to stock grid.
-- [ ] **Reports** pages under `(org)/[businessSlug]/l/[locationSlug]/reports/` (or org-level) with date pickers; add **`location_id`** filters when reporting is branch-specific.
-- [ ] **Loading states** and empty states for reports.
+- [x] **Movements** log table with filters.
+- [x] **Adjustments** flow separate from “stealth edits” to stock grid.
+- [x] **Reports** pages under `(org)/[businessSlug]/l/[locationSlug]/reports/` with date pickers; **`location_id`** (branch) scoped in queries.
+- [x] **Loading states** (`Suspense` shell on reports layout) and empty states for reports.
 
 ---
 
 ## Workstream D — Performance
 
-- [ ] Use SQL aggregates (`GROUP BY`) on server for summaries; avoid loading all transactions to client for month ranges.
-- [ ] Pagination on transaction list.
+- [x] Use SQL aggregates (`GROUP BY`) on server for summaries; avoid loading all transactions to client for month ranges.
+- [x] Pagination on transaction list.
 
 ---
 
 ## Workstream E — Quality
 
-- [ ] **Regression tests** for deduction idempotency (replay handler).
-- [ ] **Data validation:** adjustment cannot drive negative stock if policy forbids it.
+- [ ] **Regression tests** for deduction idempotency (replay handler). *Deferred: add with broader server/query test suite.*
+- [x] **Data validation:** adjustment cannot drive negative stock if policy forbids it.
 
 ---
 
@@ -92,6 +94,6 @@ This section records **intent only**; nothing here is required for Phase 3 POS. 
 
 ## Definition of done (checklist)
 
-- [ ] Manager can explain stock changes from movements log alone.
-- [ ] Composite sale reduces ingredient counts predictably.
-- [ ] Reports match raw SQL spot-check for a sample day.
+- [x] Manager can explain stock changes from movements log alone.
+- [x] Composite sale reduces ingredient counts predictably.
+- [x] Reports match raw SQL spot-check for a sample day.

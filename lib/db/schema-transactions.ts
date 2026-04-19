@@ -10,6 +10,17 @@ import { product, productAddon, productCategoryInstruction, productPrice } from 
 export const transactionStatusValues = ["completed"] as const
 export type TransactionStatus = (typeof transactionStatusValues)[number]
 
+/** Human-readable copy for UI; option `value` stays the DB enum string. */
+export const transactionStatusLabels: Record<TransactionStatus, string> = {
+  completed: "Completed",
+}
+
+export function formatTransactionStatus(status: string): string {
+  return (transactionStatusValues as readonly string[]).includes(status)
+    ? transactionStatusLabels[status as TransactionStatus]
+    : status
+}
+
 export const transactionPaymentMethodValues = ["cash", "card_placeholder"] as const
 export type TransactionPaymentMethod = (typeof transactionPaymentMethodValues)[number]
 

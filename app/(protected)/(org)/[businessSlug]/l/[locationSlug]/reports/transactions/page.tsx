@@ -5,9 +5,15 @@ import { buttonVariants } from "@/components/ui/button"
 import { formatMinorToDecimal2 } from "@/lib/money"
 import { getLocationForUserByBusinessAndLocationSlug } from "@/lib/queries/location"
 import {
+  formatTransactionStatus,
+  transactionStatusLabels,
+  transactionStatusValues,
+} from "@/lib/db/schema-transactions"
+import {
   listTransactionsForLocationPage,
   parseReportDayEndUtc,
   parseReportDayStartUtc,
+  parseTransactionStatusFilter,
 } from "@/lib/queries/reports"
 import { requireSession } from "@/lib/server-auth"
 import { cn } from "@/lib/utils"
@@ -41,6 +47,9 @@ export default async function ReportsTransactionsPage({
   const def = defaultRange()
   const fromStr = typeof sp.from === "string" && sp.from ? sp.from : def.from
   const toStr = typeof sp.to === "string" && sp.to ? sp.to : def.to
+  const statusParam =
+    typeof sp.status === "string" && sp.status.length > 0 ? sp.status : "all"
+  const status = parseTransactionStatusFilter(statusParam === "all" ? undefined : statusParam)
   const page = Math.max(1, Number.parseInt(typeof sp.page === "string" ? sp.page : "", 10) || 1)
   const pageSize = 25
 
@@ -55,12 +64,14 @@ export default async function ReportsTransactionsPage({
     to,
     page,
     pageSize,
+    status,
   )
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
   const qsBase = (p: number) => {
     const u = new URLSearchParams({ from: fromStr, to: toStr, page: String(p) })
+    if (statusParam !== "all") u.set("status", statusParam)
     return `?${u.toString()}`
   }
 
@@ -86,6 +97,21 @@ export default async function ReportsTransactionsPage({
             className="border-input bg-background h-9 rounded-md border px-2 text-sm"
           />
         </label>
+        <label className="grid gap-1 text-sm">
+          <span className="text-muted-foreground">Status</span>
+          <select
+            name="status"
+            defaultValue={statusParam}
+            className="border-input bg-background h-9 min-w-40 rounded-md border px-2 text-sm"
+          >
+            <option value="all">All</option>
+            {transactionStatusValues.map((s) => (
+              <option key={s} value={s}>
+                {transactionStatusLabels[s]}
+              </option>
+            ))}
+          </select>
+        </label>
         <button
           type="submit"
           className="bg-primary text-primary-foreground h-9 rounded-md px-3 text-sm font-medium"
@@ -102,7 +128,7 @@ export default async function ReportsTransactionsPage({
               <th className="p-3 text-left font-medium">#</th>
               <th className="p-3 text-left font-medium">Status</th>
               <th className="p-3 text-right font-medium">Total</th>
-              <th className="p-3 text-right font-medium" />
+              <th className="p-3 text-right font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -117,15 +143,23 @@ export default async function ReportsTransactionsPage({
                 <tr key={t.id} className="border-t">
                   <td className="p-3 whitespace-nowrap tabular-nums">{t.createdAt.toLocaleString()}</td>
                   <td className="p-3 tabular-nums">{t.queueNumber ?? "—"}</td>
-                  <td className="p-3 capitalize">{t.status}</td>
+                  <td className="p-3">{formatTransactionStatus(t.status)}</td>
                   <td className="p-3 text-right tabular-nums">{formatMinorToDecimal2(t.totalMinor)}</td>
                   <td className="p-3 text-right">
-                    <Link
-                      href={`/${businessSlug}/l/${locationSlug}/pos/receipt/${t.id}`}
-                      className={cn(buttonVariants({ variant: "link", size: "sm" }), "h-auto p-0")}
-                    >
-                      Receipt
-                    </Link>
+                    <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                      <Link
+                        href={`/${businessSlug}/l/${locationSlug}/reports/transactions/${t.id}`}
+                        className={cn(buttonVariants({ variant: "link", size: "sm" }), "h-auto p-0")}
+                      >
+                        Lines
+                      </Link>
+                      <Link
+                        href={`/${businessSlug}/l/${locationSlug}/pos/receipt/${t.id}`}
+                        className={cn(buttonVariants({ variant: "link", size: "sm" }), "h-auto p-0")}
+                      >
+                        Receipt
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))
