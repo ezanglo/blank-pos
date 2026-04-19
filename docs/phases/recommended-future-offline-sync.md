@@ -1,4 +1,8 @@
-# Phase 4 — Offline-first and sync
+# Recommended future — Offline-first and sync
+
+**Status:** Not part of the numbered execution sequence for MVP. Small-cafe deployments are assumed **online-first**; revisit when venues need **offline sales** or resilient sync. This document preserves the original Phase 4 spec.
+
+**Original numbering:** Was “Phase 4 — Offline-first and sync” before phases were reordered.
 
 **Goal:** The POS remains usable **offline**: reads and writes go to **PGlite** (or similar) in the browser; a **custom sync engine** pushes/pulls changes to the **hosted Postgres API** (same app / `DATABASE_URL` backend) when online. **Conflict rules** match the master plan: append-only sales; **last-write-wins** on mutable catalog/inventory with `updated_at`; stock scoped by **store (`organization_id`) and eventually `location_id`** for multi-branch. **Branding** and org/branch settings sync so UI stays correct offline.
 
@@ -74,7 +78,7 @@
 
 ## Dependencies for later phases
 
-- Phase 5 reports: read from server online; optionally local summaries—clarify single source of truth (**recommended:** server for reports; local for POS continuity).
+- Inventory & reports phase: read from server online; optionally local summaries—clarify single source of truth (**recommended:** server for reports; local for POS continuity).
 
 ---
 

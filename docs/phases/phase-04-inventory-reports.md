@@ -1,8 +1,8 @@
-# Phase 5 — Inventory depth and reporting (v1.1)
+# Phase 4 — Inventory depth and reporting (v1.1)
 
-**Goal:** Inventory is **operationally trustworthy**: movements and adjustments are logged, **composite sales** can **auto-deduct** ingredients per policy, **low-stock** signals fire, and managers have **daily sales** plus **product performance** views. Reporting reads primarily from the **hosted Postgres** / app API (authoritative after Phase 4 sync); local DB optional for cached aggregates—document choice.
+**Goal:** Inventory is **operationally trustworthy**: movements and adjustments are logged, **composite sales** can **auto-deduct** ingredients per policy, **low-stock** signals fire, and managers have **daily sales** plus **product performance** views. Reporting reads primarily from the **hosted Postgres** / app API (authoritative for the online MVP). If [recommended-future-offline-sync.md](recommended-future-offline-sync.md) ships later, reconcile optional local summaries—document the single source of truth.
 
-**Prerequisites:** Phase 3–4: transactions persisted/synced; Phase 2: **`inventory_stock`**, **`product_ingredient`** (`quantity_milli`), **`track_inventory`** semantics defined.
+**Prerequisites:** Phase 3 checkout with transactions persisted **server-side**; Phase 2: **`inventory_stock`**, **`product_ingredient`** (`quantity_milli`), **`track_inventory`** semantics defined.
 
 **References:** [blank-pos-dev-plan.md](../blank-pos-dev-plan.md) §4 (`inventory_movements`), §5 v1.1.
 
@@ -10,7 +10,7 @@
 
 ## Direction — tier-scoped recipes and `track_inventory` (revisit before build)
 
-This section records **intent only**; nothing here is required for Phase 3 POS. Revisit when scoping **Phase 5** (or a smaller inventory slice).
+This section records **intent only**; nothing here is required for Phase 3 POS. Revisit when scoping **Phase 4** (or a smaller inventory slice).
 
 - **`track_inventory`** — Stored on **`product`** and editable in **catalog admin** today. **POS does not** read it; there are **no low-stock badges** on the register until movements, deduction policy, and alerts exist (see **Outcomes** below). Avoid implying POS behavior from the flag until then.
 - **`product_ingredient`** — Recipe lines are keyed by **`product_id` only** (one BOM per product for all price tiers). For menus where **Small / Large** (or other tiers) need **different** ingredient quantities, the planned direction is **tier-scoped BOM**: attach recipe lines to the **sellable tier** the cashier actually picks — e.g. **`product_price.id`**, or a unique **`(product_id, category_variant_id)`** — **not** to **`product_category_variant` alone** (those labels are **category-wide** and shared by every product in the category). Aligning BOM with **`product_price_id`** (or equivalent) keeps **checkout, receipts, and deduction** on the same key.
@@ -48,7 +48,7 @@ This section records **intent only**; nothing here is required for Phase 3 POS. 
 ## Workstream B — Deduction rules (explicit)
 
 - [ ] **Composite products:** always deduct ingredients on sale completion (unless `is_composite` false). When **tier-scoped recipes** exist (see **Direction** above), resolve the recipe for the sold **`product_price`** / tier, not the product default alone.
-- [ ] **Simple products with `track_inventory`:** if you map simple products to a single `inventory_item` in a future schema, defer here—**Phase 5 MVP:** only composite deduction required per master roadmap; document if simple product stock is out of scope.
+- [ ] **Simple products with `track_inventory`:** if you map simple products to a single `inventory_item` in a future schema, defer here—**Phase 4 MVP:** only composite deduction required per master roadmap; document if simple product stock is out of scope.
 - [ ] **Insufficient stock:** policy choice—**recommend:** allow sale with **warning** + negative stock forbidden **or** block sale—pick one and implement consistently in POS + server.
 
 ---
@@ -78,15 +78,15 @@ This section records **intent only**; nothing here is required for Phase 3 POS. 
 
 ## Dependencies for later phases
 
-- Phase 6: `transaction_promotions` joins into reports (discount lines).
-- Phase 7: void/refund reversals must write compensating **inventory_movements** (`in`)—design hooks now.
+- Phase 5: `transaction_promotions` joins into reports (discount lines).
+- Phase 6: void/refund reversals must write compensating **inventory_movements** (`in`)—design hooks now.
 
 ---
 
 ## Risks and mitigations
 
 - **Race:** concurrent sales same ingredient—use row-level locking on `inventory_stock` during deduction transaction.
-- **Sync + deduct:** if sale originates offline, deduction runs when sale is finalized locally; when synced, server must recognize same transaction id—align Phase 4 idempotency with server triggers or run deductions only on server when sale arrives (choose **single place of truth**).
+- **Sync + deduct:** if [offline sync](recommended-future-offline-sync.md) exists later, align deduction with the same `transaction` id / `checkoutId` idempotency—run deductions in **one** place (typically server when the sale is persisted).
 
 ---
 

@@ -1,8 +1,8 @@
-# Phase 6 — Promotions and coupons (v1.2)
+# Phase 5 — Promotions and coupons (v1.2)
 
 **Goal:** Owners/managers configure **promotions** (automatic or coupon-triggered; **v1.2: store-wide default**, optional **`promotion_locations`** when promos should vary by branch) with **stacking rules**; cashiers **apply coupon codes** (typed or scanned); POS **evaluates automatic promos** on cart changes; checkout persists **discounts** on transactions and **audit rows** in `transaction_promotions`. Receipts show **discount breakdown**.
 
-**Prerequisites:** Phase 3 checkout and Phase 5 reporting baseline; clear transaction totals fields in use.
+**Prerequisites:** Phase 3 checkout and Phase 4 reporting baseline; clear transaction totals fields in use.
 
 **References:** [blank-pos-dev-plan.md](../blank-pos-dev-plan.md) §4 (promotions, coupon_codes, transaction_promotions), promotion logic notes; **`promotion_locations`** optional once catalog/promos need per-**`location`** rules.
 
@@ -47,7 +47,7 @@
 
 ## Workstream C — POS UI
 
-- [ ] Coupon input component; optional **barcode** prefix mapping to coupon code (full barcode support in Phase 7).
+- [ ] Coupon input component; optional **barcode** prefix mapping to coupon code (full barcode support in Phase 6).
 - [ ] Cart lines show discounts per line when scoped; show **total savings** summary.
 - [ ] Clear errors: expired, not applicable to this org/store, usage exhausted.
 
@@ -56,7 +56,7 @@
 ## Workstream D — Reporting hooks
 
 - [ ] Extend daily summary: **discount total** and top promotions by usage.
-- [ ] Ensure Phase 5 SQL still valid or update aggregates to account for `discount_amount`.
+- [ ] Ensure Phase 4 reporting SQL still valid or update aggregates to account for `discount_amount`.
 
 ---
 
@@ -71,22 +71,22 @@
 
 **Goal:** Christmas sets, family meals, “buy these together” discounts without ad-hoc manual coupons.
 
-- **Preferred (Phase 6):** add a promotion **type** or rule shape **bundle** in `evaluatePromotions`: when the cart satisfies a defined set of products/categories and quantities, apply a **percentage** or **fixed** discount (automatic or coupon-triggered), reusing schedules, `transaction_promotions`, and stacking rules.
-- **Optional later (catalog + POS):** a **`bundle` product** that **explodes** into normal line items at add-to-cart (Phase 2 surface + Phase 3 cart) so the menu shows one tile; discount can still be a Phase 6 bundle promo.
+- **Preferred (Phase 5):** add a promotion **type** or rule shape **bundle** in `evaluatePromotions`: when the cart satisfies a defined set of products/categories and quantities, apply a **percentage** or **fixed** discount (automatic or coupon-triggered), reusing schedules, `transaction_promotions`, and stacking rules.
+- **Optional later (catalog + POS):** a **`bundle` product** that **explodes** into normal line items at add-to-cart (Phase 2 surface + Phase 3 cart) so the menu shows one tile; discount can still be a Phase 5 bundle promo.
 - **Defer:** “promotion product” that only auto-adds lines + hidden coupon—harder to audit; use bundle rules + optional bundle SKU instead.
 
 ---
 
 ## Dependencies for later phases
 
-- Phase 7 void/refund: reverse or annotate promotion usage counts consistently.
+- Phase 6 void/refund: reverse or annotate promotion usage counts consistently.
 
 ---
 
 ## Risks and mitigations
 
-- **Discount double-apply on retry:** bind promotion application to transaction id idempotency from Phase 3–4.
-- **Complex `buy_x_get_y`:** ship behind flag or phase 6.1 if scope explodes.
+- **Discount double-apply on retry:** bind promotion application to transaction id idempotency from Phase 3 (`checkoutId`); if offline sync ships, see [recommended-future-offline-sync.md](recommended-future-offline-sync.md).
+- **Complex `buy_x_get_y`:** ship behind flag or phase 5.1 if scope explodes.
 
 ---
 

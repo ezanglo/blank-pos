@@ -1,6 +1,6 @@
 # Blank POS — Development Plan
 
-> **Stack:** Next.js · PostgreSQL (`DATABASE_URL`) · Drizzle · better-auth · IndexedDB/SQLite (offline-first direction)
+> **Stack:** Next.js · PostgreSQL (`DATABASE_URL`) · Drizzle · better-auth · optional future local DB / sync ([phases/recommended-future-offline-sync.md](phases/recommended-future-offline-sync.md))
 > **Philosophy:** Simple now. Scalable later.
 
 ---
@@ -22,7 +22,7 @@
 
 ## 1. Project Overview
 
-**Blank POS** is a simple, extensible point-of-sale system. **v1:** one **better-auth organization** is one **business**; **branches** are **`location`** rows (many per `organization_id`, each with slug, address, default currency). A second legal entity is a second **`organization`**. It supports product management, categorization, variable pricing, inventory tracking, recipe/composite product creation, costing, and promotions/coupon codes — with offline-first direction and sync to the same app’s **Postgres** backend. See [schema-better-auth-alignment.md](schema-better-auth-alignment.md).
+**Blank POS** is a simple, extensible point-of-sale system. **v1:** one **better-auth organization** is one **business**; **branches** are **`location`** rows (many per `organization_id`, each with slug, address, default currency). A second legal entity is a second **`organization`**. It supports product management, categorization, variable pricing, inventory tracking, recipe/composite product creation, costing, and promotions/coupon codes — **online-first** MVP with optional future **offline sync** to the same app’s **Postgres** backend ([recommended future spec](phases/recommended-future-offline-sync.md)). See [schema-better-auth-alignment.md](schema-better-auth-alignment.md).
 
 ### Core Goals
 
@@ -157,7 +157,7 @@ inventory_item
 inventory_stock
   id, inventory_item_id, organization_id, quantity, updated_at
 
--- Planned for Phase 5 (not migrated in repo yet); see docs/phases/phase-05-inventory-reports.md
+-- Planned for Phase 4 (not migrated in repo yet); see docs/phases/phase-04-inventory-reports.md
 inventory_movements
   id, inventory_item_id, organization_id, type (in|out|adjustment),
   quantity, reference_id, note, created_at
@@ -169,7 +169,7 @@ inventory_movements
 product_ingredient
   id, product_id, inventory_item_id, quantity_milli
   -- quantity_milli: integer = quantity × 1000 (three decimal places); avoid float
-  -- Defines the recipe/BOM for a composite product; used for COGS and Phase 5 deduct
+  -- Defines the recipe/BOM for a composite product; used for COGS and Phase 4 deduct
 ```
 
 ### Promotions & Coupons
@@ -252,8 +252,7 @@ transaction_item_addon   -- Drizzle: lib/db/schema-transactions.ts; child of tra
 - [ ] Composite product builder (recipe from inventory items)
 - [ ] Cost calculation (sum of ingredient costs)
 - [x] **POS checkout** — product grid, cart, **price tiers**, **category-scoped add-ons** (configured under **Catalog → Categories**), payment method (**cash** / **card placeholder**), persisted **`transactions`**, **`transaction_items`**, and **`transaction_item_addon`** when applicable, branded **receipt** with nested add-ons ([phases/phase-03-pos-mvp.md](phases/phase-03-pos-mvp.md))
-- [ ] Offline mode with local DB
-- [ ] Background sync to the hosted API when online
+- [ ] Offline mode with local DB + background sync — **recommended future** ([phases/recommended-future-offline-sync.md](phases/recommended-future-offline-sync.md)); MVP assumes **online-first** POS.
 
 ### v1.1 — Inventory & Reporting
 
@@ -424,7 +423,7 @@ blank-pos/
 ### Phase 1 — Foundation (Weeks 1–2)
 
 - Initialize Next.js project with TypeScript, Tailwind, shadcn/ui
-- Set up hosted Postgres (`DATABASE_URL`) and local PGlite database
+- Set up hosted Postgres (`DATABASE_URL`) (local **PGlite** deferred — see [phases/recommended-future-offline-sync.md](phases/recommended-future-offline-sync.md))
 - Configure better-auth with organization support
 - Generate better-auth + organization plugin schema; add app tables **`location`**, **`business_details`**, **`user_profile`** ([schema-better-auth-alignment.md](schema-better-auth-alignment.md))
 - **Signup + onboarding** in the browser: `/signup`, then `/onboarding` → organization + locations + `business_details` ([onboarding-first-run.md](onboarding-first-run.md)); README “First run” for clone → migrate → signup
@@ -448,31 +447,39 @@ Shipped in repo (detail: [phases/phase-02-product-engine.md](phases/phase-02-pro
 - **Cart line identity:** different add-on selections → separate lines; same product + tier + same add-on signature → quantity merge
 - Checkout flow (**cash**, **card placeholder**); **createSale** persists **`transactions`**, **`transaction_items`**, **`transaction_item_addon`**
 - Branded **receipt** (shared document component): standalone **`/pos/receipt/...`** route, **in-app preview sheet** + print, **last-receipt** shortcut from latest branch sale; print CSS scoped via **`#pos-receipt-root`**
-- **Coupon / automatic promotions** → Phase 6 (not in current POS checkout)
+- **Coupon / automatic promotions** → Phase 5 (not in current POS checkout)
 
-### Phase 4 — Offline & Sync (Weeks 7–8)
+### Phase 4 — Inventory & Reports (Weeks 7–8)
 
-- Finalize local DB schema matching server Postgres
-- Implement sync queue and push/pull logic
-- Online/offline status indicator
-- Conflict resolution handling
-- Test offline-then-sync scenarios
+Detail: [phases/phase-04-inventory-reports.md](phases/phase-04-inventory-reports.md).
 
-### Phase 5 — Inventory & Reports (Weeks 9–10)
-
-- Auto-deduct inventory on sale
-- Inventory adjustment UI
+- Auto-deduct inventory on sale (composite policy)
+- Inventory adjustment UI and **`inventory_movements`**
 - Low stock alerts
-- Daily/weekly sales report
-- Product performance view
+- Daily/weekly sales report and product performance view
+- Transaction list for managers
 
-### Phase 6 — Polish & QA (Week 11–12)
+### Phase 5 — Promotions & Coupons (Weeks 9–10)
 
-- Role-based UI (hide features by role)
-- Optional Postgres RLS policy review
-- Performance audit
-- Error handling and loading states
-- User acceptance testing
+Detail: [phases/phase-05-promotions-coupons.md](phases/phase-05-promotions-coupons.md).
+
+- Promotion schema, admin UI, evaluator, stacking rules
+- Coupon codes and checkout persistence (`transaction_promotions`, discount totals)
+
+### Phase 6 — Operations, hardening & QA (Week 11–12)
+
+Detail: [phases/phase-06-operations-qa.md](phases/phase-06-operations-qa.md).
+
+- Shifts / cash drawer, void/refund, barcode, CSV import, RBAC UI polish
+- Performance pass, security review, UAT
+
+### Phase 7 — Customers & loyalty (planned)
+
+Detail: [phases/phase-07-customers-loyalty.md](phases/phase-07-customers-loyalty.md).
+
+### Recommended future — Offline-first & sync
+
+Not sequenced for MVP. Spec: [phases/recommended-future-offline-sync.md](phases/recommended-future-offline-sync.md) (PGlite, outbox, push/pull, LWW).
 
 ---
 

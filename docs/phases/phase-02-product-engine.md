@@ -24,7 +24,7 @@
 | **Free-text price tiers** with `category_variant_id` null (DB nullable; UI requires a variant per tier today) | Deferred |
 | **Global barcode** uniqueness (only **`(organization_id, sku)`** is unique today) | Deferred |
 | Optional **`created_by` / `updated_by`** on catalog rows | Deferred |
-| **`inventory_movements`** table | Phase 5 ([phase-05-inventory-reports.md](phase-05-inventory-reports.md)) — not in Drizzle yet |
+| **`inventory_movements`** table | Phase 4 ([phase-04-inventory-reports.md](phase-04-inventory-reports.md)) — not in Drizzle yet |
 
 ---
 
@@ -74,7 +74,7 @@ UI building blocks live under [`components/catalog/`](../../components/catalog/)
 - [ ] **Seed** data for demo orgs.
 - [ ] **Free-text** price **`label`** without variant (column supports null FK; flows do not yet).
 - [ ] **Barcode** uniqueness policy if scanners need hard guarantees beyond SKU.
-- [ ] **Audit** columns on mutable catalog entities for Phase 4 LWW.
+- [ ] **Audit** columns on mutable catalog entities for future **last-write-wins** sync (see [recommended-future-offline-sync.md](recommended-future-offline-sync.md)).
 
 ---
 
@@ -136,9 +136,9 @@ UI building blocks live under [`components/catalog/`](../../components/catalog/)
 ## Dependencies for later phases
 
 - Phase 3 needs: active products **per location** using availability rules; resolvable **default price tier** (`is_default` + `sort_order` on **`product_price`**).
-- Phase 4 needs: `updated_at` on mutable entities for LWW (already on several catalog tables; audit fields still optional).
-- Phase 5 may introduce **per-location stock** if needed; Phase 2 keeps **`inventory_stock`** at **`(inventory_item_id, organization_id)`** unless you explicitly extend it earlier.
-- **Inventory / recipes (future):** **`track_inventory`** is admin-only today (POS ignores it). **`product_ingredient`** is **product-scoped**; tier-scoped BOM and POS low-stock are **planned** — see *Direction — tier-scoped recipes and `track_inventory`* in [phase-05-inventory-reports.md](phase-05-inventory-reports.md).
+- Future offline sync benefits from `updated_at` on mutable entities for LWW (already on several catalog tables; audit fields still optional) — [recommended-future-offline-sync.md](recommended-future-offline-sync.md).
+- Phase 4 may introduce **per-location stock** if needed; Phase 2 keeps **`inventory_stock`** at **`(inventory_item_id, organization_id)`** unless you explicitly extend it earlier.
+- **Inventory / recipes (future):** **`track_inventory`** is admin-only today (POS ignores it). **`product_ingredient`** is **product-scoped**; tier-scoped BOM and POS low-stock are **planned** — see *Direction — tier-scoped recipes and `track_inventory`* in [phase-04-inventory-reports.md](phase-04-inventory-reports.md).
 
 ---
 

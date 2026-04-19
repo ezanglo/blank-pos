@@ -83,9 +83,9 @@
 
 ## Dependencies for later phases
 
-- Phase 4: same write path will enqueue to local DB + sync; keep **createSale** isolated behind a service function to swap implementation.
-- Phase 5: transaction list UI, reporting, inventory movements reference `transaction_id` / line ids.
-- Phase 6: extend checkout to evaluate promotions and write `transaction_promotions`.
+- Recommended future [offline sync](recommended-future-offline-sync.md): same write path would enqueue to local DB + sync; keep **createSale** isolated behind a service function to swap implementation.
+- Phase 4: transaction list UI, reporting, inventory movements reference `transaction_id` / line ids.
+- Phase 5: extend checkout to evaluate promotions and write `transaction_promotions`.
 
 ---
 

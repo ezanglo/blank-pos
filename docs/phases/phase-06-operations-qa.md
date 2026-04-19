@@ -1,8 +1,8 @@
-# Phase 7 — Operations, hardening, and QA (v1.3 + release readiness)
+# Phase 6 — Operations, hardening, and QA (v1.3 + release readiness)
 
 **Goal:** Day-two retail operations: **shifts / cash drawer**, **void and refund** flows with inventory reversal, **barcode** scanning for products and coupons, **CSV import** for products, optional **thermal** receipt improvements, **role-based UI** completion, **RLS audit**, performance pass, and **UAT** sign-off.
 
-**Prerequisites:** Phases 1–6 complete or explicitly descoped with tickets.
+**Prerequisites:** Phases 1–5 complete or explicitly descoped with tickets.
 
 **References:** [blank-pos-dev-plan.md](../blank-pos-dev-plan.md) §5 v1.3, §7 role matrix.
 
@@ -11,7 +11,7 @@
 ## Outcomes (exit criteria)
 
 - [ ] **Shifts / cash drawer:** open shift, close shift with expected vs actual cash entry, variance note; persist shift records tied to **`organization_id`** and `user_id` (schema may be new—design `shifts` table: `opened_at`, `closed_at`, `opening_float`, `closing_counted`, `status`).
-- [ ] **Void transaction:** manager permission; marks `transactions.status=voided`; **no deletion**; inventory **reversal** movements if Phase 5 deductions applied; promotion usage counts rolled back if applicable.
+- [ ] **Void transaction:** manager permission; marks `transactions.status=voided`; **no deletion**; inventory **reversal** movements if Phase 4 deductions applied; promotion usage counts rolled back if applicable.
 - [ ] **Refund:** define policy (full refund only in MVP vs partial)—implement minimal **full refund** path creating compensating records or linked refund transaction; document accounting limitations.
 - [ ] **Barcode scanning:** integrate hardware or `BarcodeDetector` where available; map scan to **SKU/barcode** product lookup and coupon code path.
 - [ ] **CSV import:** upload, preview, validate rows, commit in batch with error report; dry-run mode.
@@ -55,7 +55,7 @@
 
 ## Workstream D — Hardening
 
-- [ ] **Error budget:** user-friendly errors for common failures (session expired, sync backlog).
+- [ ] **Error budget:** user-friendly errors for common failures (session expired; if offline sync exists later, sync backlog—see [recommended-future-offline-sync.md](recommended-future-offline-sync.md)).
 - [ ] **Observability:** basic client error reporting hook (optional Sentry) behind env flag.
 - [ ] **Backups:** Postgres backup strategy verified for production (provider-native snapshots or `pg_dump` schedule).
 
@@ -64,7 +64,7 @@
 ## Workstream E — QA program
 
 - [ ] **Test matrix** by role: owner, manager, cashier—each row of matrix exercised, including **who may open Settings → Team** and **`createUser`** (align with Phase 1 rules: e.g. only owner creates managers).
-- [ ] **Offline + void** interaction documented (if void requires online, state clearly).
+- [ ] **Offline + void** interaction documented when [offline sync](recommended-future-offline-sync.md) exists (if void requires online until then, state clearly).
 - [ ] **Load test light:** e.g. 50 concurrent checkouts simulation if feasible.
 
 ---
