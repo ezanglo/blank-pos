@@ -21,6 +21,10 @@ import {
   posTransactionItems,
   posTransactions,
 } from "@/lib/db/schema-transactions"
+import {
+  applyInventoryDeductionForTransaction,
+  InsufficientInventoryError,
+} from "@/lib/inventory/sale-deduction"
 import { listSellableProductIdsForLocation } from "@/lib/queries/catalog"
 import { getLocationByOrganizationAndSlug } from "@/lib/queries/location"
 import { findTransactionIdByCheckoutId } from "@/lib/queries/transactions"
@@ -38,7 +42,11 @@ export type CreateSaleResult =
       /** Sum of per-product prep seconds × line qty when any line has `prep_time_seconds`; else null. */
       estimatedPrepSeconds: number | null
     }
-  | { ok: false; error: "validation" | "forbidden" | "location" | "empty" | "product" | "price" | "server"; message: string }
+  | {
+      ok: false
+      error: "validation" | "forbidden" | "location" | "empty" | "product" | "price" | "inventory" | "server"
+      message: string
+    }
 
 export async function createSale(raw: unknown): Promise<CreateSaleResult> {
   const parsed = createSaleInputSchema.safeParse(raw)
@@ -316,8 +324,14 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
         checkoutId: input.checkoutId ?? null,
       })
 
+      const saleLines: { transactionItemId: string; productId: string; quantity: number }[] = []
       for (const line of resolvedLines) {
         const itemId = randomUUID()
+        saleLines.push({
+          transactionItemId: itemId,
+          productId: line.productId,
+          quantity: line.quantity,
+        })
         await tx.insert(posTransactionItems).values({
           id: itemId,
           transactionId,
@@ -349,8 +363,18 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
           })
         }
       }
+
+      await applyInventoryDeductionForTransaction(tx, {
+        organizationId,
+        transactionId,
+        userId,
+        lines: saleLines,
+      })
     })
   } catch (e) {
+    if (e instanceof InsufficientInventoryError) {
+      return { ok: false, error: "inventory", message: e.message }
+    }
     if (input.checkoutId) {
       const existing = await findTransactionIdByCheckoutId(organizationId, input.checkoutId)
       if (existing) {

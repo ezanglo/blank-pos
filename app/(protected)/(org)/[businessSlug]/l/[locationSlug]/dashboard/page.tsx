@@ -2,8 +2,10 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
 import { ChartAreaInteractive } from "@/components/chart-area-interactive"
+import { DashboardLowStockBanner } from "@/components/dashboard-low-stock-banner"
 import { DataTable } from "@/components/data-table"
 import { SectionCards } from "@/components/section-cards"
+import { listInventoryBelowReorder } from "@/lib/queries/catalog"
 import { getLocationForUserByBusinessAndLocationSlug } from "@/lib/queries/location"
 import { requireSession } from "@/lib/server-auth"
 
@@ -45,8 +47,14 @@ export default async function BusinessLocationDashboardPage({
   )
   if (!row) notFound()
 
+  const showLowStock = row.member.role === "owner" || row.member.role === "manager"
+  const belowReorder = showLowStock
+    ? await listInventoryBelowReorder(row.organization.id)
+    : []
+
   return (
     <>
+      <DashboardLowStockBanner businessSlug={businessSlug} items={belowReorder} />
       <SectionCards />
       <ChartAreaInteractive />
       <DataTable

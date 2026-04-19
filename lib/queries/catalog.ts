@@ -1,4 +1,4 @@
-import { and, asc, eq, ilike, inArray, or, sql } from "drizzle-orm"
+import { and, asc, eq, ilike, inArray, isNotNull, lte, or, sql } from "drizzle-orm"
 import type { SQL } from "drizzle-orm"
 
 import { getDb } from "@/lib/db"
@@ -407,4 +407,48 @@ export async function listSellableProductIdsForLocation(organizationId: string, 
   return all
     .filter((p) => p.mode === "all_locations" || allowedLoc.has(p.id))
     .map((p) => p.id)
+}
+
+export type BelowReorderRow = {
+  itemId: string
+  name: string
+  quantity: number
+  reorderPoint: number
+}
+
+/** Items at or below `reorder_point` (organization-wide stock). */
+export async function listInventoryBelowReorder(organizationId: string): Promise<BelowReorderRow[]> {
+  const db = getDb()
+  const raw = await db
+    .select({
+      itemId: inventoryItem.id,
+      name: inventoryItem.name,
+      quantity: inventoryStock.quantity,
+      reorderPoint: inventoryItem.reorderPoint,
+    })
+    .from(inventoryItem)
+    .innerJoin(
+      inventoryStock,
+      and(
+        eq(inventoryStock.inventoryItemId, inventoryItem.id),
+        eq(inventoryStock.organizationId, organizationId),
+      ),
+    )
+    .where(
+      and(
+        eq(inventoryItem.organizationId, organizationId),
+        isNotNull(inventoryItem.reorderPoint),
+        lte(inventoryStock.quantity, inventoryItem.reorderPoint),
+      ),
+    )
+    .orderBy(asc(inventoryItem.name))
+
+  return raw
+    .filter((r): r is typeof r & { reorderPoint: number } => r.reorderPoint != null)
+    .map((r) => ({
+      itemId: r.itemId,
+      name: r.name,
+      quantity: r.quantity,
+      reorderPoint: r.reorderPoint,
+    }))
 }

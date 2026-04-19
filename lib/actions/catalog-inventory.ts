@@ -8,6 +8,7 @@ import type { z } from "zod"
 import { requireCatalogManager } from "@/lib/catalog-access"
 import { getDb } from "@/lib/db"
 import { inventoryItem, inventoryStock, productIngredient } from "@/lib/db/schema-catalog"
+import { inventoryMovements } from "@/lib/db/schema-inventory-movements"
 import { parseDecimal2ToMinor } from "@/lib/money"
 import {
   catalogInventoryItemCreateSchema,
@@ -45,6 +46,19 @@ export async function createInventoryItem(
       quantity: qty,
       updatedAt: now,
     })
+    if (qty > 0) {
+      await tx.insert(inventoryMovements).values({
+        id: randomUUID(),
+        organizationId: ctx.organization.id,
+        inventoryItemId: itemId,
+        type: "in",
+        quantity: qty,
+        referenceId: null,
+        note: "Initial stock",
+        userId: ctx.member.userId,
+        createdAt: now,
+      })
+    }
   })
 
   return { ok: true as const, id: itemId }
@@ -103,32 +117,128 @@ export async function updateInventoryStockQuantity(
     .limit(1)
   if (!item) throw new Error("Item not found.")
 
-  const [stock] = await db
-    .select()
-    .from(inventoryStock)
+  const newQty = input.quantity
+  const now = new Date()
+
+  await db.transaction(async (tx) => {
+    const [stock] = await tx
+      .select()
+      .from(inventoryStock)
+      .where(
+        and(
+          eq(inventoryStock.inventoryItemId, input.inventoryItemId),
+          eq(inventoryStock.organizationId, ctx.organization.id),
+        ),
+      )
+      .for("update")
+
+    const oldQty = stock?.quantity ?? 0
+    const delta = newQty - oldQty
+
+    if (delta !== 0) {
+      await tx.insert(inventoryMovements).values({
+        id: randomUUID(),
+        organizationId: ctx.organization.id,
+        inventoryItemId: input.inventoryItemId,
+        type: "adjustment",
+        quantity: delta,
+        referenceId: null,
+        note: `Stock set to ${newQty} (was ${oldQty})`,
+        userId: ctx.member.userId,
+        createdAt: now,
+      })
+    }
+
+    if (stock) {
+      await tx
+        .update(inventoryStock)
+        .set({ quantity: newQty, updatedAt: now })
+        .where(eq(inventoryStock.id, stock.id))
+    } else if (newQty > 0) {
+      await tx.insert(inventoryStock).values({
+        id: randomUUID(),
+        inventoryItemId: input.inventoryItemId,
+        organizationId: ctx.organization.id,
+        quantity: newQty,
+        updatedAt: now,
+      })
+    }
+  })
+
+  return { ok: true as const }
+}
+
+/** Signed delta adjustment with a required reason (audit). */
+export async function recordInventoryAdjustment(
+  businessSlug: string,
+  input: { inventoryItemId: string; delta: number; note: string },
+) {
+  const ctx = await requireCatalogManager(businessSlug)
+  const note = input.note.trim()
+  if (note.length === 0) throw new Error("Reason is required.")
+  if (!Number.isInteger(input.delta) || input.delta === 0) {
+    throw new Error("Delta must be a non-zero integer.")
+  }
+
+  const db = getDb()
+  const [item] = await db
+    .select({ id: inventoryItem.id })
+    .from(inventoryItem)
     .where(
       and(
-        eq(inventoryStock.inventoryItemId, input.inventoryItemId),
-        eq(inventoryStock.organizationId, ctx.organization.id),
+        eq(inventoryItem.id, input.inventoryItemId),
+        eq(inventoryItem.organizationId, ctx.organization.id),
       ),
     )
     .limit(1)
+  if (!item) throw new Error("Item not found.")
 
   const now = new Date()
-  if (stock) {
-    await db
-      .update(inventoryStock)
-      .set({ quantity: input.quantity, updatedAt: now })
-      .where(eq(inventoryStock.id, stock.id))
-  } else {
-    await db.insert(inventoryStock).values({
+
+  await db.transaction(async (tx) => {
+    const [stock] = await tx
+      .select()
+      .from(inventoryStock)
+      .where(
+        and(
+          eq(inventoryStock.inventoryItemId, input.inventoryItemId),
+          eq(inventoryStock.organizationId, ctx.organization.id),
+        ),
+      )
+      .for("update")
+
+    const oldQty = stock?.quantity ?? 0
+    const newQty = oldQty + input.delta
+    if (newQty < 0) throw new Error("Adjustment would make stock negative.")
+
+    await tx.insert(inventoryMovements).values({
       id: randomUUID(),
-      inventoryItemId: input.inventoryItemId,
       organizationId: ctx.organization.id,
-      quantity: input.quantity,
-      updatedAt: now,
+      inventoryItemId: input.inventoryItemId,
+      type: "adjustment",
+      quantity: input.delta,
+      referenceId: null,
+      note,
+      userId: ctx.member.userId,
+      createdAt: now,
     })
-  }
+
+    if (stock) {
+      await tx
+        .update(inventoryStock)
+        .set({ quantity: newQty, updatedAt: now })
+        .where(eq(inventoryStock.id, stock.id))
+    } else {
+      await tx.insert(inventoryStock).values({
+        id: randomUUID(),
+        inventoryItemId: input.inventoryItemId,
+        organizationId: ctx.organization.id,
+        quantity: newQty,
+        updatedAt: now,
+      })
+    }
+  })
+
   return { ok: true as const }
 }
 

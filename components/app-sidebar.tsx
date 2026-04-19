@@ -18,6 +18,7 @@ import {
 import {
   BanknoteIcon,
   BoxesIcon,
+  ChartColumnIcon,
   LayoutDashboardIcon,
   MapPinIcon,
   PackageIcon,
@@ -45,6 +46,8 @@ export function AppSidebar({
     pathname === dashboardHref || pathname.startsWith(`${dashboardHref}/`)
   const posHref = `${locBase}/pos`
   const posActive = pathname === posHref || pathname.startsWith(`${posHref}/`)
+  const reportsHref = `${locBase}/reports`
+  const reportsActive = pathname === reportsHref || pathname.startsWith(`${reportsHref}/`)
 
   const isCashier = orgRole === "cashier"
 
@@ -124,6 +127,18 @@ export function AppSidebar({
                   <span>Register</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {!isCashier ? (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    tooltip="Reports"
+                    isActive={reportsActive}
+                    render={<Link href={reportsHref} />}
+                  >
+                    <ChartColumnIcon />
+                    <span>Reports</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ) : null}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

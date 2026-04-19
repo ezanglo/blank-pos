@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
@@ -27,7 +28,7 @@ import {
   type CatalogProductsUrlState,
 } from "@/lib/catalog-products-url"
 
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -60,6 +61,7 @@ import {
 } from "@/lib/actions/catalog-inventory"
 import { formatMinorToDecimal2 } from "@/lib/money"
 import type { InventoryItemWithStock } from "@/lib/queries/catalog"
+import { cn } from "@/lib/utils"
 
 type Row = InventoryItemWithStock
 
@@ -371,6 +373,12 @@ export function CatalogInventoryPanel({
                   ))}
               </DropdownMenuContent>
             </DropdownMenu>
+            <Link
+              href={`/${businessSlug}/catalog/inventory/movements`}
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+            >
+              Movement log
+            </Link>
             <Button
               type="button"
               onClick={() => {
@@ -541,7 +549,13 @@ export function CatalogInventoryPanel({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Stock quantity</DialogTitle>
-            <DialogDescription>Organization-wide quantity for {stockRow?.item.name}.</DialogDescription>
+            <DialogDescription>
+              Organization-wide quantity for {stockRow?.item.name}. Changes write an adjustment entry to the{" "}
+              <Link href={`/${businessSlug}/catalog/inventory/movements`} className="text-primary underline-offset-4 hover:underline">
+                movement log
+              </Link>
+              .
+            </DialogDescription>
           </DialogHeader>
           <RootFormError message={formError ?? undefined} />
           <Field>
