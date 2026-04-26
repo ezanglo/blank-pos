@@ -43,6 +43,8 @@ export type PosReceiptPreviewModel = {
   createdAtIso: string
   cashierName: string
   paymentMethod: string
+  /** From transaction notes (e.g. payment reference). */
+  paymentReference: string | null
   queueNumber: number | null
   customerCallName: string | null
   lines: PosReceiptLinePreview[]
@@ -76,6 +78,7 @@ export function transactionBundleToPreviewModel(
     createdAtIso: transaction.createdAt.toISOString(),
     cashierName,
     paymentMethod: resolvePaymentMethodDisplay(transaction.paymentMethod, paymentMethodLabels),
+    paymentReference: transaction.notes?.trim() || null,
     queueNumber: transaction.queueNumber ?? null,
     customerCallName: transaction.customerCallName?.trim() || null,
     lines: lines.map((line) => ({

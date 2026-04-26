@@ -74,6 +74,12 @@ export function PosReceiptDocument({
             <dt className="text-muted-foreground">Payment</dt>
             <dd>{model.paymentMethod}</dd>
           </div>
+          {model.paymentReference ? (
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">Reference</dt>
+              <dd className="min-w-0 text-right font-medium wrap-break-word">{model.paymentReference}</dd>
+            </div>
+          ) : null}
           {model.queueNumber != null ? (
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Order #</dt>
@@ -85,7 +91,7 @@ export function PosReceiptDocument({
           {model.customerCallName ? (
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Name</dt>
-              <dd className="min-w-0 text-right font-medium break-words">{model.customerCallName}</dd>
+              <dd className="min-w-0 text-right font-medium wrap-break-word">{model.customerCallName}</dd>
             </div>
           ) : null}
         </dl>

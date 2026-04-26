@@ -26,6 +26,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
@@ -39,6 +40,7 @@ import {
 import { ButtonGroup } from "@/components/ui/button-group"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -365,7 +367,7 @@ function PosCartPanelInner({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor={payFieldId} className="sr-only">
+          <Label htmlFor={payFieldId} className="text-xs font-medium text-muted-foreground">
             Payment method
           </Label>
           <Select
@@ -444,6 +446,9 @@ export function PosTerminal({
   )
   const [submitting, setSubmitting] = React.useState(false)
   const [customerCallName, setCustomerCallName] = React.useState("")
+  const [checkoutConfirmOpen, setCheckoutConfirmOpen] = React.useState(false)
+  const [checkoutNotesDraft, setCheckoutNotesDraft] = React.useState("")
+  const checkoutNotesFieldId = React.useId()
   const [completedSale, setCompletedSale] = React.useState<{
     transactionId: string
     queueNumber: number | null
@@ -601,9 +606,19 @@ export function PosTerminal({
       ? `${lineOptionsEdit.lineKey}-${lineOptionsEdit.variant}-${posCartAddonSignature(lineOptionsLine.addons)}-${posCartInstructionSignature(lineOptionsLine.instructions)}`
       : ""
 
-  async function onCheckout() {
+  function beginCheckout() {
     if (lines.length === 0) {
       toast.error("Add at least one item to the cart.")
+      return
+    }
+    setCheckoutNotesDraft("")
+    setCheckoutConfirmOpen(true)
+  }
+
+  async function confirmCheckout() {
+    if (lines.length === 0) {
+      toast.error("Add at least one item to the cart.")
+      setCheckoutConfirmOpen(false)
       return
     }
     const checkoutId =
@@ -613,11 +628,12 @@ export function PosTerminal({
     setSubmitting(true)
     try {
       const callNameTrim = customerCallName.trim()
+      const refTrim = checkoutNotesDraft.trim()
       const res = await createSale({
         businessSlug,
         locationSlug,
         paymentMethod,
-        notes: null,
+        notes: refTrim.length > 0 ? refTrim : null,
         customerCallName: callNameTrim.length > 0 ? callNameTrim : null,
         checkoutId,
         lines: lines.map((l) => ({
@@ -637,6 +653,8 @@ export function PosTerminal({
         toast.error(res.message)
         return
       }
+      setCheckoutConfirmOpen(false)
+      setCheckoutNotesDraft("")
       setLastOrderTransactionId(res.transactionId)
       setCompletedSale({
         transactionId: res.transactionId,
@@ -689,7 +707,7 @@ export function PosTerminal({
     paymentMethod,
     setPaymentMethod,
     submitting,
-    onCheckout,
+    onCheckout: beginCheckout,
     onCloseCart: () => setCartOpen(false),
     lastOrderTransactionId,
     onOpenLastReceipt: openLastOrderReceipt,
@@ -956,6 +974,60 @@ export function PosTerminal({
         </aside>
       </div>
     </div>
+
+    <Dialog
+      open={checkoutConfirmOpen}
+      onOpenChange={(open) => {
+        if (!open && !submitting) {
+          setCheckoutConfirmOpen(false)
+        }
+      }}
+    >
+      <DialogContent className="sm:max-w-md" showCloseButton={!submitting}>
+        <DialogHeader>
+          <DialogTitle>Complete sale</DialogTitle>
+          <DialogDescription>
+            Optional note or reference (for example a payment confirmation number). It appears on the receipt if you
+            enter one.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor={checkoutNotesFieldId} className="text-muted-foreground">
+            Reference <span className="font-normal">(optional)</span>
+          </Label>
+          <Textarea
+            id={checkoutNotesFieldId}
+            value={checkoutNotesDraft}
+            onChange={(e) => setCheckoutNotesDraft(e.target.value)}
+            placeholder="e.g. ref #, last 4 digits"
+            maxLength={2000}
+            rows={3}
+            autoComplete="off"
+            disabled={submitting}
+            className="min-h-18 text-base"
+          />
+        </div>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-xl"
+            disabled={submitting}
+            onClick={() => setCheckoutConfirmOpen(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            className="rounded-xl"
+            disabled={submitting}
+            onClick={() => void confirmCheckout()}
+          >
+            {submitting ? "Processing…" : "Complete sale"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <Dialog
       open={completedSale !== null}
