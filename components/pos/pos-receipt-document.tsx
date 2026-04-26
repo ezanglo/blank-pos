@@ -72,7 +72,7 @@ export function PosReceiptDocument({
           </div>
           <div className="flex justify-between gap-4">
             <dt className="text-muted-foreground">Payment</dt>
-            <dd className="capitalize">{model.paymentMethod.replace(/_/g, " ")}</dd>
+            <dd>{model.paymentMethod}</dd>
           </div>
           {model.queueNumber != null ? (
             <div className="flex justify-between gap-4">

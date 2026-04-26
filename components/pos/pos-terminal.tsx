@@ -48,7 +48,7 @@ import {
 } from "@/components/ui/select"
 import { createSale } from "@/lib/actions/sales"
 import type { ProductCategoryRow } from "@/lib/db/schema-catalog"
-import { transactionPaymentMethodValues } from "@/lib/db/schema-transactions"
+import type { PaymentMethodOption } from "@/lib/queries/payment-methods"
 import {
   formatMinorToDecimal2,
   parseMinorFromSerialized,
@@ -72,14 +72,6 @@ function formatCartPrepEstimate(seconds: number): string {
     return `~${m} min`
   }
   return `~${seconds}s`
-}
-
-const PAYMENT_METHOD_LABEL: Record<
-  (typeof transactionPaymentMethodValues)[number],
-  string
-> = {
-  cash: "Cash",
-  card_placeholder: "Card (not processed)",
 }
 
 function lineSubtotalMinor(line: PosCartLine): bigint {
@@ -142,13 +134,14 @@ type PosCartPanelInnerProps = {
   products: PosProductCard[]
   addonsByCategory: Record<string, PosCategoryAddon[]>
   instructionsByCategory: Record<string, PosCategoryInstruction[]>
+  paymentMethods: PaymentMethodOption[]
   cartAnnounce: string
   grandMinor: bigint
   estimatedPrepLabel: string | null
   customerCallName: string
   setCustomerCallName: (v: string) => void
-  paymentMethod: (typeof transactionPaymentMethodValues)[number]
-  setPaymentMethod: (v: (typeof transactionPaymentMethodValues)[number]) => void
+  paymentMethod: string
+  setPaymentMethod: (v: string) => void
   submitting: boolean
   onCheckout: () => void
   onCloseCart: () => void
@@ -166,6 +159,7 @@ function PosCartPanelInner({
   products,
   addonsByCategory,
   instructionsByCategory,
+  paymentMethods,
   cartAnnounce,
   grandMinor,
   estimatedPrepLabel,
@@ -377,22 +371,24 @@ function PosCartPanelInner({
           <Select
             value={paymentMethod}
             onValueChange={(v) => {
-              if (v && v in PAYMENT_METHOD_LABEL) {
-                setPaymentMethod(v as (typeof transactionPaymentMethodValues)[number])
-              }
+              if (v && paymentMethods.some((p) => p.key === v)) setPaymentMethod(v)
             }}
           >
             <SelectTrigger id={payFieldId} className="min-h-12 w-full rounded-2xl text-base">
               <SelectValue placeholder="Payment method">
-                {(val: string | null) =>
-                  val && val in PAYMENT_METHOD_LABEL
-                    ? PAYMENT_METHOD_LABEL[val as keyof typeof PAYMENT_METHOD_LABEL]
-                    : "Payment method"}
+                {(val: string | null) => {
+                  if (!val) return "Payment method"
+                  const opt = paymentMethods.find((p) => p.key === val)
+                  return opt?.label ?? val
+                }}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="cash">{PAYMENT_METHOD_LABEL.cash}</SelectItem>
-              <SelectItem value="card_placeholder">{PAYMENT_METHOD_LABEL.card_placeholder}</SelectItem>
+              {paymentMethods.map((p) => (
+                <SelectItem key={p.key} value={p.key}>
+                  {p.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -417,6 +413,7 @@ export function PosTerminal({
   categories,
   addonsByCategory,
   instructionsByCategory,
+  paymentMethods,
   initialLastOrderTransactionId,
 }: {
   businessSlug: string
@@ -425,6 +422,8 @@ export function PosTerminal({
   categories: ProductCategoryRow[]
   addonsByCategory: Record<string, PosCategoryAddon[]>
   instructionsByCategory: Record<string, PosCategoryInstruction[]>
+  /** Active methods for checkout (and receipt labels via server). */
+  paymentMethods: PaymentMethodOption[]
   /** Latest DB sale at this branch; updated in-session after each checkout. */
   initialLastOrderTransactionId: string | null
 }) {
@@ -440,8 +439,9 @@ export function PosTerminal({
 
   const [search, setSearch] = React.useState("")
   const [categoryId, setCategoryId] = React.useState(categories[0]?.id ?? "")
-  const [paymentMethod, setPaymentMethod] =
-    React.useState<(typeof transactionPaymentMethodValues)[number]>("cash")
+  const [paymentMethod, setPaymentMethod] = React.useState<string>(
+    () => paymentMethods[0]?.key ?? "",
+  )
   const [submitting, setSubmitting] = React.useState(false)
   const [customerCallName, setCustomerCallName] = React.useState("")
   const [completedSale, setCompletedSale] = React.useState<{
@@ -489,6 +489,16 @@ export function PosTerminal({
       setCategoryId(categories[0]!.id)
     }
   }, [categories, categoryId])
+
+  React.useEffect(() => {
+    if (paymentMethods.length === 0) {
+      setPaymentMethod("")
+      return
+    }
+    if (!paymentMethods.some((p) => p.key === paymentMethod)) {
+      setPaymentMethod(paymentMethods[0]!.key)
+    }
+  }, [paymentMethods, paymentMethod])
 
   React.useEffect(() => {
     if (!cartOpen) return
@@ -670,6 +680,7 @@ export function PosTerminal({
     products,
     addonsByCategory,
     instructionsByCategory,
+    paymentMethods,
     cartAnnounce,
     grandMinor,
     estimatedPrepLabel,

@@ -22,8 +22,9 @@ export function formatTransactionStatus(status: string): string {
     : status
 }
 
+/** Default keys seeded per org; checkout allows any active row in `organization_payment_method`. */
 export const transactionPaymentMethodValues = ["cash", "card_placeholder"] as const
-export type TransactionPaymentMethod = (typeof transactionPaymentMethodValues)[number]
+export type TransactionPaymentMethod = string
 
 /**
  * Per-branch daily sequence for café-style queue tickets. `queue_date` is UTC calendar date (YYYY-MM-DD).

@@ -1,5 +1,6 @@
 import { resolveBrandColorToCss } from "@/lib/brand-color"
 import type { BusinessLocation } from "@/lib/db/schema-app"
+import { resolvePaymentMethodDisplay } from "@/lib/queries/payment-methods"
 import type { TransactionReceiptBundle } from "@/lib/queries/transactions"
 import { serializeMinor } from "@/lib/money"
 
@@ -53,7 +54,7 @@ export function transactionBundleToPreviewModel(
   bundle: TransactionReceiptBundle,
   fallbackOrgName: string,
 ): PosReceiptPreviewModel {
-  const { transaction, lines, location, businessDetails, cashierName } = bundle
+  const { transaction, lines, location, businessDetails, cashierName, paymentMethodLabels } = bundle
   const bd = businessDetails
   const displayName =
     bd?.displayName?.trim() || bd?.legalName?.trim() || fallbackOrgName
@@ -74,7 +75,7 @@ export function transactionBundleToPreviewModel(
     transactionId: transaction.id,
     createdAtIso: transaction.createdAt.toISOString(),
     cashierName,
-    paymentMethod: transaction.paymentMethod,
+    paymentMethod: resolvePaymentMethodDisplay(transaction.paymentMethod, paymentMethodLabels),
     queueNumber: transaction.queueNumber ?? null,
     customerCallName: transaction.customerCallName?.trim() || null,
     lines: lines.map((line) => ({

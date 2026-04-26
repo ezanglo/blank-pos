@@ -27,6 +27,7 @@ import {
 } from "@/lib/inventory/sale-deduction"
 import { listSellableProductIdsForLocation } from "@/lib/queries/catalog"
 import { getLocationByOrganizationAndSlug } from "@/lib/queries/location"
+import { listActivePaymentMethodKeySet } from "@/lib/queries/payment-methods"
 import { findTransactionIdByCheckoutId } from "@/lib/queries/transactions"
 import { createSaleInputSchema } from "@/lib/schemas/sales"
 import { sumMinor } from "@/lib/money"
@@ -70,6 +71,11 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
   const location = await getLocationByOrganizationAndSlug(organizationId, input.locationSlug)
   if (!location) {
     return { ok: false, error: "location", message: "Branch not found." }
+  }
+
+  const allowedPaymentKeys = await listActivePaymentMethodKeySet(organizationId)
+  if (!allowedPaymentKeys.has(input.paymentMethod)) {
+    return { ok: false, error: "validation", message: "That payment method is not available." }
   }
 
   if (input.checkoutId) {

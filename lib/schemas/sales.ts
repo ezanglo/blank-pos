@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { transactionPaymentMethodValues } from "@/lib/db/schema-transactions"
+import { isValidPaymentMethodKey } from "@/lib/payment-method-key"
 
 export const createSaleLineAddonSchema = z.object({
   addonId: z.string().min(1),
@@ -34,7 +34,11 @@ export const createSaleLineSchema = z.object({
 export const createSaleInputSchema = z.object({
   businessSlug: z.string().min(1),
   locationSlug: z.string().min(1),
-  paymentMethod: z.enum(transactionPaymentMethodValues),
+  paymentMethod: z
+    .string()
+    .min(1)
+    .max(64)
+    .refine((k) => isValidPaymentMethodKey(k), "Invalid payment method."),
   notes: z.string().max(2000).optional().nullable(),
   /** Name for the order (call-out). Empty after trim = none. */
   customerCallName: z.string().max(120).optional().nullable(),

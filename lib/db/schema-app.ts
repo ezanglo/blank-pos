@@ -2,6 +2,7 @@ import { relations } from "drizzle-orm"
 import {
   boolean,
   index,
+  integer,
   pgTable,
   text,
   timestamp,
@@ -101,6 +102,31 @@ export const businessLocation = pgTable(
 
 export type BusinessLocation = typeof businessLocation.$inferSelect
 export type NewBusinessLocation = typeof businessLocation.$inferInsert
+
+/**
+ * Configurable tender types for checkout and receipts. `key` is stored on `transactions.payment_method`.
+ */
+export const organizationPaymentMethod = pgTable(
+  "organization_payment_method",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    label: text("label").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { mode: "date", withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("organization_payment_method_organizationId_idx").on(table.organizationId),
+    uniqueIndex("organization_payment_method_org_key_unique").on(table.organizationId, table.key),
+  ],
+)
+
+export type OrganizationPaymentMethod = typeof organizationPaymentMethod.$inferSelect
+export type NewOrganizationPaymentMethod = typeof organizationPaymentMethod.$inferInsert
 
 export const businessDetailsRelations = relations(businessDetails, ({ one }) => ({
   organization: one(organization, {

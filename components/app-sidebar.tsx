@@ -18,6 +18,7 @@ import {
 import {
   BanknoteIcon,
   BoxesIcon,
+  CreditCardIcon,
   LayoutDashboardIcon,
   MapPinIcon,
   ReceiptTextIcon,
@@ -86,6 +87,11 @@ export function AppSidebar({
       title: "Team",
       url: `${base}/business/team`,
       icon: <UsersIcon className="size-4" />,
+    },
+    {
+      title: "Payment methods",
+      url: `${base}/business/payment-methods`,
+      icon: <CreditCardIcon className="size-4" />,
     },
     {
       title: "Settings",

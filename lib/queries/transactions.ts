@@ -3,6 +3,7 @@ import { and, asc, desc, eq, inArray } from "drizzle-orm"
 import { getDb } from "@/lib/db"
 import { user } from "@/lib/db/auth-schema"
 import { businessDetails, businessLocation } from "@/lib/db/schema-app"
+import { getPaymentMethodLabelMap } from "@/lib/queries/payment-methods"
 import { product, productPrice } from "@/lib/db/schema-catalog"
 import {
   posTransactionItemAddons,
@@ -41,6 +42,8 @@ export type TransactionReceiptBundle = {
   location: typeof businessLocation.$inferSelect
   businessDetails: typeof businessDetails.$inferSelect | null
   cashierName: string
+  /** Maps `transaction.payment_method` keys to display labels for receipts. */
+  paymentMethodLabels: Record<string, string>
 }
 
 export async function findTransactionIdByCheckoutId(
@@ -162,11 +165,14 @@ export async function getTransactionReceiptBundle(
     instructions: instructionsByItem.get(r.item.id) ?? [],
   }))
 
+  const paymentMethodLabels = await getPaymentMethodLabelMap(organizationId)
+
   return {
     transaction: header,
     lines,
     location: loc,
     businessDetails: details ?? null,
     cashierName: cashier?.name?.trim() || "Staff",
+    paymentMethodLabels,
   }
 }
