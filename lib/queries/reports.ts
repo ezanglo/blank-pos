@@ -1,5 +1,6 @@
 import { and, asc, count, desc, eq, gte, lte, sql, sum } from "drizzle-orm"
 
+import type { TransactionOrderSearchFilter } from "@/lib/format-order-number"
 import { getDb } from "@/lib/db"
 import { product } from "@/lib/db/schema-catalog"
 import {
@@ -253,6 +254,7 @@ export async function listTransactionsForLocationPage(
   page: number,
   pageSize: number,
   status?: TransactionStatus,
+  orderSearch?: TransactionOrderSearchFilter | null,
 ): Promise<{ rows: TransactionListRow[]; total: number }> {
   const db = getDb()
   const p = Math.max(1, page)
@@ -266,6 +268,15 @@ export async function listTransactionsForLocationPage(
     lte(posTransactions.createdAt, to),
   ]
   if (status) parts.push(eq(posTransactions.status, status))
+  if (orderSearch) {
+    if (orderSearch.mode === "queue") {
+      parts.push(eq(posTransactions.queueNumber, orderSearch.queueNumber))
+    } else {
+      parts.push(gte(posTransactions.createdAt, orderSearch.dayStart))
+      parts.push(lte(posTransactions.createdAt, orderSearch.dayEnd))
+      parts.push(eq(posTransactions.queueNumber, orderSearch.queueNumber))
+    }
+  }
   const whereClause = and(...parts)!
 
   const [{ n: total }] = await db

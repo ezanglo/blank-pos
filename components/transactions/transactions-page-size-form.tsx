@@ -8,11 +8,13 @@ export function TransactionsPageSizeForm({
   fromStr,
   toStr,
   statusParam,
+  orderRaw,
   pageSize,
 }: {
   fromStr: string
   toStr: string
   statusParam: string
+  orderRaw: string
   pageSize: number
 }) {
   const formRef = React.useRef<HTMLFormElement>(null)
@@ -22,6 +24,7 @@ export function TransactionsPageSizeForm({
       <input type="hidden" name="from" value={fromStr} />
       <input type="hidden" name="to" value={toStr} />
       <input type="hidden" name="status" value={statusParam} />
+      {orderRaw.trim() ? <input type="hidden" name="order" value={orderRaw.trim()} /> : null}
       <input type="hidden" name="page" value="1" />
       <label htmlFor="transactions-page-size" className="text-muted-foreground text-xs">
         Rows per page

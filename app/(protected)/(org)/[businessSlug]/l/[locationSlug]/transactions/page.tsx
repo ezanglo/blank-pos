@@ -22,7 +22,7 @@ import {
 } from "@/lib/db/schema-transactions"
 import { formatMinorToDecimal2 } from "@/lib/money"
 import { getLocationForUserByBusinessAndLocationSlug } from "@/lib/queries/location"
-import { formatOrderNumberLabel } from "@/lib/format-order-number"
+import { formatOrderNumberLabel, parseTransactionOrderSearch } from "@/lib/format-order-number"
 import {
   listTransactionsForLocationPage,
   parseReportDayEndUtc,
@@ -83,6 +83,9 @@ export default async function TransactionsPage({
     100,
     Math.max(1, Number.parseInt(typeof sp.pageSize === "string" ? sp.pageSize : "", 10) || 10),
   )
+  const orderRaw = typeof sp.order === "string" ? sp.order : ""
+  const orderFilter = parseTransactionOrderSearch(orderRaw)
+  const orderInvalid = orderRaw.trim().length > 0 && !orderFilter
 
   const from = parseReportDayStartUtc(fromStr)
   const to = parseReportDayEndUtc(toStr)
@@ -96,6 +99,7 @@ export default async function TransactionsPage({
     page,
     pageSize,
     status,
+    orderInvalid ? null : orderFilter,
   )
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
@@ -109,6 +113,7 @@ export default async function TransactionsPage({
       pageSize: String(pageSize),
     })
     if (statusParam !== "all") u.set("status", statusParam)
+    if (orderRaw.trim()) u.set("order", orderRaw.trim())
     return `?${u.toString()}`
   }
 
@@ -149,6 +154,17 @@ export default async function TransactionsPage({
             ))}
           </select>
         </label>
+        <label className="grid min-w-[12rem] flex-1 gap-1 text-sm sm:min-w-[14rem]">
+          <span className="text-muted-foreground">Order #</span>
+          <input
+            type="search"
+            name="order"
+            defaultValue={orderRaw}
+            placeholder="OR-YYYYMMDD-# or queue #"
+            autoComplete="off"
+            className="border-input bg-background h-9 w-full rounded-md border px-2 text-sm"
+          />
+        </label>
         <button
           type="submit"
           className="bg-primary text-primary-foreground h-9 rounded-md px-3 text-sm font-medium"
@@ -156,6 +172,12 @@ export default async function TransactionsPage({
           Apply
         </button>
       </form>
+
+      {orderInvalid ? (
+        <p className="text-destructive text-sm">
+          Use a full order number (e.g. OR-20260426-12) or digits only for the daily queue number.
+        </p>
+      ) : null}
 
       <div className="overflow-hidden rounded-lg border">
         <table className="w-full text-sm">
@@ -172,7 +194,9 @@ export default async function TransactionsPage({
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={5} className="text-muted-foreground p-6 text-center">
-                  No transactions in this range.
+                  {orderFilter
+                    ? "No transactions match this order in the selected range."
+                    : "No transactions in this range."}
                 </td>
               </tr>
             ) : (
@@ -222,6 +246,7 @@ export default async function TransactionsPage({
               fromStr={fromStr}
               toStr={toStr}
               statusParam={statusParam}
+              orderRaw={orderRaw}
               pageSize={pageSize}
             />
             <Pagination className="mx-0 w-auto justify-end">
