@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
+import { VoidTransactionButton } from "@/components/reports/void-transaction-button"
 import { buttonVariants } from "@/components/ui/button"
 import { formatMinorToDecimal2 } from "@/lib/money"
 import { getLocationForUserByBusinessAndLocationSlug } from "@/lib/queries/location"
@@ -159,6 +160,12 @@ export default async function ReportsTransactionsPage({
                       >
                         Receipt
                       </Link>
+                      <VoidTransactionButton
+                        businessSlug={businessSlug}
+                        locationSlug={locationSlug}
+                        transactionId={t.id}
+                        transactionStatus={t.status}
+                      />
                     </div>
                   </td>
                 </tr>

@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 
+import { VoidTransactionButton } from "@/components/reports/void-transaction-button"
 import { buttonVariants } from "@/components/ui/button"
 import { formatTransactionStatus } from "@/lib/db/schema-transactions"
 import { formatMinorToDecimal2 } from "@/lib/money"
@@ -47,12 +48,20 @@ export default async function ReportsTransactionDetailPage({
             <span>{formatTransactionStatus(transaction.status)}</span>
           </p>
         </div>
-        <Link
-          href={`/${businessSlug}/l/${locationSlug}/pos/receipt/${transaction.id}`}
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-        >
-          Open receipt
-        </Link>
+        <div className="flex items-center gap-2">
+          <VoidTransactionButton
+            businessSlug={businessSlug}
+            locationSlug={locationSlug}
+            transactionId={transaction.id}
+            transactionStatus={transaction.status}
+          />
+          <Link
+            href={`/${businessSlug}/l/${locationSlug}/pos/receipt/${transaction.id}`}
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+          >
+            Open receipt
+          </Link>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-lg border">

@@ -6,13 +6,14 @@ import { organization, user } from "./auth-schema"
 import { businessLocation } from "./schema-app"
 import { product, productAddon, productCategoryInstruction, productPrice } from "./schema-catalog"
 
-/** MVP: single-step checkout persists `completed` only. */
-export const transactionStatusValues = ["completed"] as const
+/** POS keeps completed sales and allows soft-void for corrections. */
+export const transactionStatusValues = ["completed", "voided"] as const
 export type TransactionStatus = (typeof transactionStatusValues)[number]
 
 /** Human-readable copy for UI; option `value` stays the DB enum string. */
 export const transactionStatusLabels: Record<TransactionStatus, string> = {
   completed: "Completed",
+  voided: "Voided",
 }
 
 export function formatTransactionStatus(status: string): string {
