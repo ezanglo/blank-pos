@@ -2,6 +2,7 @@
 
 import {
   ChefHatIcon,
+  CopyIcon,
   FileTextIcon,
   Layers2Icon,
   MinusIcon,
@@ -89,6 +90,57 @@ function lineSubtotalMinor(line: PosCartLine): bigint {
   return base + add
 }
 
+/** Plain-text summary for staff to paste (chat/SMS) when confirming the order with the customer. */
+function formatOrderDetailsForClipboard(input: {
+  lines: PosCartLine[]
+  paymentMethodLabel: string
+  customerCallName: string
+  referenceNote: string
+  grandMinor: bigint
+  currencySuffix: string
+  estimatedPrepLabel: string | null
+}): string {
+  const parts: string[] = []
+  parts.push("Order details")
+  parts.push("─────────────")
+  parts.push(`Payment: ${input.paymentMethodLabel}`)
+  const name = input.customerCallName.trim()
+  if (name.length > 0) parts.push(`Name: ${name}`)
+  const ref = input.referenceNote.trim()
+  if (ref.length > 0) parts.push(`Reference: ${ref}`)
+  parts.push("")
+  parts.push("Items:")
+  for (const line of input.lines) {
+    const unit = formatMinorToDecimal2(parseMinorFromSerialized(line.unitPriceMinor))
+    const sub = formatMinorToDecimal2(lineSubtotalMinor(line))
+    parts.push(`• ${line.productName} (${line.priceLabel})`)
+    parts.push(`  ${line.quantity} × ${unit} ${line.currency} = ${sub} ${line.currency}`)
+    for (const a of line.addons) {
+      const au = formatMinorToDecimal2(parseMinorFromSerialized(a.unitPriceMinor))
+      const addonLineSub =
+        parseMinorFromSerialized(a.unitPriceMinor) * BigInt(a.quantity) * BigInt(line.quantity)
+      const asub = formatMinorToDecimal2(addonLineSub)
+      parts.push(
+        `  + ${a.name}${a.quantity !== 1 ? ` ×${a.quantity}` : ""} · ${au} ${a.currency} → ${asub} ${a.currency}`,
+      )
+    }
+    for (const ins of line.instructions) {
+      parts.push(`  Kitchen: ${ins.label}`)
+    }
+  }
+  parts.push("")
+  const cur = input.currencySuffix
+  parts.push(
+    cur
+      ? `Subtotal: ${formatMinorToDecimal2(input.grandMinor)} ${cur}`
+      : `Subtotal: ${formatMinorToDecimal2(input.grandMinor)}`,
+  )
+  if (input.estimatedPrepLabel) {
+    parts.push(`Est. prep: ${input.estimatedPrepLabel} (catalog)`)
+  }
+  return parts.join("\n")
+}
+
 /** Matches Tailwind `lg:` (1024px). Initial `false` keeps SSR + first paint aligned; updates in useLayoutEffect. */
 function useViewportMinLg() {
   const [isLg, setIsLg] = React.useState(false)
@@ -146,6 +198,7 @@ type PosCartPanelInnerProps = {
   setPaymentMethod: (v: string) => void
   submitting: boolean
   onCheckout: () => void
+  onCopyOrderDetails: () => void
   onCloseCart: () => void
   lastOrderTransactionId: string | null
   onOpenLastReceipt: () => void
@@ -171,6 +224,7 @@ function PosCartPanelInner({
   setPaymentMethod,
   submitting,
   onCheckout,
+  onCopyOrderDetails,
   onCloseCart,
   lastOrderTransactionId,
   onOpenLastReceipt,
@@ -186,16 +240,30 @@ function PosCartPanelInner({
       <div className="flex shrink-0 items-center gap-2 border-b border-border/70 pb-2">
         <h2 className="text-base font-semibold tracking-tight">Cart</h2>
         <LastReceiptBadge transactionId={lastOrderTransactionId} onOpen={onOpenLastReceipt} />
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="ml-auto size-11 shrink-0 rounded-xl"
-          aria-label="Close cart"
-          onClick={onCloseCart}
-        >
-          <XIcon />
-        </Button>
+        <div className="ml-auto flex shrink-0 items-center gap-0.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-11 rounded-xl"
+            disabled={lines.length === 0}
+            aria-label="Copy order details for customer confirmation"
+            title="Copy order details"
+            onClick={() => void onCopyOrderDetails()}
+          >
+            <CopyIcon className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-11 shrink-0 rounded-xl"
+            aria-label="Close cart"
+            onClick={onCloseCart}
+          >
+            <XIcon />
+          </Button>
+        </div>
       </div>
 
       <div aria-live="polite" aria-atomic className="sr-only">
@@ -672,6 +740,26 @@ export function PosTerminal({
     }
   }
 
+  async function copyOrderDetailsToClipboard() {
+    const paymentLabel =
+      paymentMethods.find((p) => p.key === paymentMethod)?.label?.trim() || paymentMethod || "—"
+    const text = formatOrderDetailsForClipboard({
+      lines,
+      paymentMethodLabel: paymentLabel,
+      customerCallName,
+      referenceNote: checkoutNotesDraft,
+      grandMinor,
+      currencySuffix: lines[0]?.currency ?? "",
+      estimatedPrepLabel,
+    })
+    try {
+      await navigator.clipboard.writeText(text)
+      toast.success("Order details copied.")
+    } catch {
+      toast.error("Could not copy to clipboard.")
+    }
+  }
+
   function onNewSale() {
     setCompletedSale(null)
     setReceiptSheetTxId(null)
@@ -708,6 +796,7 @@ export function PosTerminal({
     setPaymentMethod,
     submitting,
     onCheckout: beginCheckout,
+    onCopyOrderDetails: copyOrderDetailsToClipboard,
     onCloseCart: () => setCartOpen(false),
     lastOrderTransactionId,
     onOpenLastReceipt: openLastOrderReceipt,
