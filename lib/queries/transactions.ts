@@ -176,3 +176,116 @@ export async function getTransactionReceiptBundle(
     paymentMethodLabels,
   }
 }
+
+/** Line items as persisted on the transaction, for rebuilding the POS cart (reorder). */
+export type TransactionReorderLine = {
+  productId: string
+  productPriceId: string
+  productName: string
+  quantity: number
+  /** From `product_price.currency` for the line’s tier (addon rows use the same in the cart). */
+  currency: string
+  addons: {
+    addonId: string
+    name: string
+    unitPriceMinor: bigint
+    quantity: number
+  }[]
+  instructions: {
+    instructionId: string
+    label: string
+  }[]
+}
+
+export type TransactionReorderPayload = {
+  customerCallName: string | null
+  lines: TransactionReorderLine[]
+}
+
+export async function getTransactionReorderPayload(
+  organizationId: string,
+  locationId: string,
+  transactionId: string,
+): Promise<TransactionReorderPayload | null> {
+  const db = getDb()
+  const [header] = await db
+    .select()
+    .from(posTransactions)
+    .where(
+      and(
+        eq(posTransactions.id, transactionId),
+        eq(posTransactions.organizationId, organizationId),
+        eq(posTransactions.locationId, locationId),
+      ),
+    )
+    .limit(1)
+  if (!header) return null
+
+  const linesWithMeta = await db
+    .select({
+      item: posTransactionItems,
+      productName: product.name,
+      currency: productPrice.currency,
+    })
+    .from(posTransactionItems)
+    .innerJoin(product, eq(posTransactionItems.productId, product.id))
+    .innerJoin(productPrice, eq(posTransactionItems.productPriceId, productPrice.id))
+    .where(eq(posTransactionItems.transactionId, transactionId))
+    .orderBy(asc(posTransactionItems.id))
+
+  const itemIds = linesWithMeta.map((r) => r.item.id)
+  const addonRows =
+    itemIds.length > 0
+      ? await db
+          .select()
+          .from(posTransactionItemAddons)
+          .where(inArray(posTransactionItemAddons.transactionItemId, itemIds))
+          .orderBy(asc(posTransactionItemAddons.id))
+      : []
+
+  const addonsByItem = new Map<
+    string,
+    { addonId: string; name: string; unitPriceMinor: bigint; quantity: number }[]
+  >()
+  for (const a of addonRows) {
+    const list = addonsByItem.get(a.transactionItemId) ?? []
+    list.push({
+      addonId: a.addonId,
+      name: a.name,
+      unitPriceMinor: a.unitPriceMinor,
+      quantity: a.quantity,
+    })
+    addonsByItem.set(a.transactionItemId, list)
+  }
+
+  const instructionRows =
+    itemIds.length > 0
+      ? await db
+          .select()
+          .from(posTransactionItemInstructions)
+          .where(inArray(posTransactionItemInstructions.transactionItemId, itemIds))
+          .orderBy(asc(posTransactionItemInstructions.sortOrder), asc(posTransactionItemInstructions.id))
+      : []
+
+  const instructionsByItem = new Map<string, { instructionId: string; label: string }[]>()
+  for (const row of instructionRows) {
+    const list = instructionsByItem.get(row.transactionItemId) ?? []
+    list.push({ instructionId: row.instructionId, label: row.label })
+    instructionsByItem.set(row.transactionItemId, list)
+  }
+
+  const lines: TransactionReorderLine[] = linesWithMeta.map((r) => ({
+    productId: r.item.productId,
+    productPriceId: r.item.productPriceId,
+    productName: r.productName,
+    quantity: r.item.quantity,
+    currency: r.currency,
+    addons: addonsByItem.get(r.item.id) ?? [],
+    instructions: instructionsByItem.get(r.item.id) ?? [],
+  }))
+
+  return {
+    customerCallName: header.customerCallName?.trim() || null,
+    lines,
+  }
+}

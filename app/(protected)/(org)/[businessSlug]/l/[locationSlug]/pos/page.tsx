@@ -14,10 +14,15 @@ export const dynamic = "force-dynamic"
 
 export default async function PosPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ businessSlug: string; locationSlug: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   const { businessSlug, locationSlug } = await params
+  const sp = await searchParams
+  const reorderRaw = typeof sp.reorder === "string" ? sp.reorder.trim() : ""
+  const initialReorderTransactionId = reorderRaw.length > 0 ? reorderRaw : null
   const session = await requireSession()
   const ctx = await getOrgForUser(businessSlug, session.user.id)
   if (!ctx) notFound()
@@ -53,6 +58,7 @@ export default async function PosPage({
           instructionsByCategory={instructionsByCategory}
           paymentMethods={paymentMethods}
           initialLastOrderTransactionId={initialLastOrderTransactionId}
+          initialReorderTransactionId={initialReorderTransactionId}
         />
       </div>
     </div>

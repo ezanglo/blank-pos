@@ -60,6 +60,7 @@ export default async function TransactionDetailPage({
           />
           <ReceiptSheetButton
             businessSlug={businessSlug}
+            locationSlug={locationSlug}
             transactionId={transaction.id}
             variant="outline"
           />

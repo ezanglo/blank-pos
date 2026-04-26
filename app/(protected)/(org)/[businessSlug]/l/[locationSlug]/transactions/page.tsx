@@ -85,7 +85,8 @@ export default async function TransactionsPage({
   )
   const orderRaw = typeof sp.order === "string" ? sp.order : ""
   const orderFilter = parseTransactionOrderSearch(orderRaw)
-  const orderInvalid = orderRaw.trim().length > 0 && !orderFilter
+  const orderTrim = orderRaw.trim()
+  const nameSearch = orderFilter || !orderTrim ? null : orderTrim
 
   const from = parseReportDayStartUtc(fromStr)
   const to = parseReportDayEndUtc(toStr)
@@ -99,7 +100,8 @@ export default async function TransactionsPage({
     page,
     pageSize,
     status,
-    orderInvalid ? null : orderFilter,
+    orderFilter,
+    nameSearch,
   )
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
@@ -155,12 +157,12 @@ export default async function TransactionsPage({
           </select>
         </label>
         <label className="grid min-w-[12rem] flex-1 gap-1 text-sm sm:min-w-[14rem]">
-          <span className="text-muted-foreground">Order #</span>
+          <span className="text-muted-foreground">Order # / name</span>
           <input
             type="search"
             name="order"
             defaultValue={orderRaw}
-            placeholder="OR-YYYYMMDD-# or queue #"
+            placeholder="OR-…, queue #, or name for order"
             autoComplete="off"
             className="border-input bg-background h-9 w-full rounded-md border px-2 text-sm"
           />
@@ -173,18 +175,13 @@ export default async function TransactionsPage({
         </button>
       </form>
 
-      {orderInvalid ? (
-        <p className="text-destructive text-sm">
-          Use a full order number (e.g. OR-20260426-12) or digits only for the daily queue number.
-        </p>
-      ) : null}
-
       <div className="overflow-hidden rounded-lg border">
         <table className="w-full text-sm">
           <thead className="bg-muted">
             <tr>
               <th className="p-3 text-left font-medium">When</th>
               <th className="p-3 text-left font-medium">#</th>
+              <th className="p-3 text-left font-medium">Name for order</th>
               <th className="p-3 text-left font-medium">Status</th>
               <th className="p-3 text-right font-medium">Total</th>
               <th className="p-3 text-right font-medium">Actions</th>
@@ -193,10 +190,12 @@ export default async function TransactionsPage({
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={5} className="text-muted-foreground p-6 text-center">
+                <td colSpan={6} className="text-muted-foreground p-6 text-center">
                   {orderFilter
                     ? "No transactions match this order in the selected range."
-                    : "No transactions in this range."}
+                    : nameSearch
+                      ? "No transactions match this name in the selected range."
+                      : "No transactions in this range."}
                 </td>
               </tr>
             ) : (
@@ -205,6 +204,9 @@ export default async function TransactionsPage({
                   <td className="p-3 whitespace-nowrap tabular-nums">{t.createdAt.toLocaleString()}</td>
                   <td className="p-3 tabular-nums">
                     {formatOrderNumberLabel(t.createdAt, t.queueNumber)}
+                  </td>
+                  <td className="text-muted-foreground max-w-[12rem] truncate p-3" title={t.customerCallName ?? undefined}>
+                    {t.customerCallName?.trim() ? t.customerCallName.trim() : "—"}
                   </td>
                   <td className="p-3">{formatTransactionStatus(t.status)}</td>
                   <td className="p-3 text-right tabular-nums">{formatMinorToDecimal2(t.totalMinor)}</td>
@@ -218,6 +220,7 @@ export default async function TransactionsPage({
                       />
                       <ReceiptSheetButton
                         businessSlug={businessSlug}
+                        locationSlug={locationSlug}
                         transactionId={t.id}
                         trigger="icon"
                       />

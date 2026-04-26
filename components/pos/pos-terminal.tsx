@@ -7,16 +7,19 @@ import {
   Layers2Icon,
   MinusIcon,
   PlusIcon,
+  RotateCcwIcon,
   ShoppingCartIcon,
   StoreIcon,
   Trash2Icon,
   XIcon,
 } from "lucide-react"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 import * as React from "react"
 import { toast } from "sonner"
 
 import { loadPosReceiptPreview } from "@/lib/actions/pos-receipt"
+import { loadPosReorderPayload } from "@/lib/actions/pos-reorder"
 import { PosAddonsDialog } from "@/components/pos/pos-addons-dialog"
 import { PosPricePickerDialog } from "@/components/pos/pos-price-picker-dialog"
 import { PosReceiptDocument } from "@/components/pos/pos-receipt-document"
@@ -65,6 +68,7 @@ import {
 import type { PosProductCard } from "@/lib/pos/pos-types"
 import type { PosCategoryInstruction } from "@/lib/queries/catalog"
 import type { PosCategoryAddon } from "@/lib/queries/catalog-addons"
+import { buildCartLinesFromReorderPayload } from "@/lib/pos/reorder-to-cart"
 import type { PosReceiptPreviewModel } from "@/lib/pos/receipt-preview"
 import { usePosCartStore, type PosCartLine } from "@/lib/stores/pos-cart-store"
 import { cn } from "@/lib/utils"
@@ -485,6 +489,7 @@ export function PosTerminal({
   instructionsByCategory,
   paymentMethods,
   initialLastOrderTransactionId,
+  initialReorderTransactionId = null,
 }: {
   businessSlug: string
   locationSlug: string
@@ -496,7 +501,10 @@ export function PosTerminal({
   paymentMethods: PaymentMethodOption[]
   /** Latest DB sale at this branch; updated in-session after each checkout. */
   initialLastOrderTransactionId: string | null
+  /** When set (e.g. `?reorder=` on register URL), load lines into an empty cart after navigation. */
+  initialReorderTransactionId?: string | null
 }) {
+  const router = useRouter()
   const lines = usePosCartStore((s) => s.lines)
   const cartAnnounce = usePosCartStore((s) => s.cartAnnounce)
   const addProduct = usePosCartStore((s) => s.addProduct)
@@ -505,6 +513,7 @@ export function PosTerminal({
   const removeLine = usePosCartStore((s) => s.removeLine)
   const setQuantity = usePosCartStore((s) => s.setQuantity)
   const reset = usePosCartStore((s) => s.reset)
+  const replaceEntireCart = usePosCartStore((s) => s.replaceEntireCart)
   const clearAnnounce = usePosCartStore((s) => s.clearAnnounce)
 
   const [search, setSearch] = React.useState("")
@@ -534,9 +543,55 @@ export function PosTerminal({
   const [receiptSheetTxId, setReceiptSheetTxId] = React.useState<string | null>(null)
   const [receiptModel, setReceiptModel] = React.useState<PosReceiptPreviewModel | null>(null)
   const [receiptLoading, setReceiptLoading] = React.useState(false)
+  const [reorderBusy, setReorderBusy] = React.useState(false)
   const [lastOrderTransactionId, setLastOrderTransactionId] = React.useState<string | null>(
     () => initialLastOrderTransactionId,
   )
+
+  const applyReorderFromTransaction = React.useCallback(
+    async (transactionId: string, isCancelled: () => boolean): Promise<boolean> => {
+      const payload = await loadPosReorderPayload(businessSlug, locationSlug, transactionId)
+      if (isCancelled()) return false
+      if (!payload || payload.lines.length === 0) {
+        toast.error("Could not load this sale for reorder.")
+        return false
+      }
+      const { lines: built, warnings } = buildCartLinesFromReorderPayload(products, payload)
+      if (isCancelled()) return false
+      if (built.length === 0) {
+        toast.error("Nothing could be added — the menu may have changed.")
+        if (warnings.length > 0) {
+          toast.message(warnings.slice(0, 5).join("\n"), { duration: 6000 })
+        }
+        return false
+      }
+      reset()
+      replaceEntireCart(built, "Reorder loaded")
+      setCustomerCallName(payload.customerCallName?.trim() ?? "")
+      if (warnings.length > 0) {
+        toast.message(warnings.slice(0, 5).join("\n"), { duration: 6000 })
+      }
+      toast.success("Cart cleared and replaced with this order.")
+      return true
+    },
+    [businessSlug, locationSlug, products, reset, replaceEntireCart],
+  )
+
+  React.useEffect(() => {
+    const tid = initialReorderTransactionId?.trim()
+    if (!tid) return
+    let cancelled = false
+    const isCancelled = () => cancelled
+    void (async () => {
+      const ok = await applyReorderFromTransaction(tid, isCancelled)
+      if (isCancelled()) return
+      router.replace(`/${businessSlug}/l/${locationSlug}/pos`, { scroll: false })
+      if (ok) setCartOpen(true)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [initialReorderTransactionId, businessSlug, locationSlug, router, applyReorderFromTransaction])
 
   React.useEffect(() => {
     setLastOrderTransactionId(initialLastOrderTransactionId)
@@ -1225,6 +1280,34 @@ export function PosTerminal({
               footerSlot={
                 <>
                   <PrintReceiptButton />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="h-9 rounded-4xl px-3"
+                    disabled={reorderBusy}
+                    onClick={() => {
+                      if (!receiptModel) return
+                      setReorderBusy(true)
+                      void (async () => {
+                        const ok = await applyReorderFromTransaction(receiptModel.transactionId, () => false)
+                        setReorderBusy(false)
+                        if (ok) {
+                          setReceiptSheetTxId(null)
+                          setReceiptModel(null)
+                          setCartOpen(true)
+                        }
+                      })()
+                    }}
+                  >
+                    {reorderBusy ? (
+                      "…"
+                    ) : (
+                      <>
+                        <RotateCcwIcon data-icon="inline-start" className="size-4" />
+                        Reorder
+                      </>
+                    )}
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"

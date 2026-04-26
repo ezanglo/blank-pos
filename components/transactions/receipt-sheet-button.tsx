@@ -2,7 +2,8 @@
 
 import * as React from "react"
 
-import { ReceiptIcon, XIcon } from "lucide-react"
+import { ReceiptIcon, RotateCcwIcon, XIcon } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
 import { loadPosReceiptPreview } from "@/lib/actions/pos-receipt"
@@ -22,6 +23,8 @@ import { cn } from "@/lib/utils"
 type ReceiptSheetButtonProps = {
   businessSlug: string
   transactionId: string
+  /** When set, receipt sheet offers Reorder → register with this branch. */
+  locationSlug?: string
   variant?: "link" | "outline"
   trigger?: "text" | "icon"
 }
@@ -29,9 +32,11 @@ type ReceiptSheetButtonProps = {
 export function ReceiptSheetButton({
   businessSlug,
   transactionId,
+  locationSlug,
   variant = "link",
   trigger = "text",
 }: ReceiptSheetButtonProps) {
+  const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
   const [model, setModel] = React.useState<PosReceiptPreviewModel | null>(null)
@@ -133,6 +138,21 @@ export function ReceiptSheetButton({
                 footerSlot={
                   <>
                     <PrintReceiptButton />
+                    {locationSlug ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="h-9 rounded-4xl px-3"
+                        onClick={() => {
+                          setOpen(false)
+                          setModel(null)
+                          router.push(`/${businessSlug}/l/${locationSlug}/pos?reorder=${transactionId}`)
+                        }}
+                      >
+                        <RotateCcwIcon data-icon="inline-start" className="size-4" />
+                        Reorder
+                      </Button>
+                    ) : null}
                     <Button
                       type="button"
                       variant="outline"

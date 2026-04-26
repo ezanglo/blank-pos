@@ -174,6 +174,7 @@ export async function listRecentTransactionsForLocation(
       status: posTransactions.status,
       totalMinor: posTransactions.totalAmountMinor,
       queueNumber: posTransactions.queueNumber,
+      customerCallName: posTransactions.customerCallName,
     })
     .from(posTransactions)
     .where(and(eq(posTransactions.organizationId, organizationId), eq(posTransactions.locationId, locationId)))
@@ -186,6 +187,7 @@ export async function listRecentTransactionsForLocation(
     status: r.status,
     totalMinor: typeof r.totalMinor === "bigint" ? r.totalMinor : BigInt(String(r.totalMinor)),
     queueNumber: r.queueNumber,
+    customerCallName: r.customerCallName,
   }))
 }
 
@@ -311,6 +313,12 @@ export type TransactionListRow = {
   status: string
   totalMinor: bigint
   queueNumber: number | null
+  customerCallName: string | null
+}
+
+/** Escape `%`, `_`, and `\` for use in `ILIKE ... ESCAPE '\'` patterns. */
+function escapeIlikePattern(raw: string): string {
+  return raw.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_")
 }
 
 export async function listTransactionsForLocationPage(
@@ -322,6 +330,7 @@ export async function listTransactionsForLocationPage(
   pageSize: number,
   status?: TransactionStatus,
   orderSearch?: TransactionOrderSearchFilter | null,
+  nameSearch?: string | null,
 ): Promise<{ rows: TransactionListRow[]; total: number }> {
   const db = getDb()
   const p = Math.max(1, page)
@@ -343,6 +352,9 @@ export async function listTransactionsForLocationPage(
       parts.push(lte(posTransactions.createdAt, orderSearch.dayEnd))
       parts.push(eq(posTransactions.queueNumber, orderSearch.queueNumber))
     }
+  } else if (nameSearch?.trim()) {
+    const pat = `%${escapeIlikePattern(nameSearch.trim())}%`
+    parts.push(sql`${posTransactions.customerCallName} ilike ${pat} escape '\\'`)
   }
   const whereClause = and(...parts)!
 
@@ -358,6 +370,7 @@ export async function listTransactionsForLocationPage(
       status: posTransactions.status,
       totalMinor: posTransactions.totalAmountMinor,
       queueNumber: posTransactions.queueNumber,
+      customerCallName: posTransactions.customerCallName,
     })
     .from(posTransactions)
     .where(whereClause)

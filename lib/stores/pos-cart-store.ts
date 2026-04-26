@@ -98,6 +98,18 @@ function lineFromTier(
   }
 }
 
+/** Build one cart line (e.g. reorder); returns null if the price tier is missing on the product card. */
+export function createPosCartLine(
+  p: PosProductCard,
+  productPriceId: string,
+  quantity: number,
+  addonSelections: PosCartAddonSelection[],
+  instructionSelections: PosCartInstructionSelection[],
+): PosCartLine | null {
+  const key = newLineKey()
+  return lineFromTier(p, productPriceId, key, quantity, addonSelections, instructionSelections)
+}
+
 /** After editing options, merge into an identical sibling line or keep a single updated row. */
 function mergeOrReplaceLine(lines: PosCartLine[], updatedKey: string, updated: PosCartLine): PosCartLine[] {
   const rest = lines.filter((l) => l.key !== updatedKey)
@@ -137,6 +149,8 @@ type PosCartState = {
   removeLine: (key: string) => void
   setQuantity: (key: string, quantity: number) => void
   reset: () => void
+  /** Replace all lines in one step (e.g. reorder). */
+  replaceEntireCart: (lines: PosCartLine[], announce?: string) => void
   clearAnnounce: () => void
 }
 
@@ -211,5 +225,6 @@ export const usePosCartStore = create<PosCartState>((set) => ({
     }))
   },
   reset: () => set({ lines: [], cartAnnounce: "" }),
+  replaceEntireCart: (lines, announce = "") => set({ lines, cartAnnounce: announce }),
   clearAnnounce: () => set({ cartAnnounce: "" }),
 }))
