@@ -185,18 +185,25 @@ export default async function TransactionsPage({
                   <td className="p-3">{formatTransactionStatus(t.status)}</td>
                   <td className="p-3 text-right tabular-nums">{formatMinorToDecimal2(t.totalMinor)}</td>
                   <td className="p-3 text-right">
-                    <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                    <div className="flex flex-wrap items-center justify-end gap-1.5">
                       <LinesSheetButton
                         businessSlug={businessSlug}
                         locationSlug={locationSlug}
                         transactionId={t.id}
+                        trigger="icon"
                       />
-                      <ReceiptSheetButton businessSlug={businessSlug} transactionId={t.id} />
+                      <ReceiptSheetButton
+                        businessSlug={businessSlug}
+                        transactionId={t.id}
+                        trigger="icon"
+                      />
                       <VoidTransactionButton
                         businessSlug={businessSlug}
                         locationSlug={locationSlug}
                         transactionId={t.id}
                         transactionStatus={t.status}
+                        confirmOrderLabel={formatOrderNumberLabel(t.createdAt, t.queueNumber)}
+                        trigger="icon"
                       />
                     </div>
                   </td>

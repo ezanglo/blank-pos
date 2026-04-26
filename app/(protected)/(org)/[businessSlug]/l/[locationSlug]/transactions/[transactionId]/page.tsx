@@ -56,6 +56,7 @@ export default async function TransactionDetailPage({
             locationSlug={locationSlug}
             transactionId={transaction.id}
             transactionStatus={transaction.status}
+            confirmOrderLabel={formatOrderNumberLabel(transaction.createdAt, transaction.queueNumber)}
           />
           <ReceiptSheetButton
             businessSlug={businessSlug}

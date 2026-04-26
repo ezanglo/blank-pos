@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import { XIcon } from "lucide-react"
+import { ListOrderedIcon, XIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import {
@@ -24,12 +24,14 @@ type LinesSheetButtonProps = {
   businessSlug: string
   locationSlug: string
   transactionId: string
+  trigger?: "text" | "icon"
 }
 
 export function LinesSheetButton({
   businessSlug,
   locationSlug,
   transactionId,
+  trigger = "text",
 }: LinesSheetButtonProps) {
   const [open, setOpen] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
@@ -61,13 +63,26 @@ export function LinesSheetButton({
 
   return (
     <>
-      <button
-        type="button"
-        className={cn(buttonVariants({ variant: "link", size: "sm" }), "h-auto p-0")}
-        onClick={() => setOpen(true)}
-      >
-        Lines
-      </button>
+      {trigger === "icon" ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="size-8"
+          aria-label="View line items"
+          onClick={() => setOpen(true)}
+        >
+          <ListOrderedIcon />
+        </Button>
+      ) : (
+        <button
+          type="button"
+          className={cn(buttonVariants({ variant: "link", size: "sm" }), "h-auto p-0")}
+          onClick={() => setOpen(true)}
+        >
+          Lines
+        </button>
+      )}
       <Sheet
         open={open}
         onOpenChange={(next) => {

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 
-import { XIcon } from "lucide-react"
+import { ReceiptIcon, XIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { loadPosReceiptPreview } from "@/lib/actions/pos-receipt"
@@ -23,12 +23,14 @@ type ReceiptSheetButtonProps = {
   businessSlug: string
   transactionId: string
   variant?: "link" | "outline"
+  trigger?: "text" | "icon"
 }
 
 export function ReceiptSheetButton({
   businessSlug,
   transactionId,
   variant = "link",
+  trigger = "text",
 }: ReceiptSheetButtonProps) {
   const [open, setOpen] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
@@ -60,16 +62,29 @@ export function ReceiptSheetButton({
 
   return (
     <>
-      <button
-        type="button"
-        className={cn(
-          buttonVariants({ variant, size: "sm" }),
-          variant === "link" ? "h-auto p-0" : undefined,
-        )}
-        onClick={() => setOpen(true)}
-      >
-        Receipt
-      </button>
+      {trigger === "icon" ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="size-8"
+          aria-label="View receipt"
+          onClick={() => setOpen(true)}
+        >
+          <ReceiptIcon />
+        </Button>
+      ) : (
+        <button
+          type="button"
+          className={cn(
+            buttonVariants({ variant, size: "sm" }),
+            variant === "link" ? "h-auto p-0" : undefined,
+          )}
+          onClick={() => setOpen(true)}
+        >
+          Receipt
+        </button>
+      )}
       <Sheet
         open={open}
         onOpenChange={(next) => {
