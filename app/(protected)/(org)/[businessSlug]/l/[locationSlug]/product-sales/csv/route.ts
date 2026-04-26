@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 
+import { getLocationByOrganizationAndSlug } from "@/lib/queries/location"
 import { getOrgForUser } from "@/lib/queries/organization"
 import {
   getProductSalesForRange,
@@ -8,7 +9,6 @@ import {
   parseTransactionStatusFilter,
   productSalesRowsToCsv,
 } from "@/lib/queries/reports"
-import { getLocationByOrganizationAndSlug } from "@/lib/queries/location"
 import { getServerSession } from "@/lib/server-auth"
 
 export const runtime = "nodejs"

@@ -3,13 +3,13 @@ import { notFound } from "next/navigation"
 
 import { VoidTransactionButton } from "@/components/reports/void-transaction-button"
 import { buttonVariants } from "@/components/ui/button"
-import { formatMinorToDecimal2 } from "@/lib/money"
-import { getLocationForUserByBusinessAndLocationSlug } from "@/lib/queries/location"
 import {
   formatTransactionStatus,
   transactionStatusLabels,
   transactionStatusValues,
 } from "@/lib/db/schema-transactions"
+import { formatMinorToDecimal2 } from "@/lib/money"
+import { getLocationForUserByBusinessAndLocationSlug } from "@/lib/queries/location"
 import {
   listTransactionsForLocationPage,
   parseReportDayEndUtc,
@@ -28,7 +28,7 @@ function defaultRange() {
   return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) }
 }
 
-export default async function ReportsTransactionsPage({
+export default async function TransactionsPage({
   params,
   searchParams,
 }: {
@@ -48,8 +48,7 @@ export default async function ReportsTransactionsPage({
   const def = defaultRange()
   const fromStr = typeof sp.from === "string" && sp.from ? sp.from : def.from
   const toStr = typeof sp.to === "string" && sp.to ? sp.to : def.to
-  const statusParam =
-    typeof sp.status === "string" && sp.status.length > 0 ? sp.status : "all"
+  const statusParam = typeof sp.status === "string" && sp.status.length > 0 ? sp.status : "all"
   const status = parseTransactionStatusFilter(statusParam === "all" ? undefined : statusParam)
   const page = Math.max(1, Number.parseInt(typeof sp.page === "string" ? sp.page : "", 10) || 1)
   const pageSize = 25
@@ -149,7 +148,7 @@ export default async function ReportsTransactionsPage({
                   <td className="p-3 text-right">
                     <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
                       <Link
-                        href={`/${businessSlug}/l/${locationSlug}/reports/transactions/${t.id}`}
+                        href={`/${businessSlug}/l/${locationSlug}/transactions/${t.id}`}
                         className={cn(buttonVariants({ variant: "link", size: "sm" }), "h-auto p-0")}
                       >
                         Lines
@@ -176,13 +175,11 @@ export default async function ReportsTransactionsPage({
       </div>
 
       <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-2 text-sm">
-        <p>
-          {total === 0 ? "0 transactions" : `Page ${page} of ${totalPages} (${total} total)`}
-        </p>
+        <p>{total === 0 ? "0 transactions" : `Page ${page} of ${totalPages} (${total} total)`}</p>
         <div className="flex gap-2">
           {page > 1 ? (
             <Link
-              href={`/${businessSlug}/l/${locationSlug}/reports/transactions${qsBase(page - 1)}`}
+              href={`/${businessSlug}/l/${locationSlug}/transactions${qsBase(page - 1)}`}
               className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
             >
               Previous
@@ -190,7 +187,7 @@ export default async function ReportsTransactionsPage({
           ) : null}
           {page < totalPages ? (
             <Link
-              href={`/${businessSlug}/l/${locationSlug}/reports/transactions${qsBase(page + 1)}`}
+              href={`/${businessSlug}/l/${locationSlug}/transactions${qsBase(page + 1)}`}
               className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
             >
               Next

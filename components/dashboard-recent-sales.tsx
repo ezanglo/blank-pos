@@ -115,8 +115,8 @@ export function DashboardRecentSales({
     <div className="space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <h2 className="text-lg font-semibold">Recent sales</h2>
-        <Link href={`${base}/reports`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-          View full reports
+        <Link href={`${base}/transactions`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+          View all transactions
         </Link>
       </div>
       <div className="overflow-hidden rounded-lg border">

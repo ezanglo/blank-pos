@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
 
-export default async function ReportsTransactionDetailPage({
+export default async function TransactionDetailPage({
   params,
 }: {
   params: Promise<{ businessSlug: string; locationSlug: string; transactionId: string }>
@@ -30,7 +30,7 @@ export default async function ReportsTransactionDetailPage({
   if (!detail) notFound()
 
   const { transaction, lines } = detail
-  const backHref = `/${businessSlug}/l/${locationSlug}/reports/transactions`
+  const backHref = `/${businessSlug}/l/${locationSlug}/transactions`
 
   return (
     <div className="space-y-6">

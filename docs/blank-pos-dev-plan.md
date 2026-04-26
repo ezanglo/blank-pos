@@ -348,7 +348,7 @@ Organization "Brew & Bean Main"  ← one physical store (address on org)
 | Manage inventory | ✅ | ✅ | ❌ |
 | Manage promotions | ✅ | ✅ | ❌ |
 | Apply coupon at checkout | ✅ | ✅ | ✅ |
-| View reports | ✅ | ✅ | ❌ |
+| View sales pages (Transactions, Product Sales) | ✅ | ✅ | ❌ |
 | Branch dashboard (sales KPIs, chart, recent activity) | ✅ | ✅ | ❌ |
 | Process sales | ✅ | ✅ | ✅ |
 | Void transactions | ✅ | ✅ | ❌ |
@@ -456,8 +456,8 @@ Shipped in repo (detail: [phases/phase-02-product-engine.md](phases/phase-02-pro
 
 - **`inventory_movements`** + **auto-deduct** on completed composite sales (idempotent per transaction); row locks on **`inventory_stock`**
 - **Adjustment** flow and **movements** log (catalog admin); low-stock **dashboard** banner + deep link to inventory
-- **Reports** (branch, manager/owner): **daily** summary, **product** sales with **status** filter + **CSV** export, **transactions** list with **status**, pagination, **line-item** drill-down route; **`Suspense`** loading shell; transaction **status labels** in UI
-- **Dashboard** (same branch URL for all roles): **owner/manager** — KPIs (**today** + **last 7 UTC days**) and **14-day** gross-subtotal chart from **`lib/queries/reports.ts`**; **recent sales** with **Lines** / **Receipt** side sheets (server actions); **cashier** — branch shell + **Open register** only (no analytics; aligns with **View reports** = manager+ in the matrix above)
+- **Sales pages** (branch, manager/owner): **product sales** with **status** filter + **CSV** export, **transactions** list with **status**, pagination, and **line-item** drill-down route; transaction **status labels** in UI. These live at `.../product-sales` and `.../transactions` (not `.../reports/*`).
+- **Dashboard** (same branch URL for all roles): **owner/manager** — KPIs (**today** + **last 7 UTC days**) and **14-day** gross-subtotal chart from **`lib/queries/reports.ts`**; **recent sales** with **Lines** / **Receipt** side sheets (server actions); **cashier** — branch shell + **Open register** only (no analytics; aligns with manager+ access for sales pages in the matrix above)
 
 ### Phase 5 — Promotions & Coupons (Weeks 9–10)
 

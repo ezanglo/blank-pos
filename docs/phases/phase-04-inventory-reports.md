@@ -59,8 +59,8 @@ This section records **intent only**; nothing here is required for Phase 3 POS. 
 
 - [x] **Movements** log table with filters.
 - [x] **Adjustments** flow separate from “stealth edits” to stock grid.
-- [x] **Reports** pages under `(org)/[businessSlug]/l/[locationSlug]/reports/` with date pickers; **`location_id`** (branch) scoped in queries.
-- [x] **Loading states** (`Suspense` shell on reports layout) and empty states for reports.
+- [x] Branch sales pages under `(org)/[businessSlug]/l/[locationSlug]/transactions` and `/product-sales` with date pickers; **`location_id`** (branch) scoped in queries.
+- [x] Empty states for sales pages and dashboard analytics views.
 
 ---
 
@@ -106,9 +106,9 @@ These items align the phase doc with the current codebase; they do not reopen de
 
 | Area | Location / behavior |
 |------|----------------------|
-| **Reports** | `app/(protected)/(org)/[businessSlug]/l/[locationSlug]/reports/` — daily / products / transactions; **status** filter on all three; **CSV** at `reports/products/csv`; transaction **lines** page at `reports/transactions/[transactionId]`; layout **`Suspense`** + skeleton (`components/reports-content-skeleton.tsx`). |
+| **Sales pages** | `app/(protected)/(org)/[businessSlug]/l/[locationSlug]/transactions/` and `.../product-sales/` — **status** filter on both; **CSV** at `product-sales/csv`; transaction **lines** page at `transactions/[transactionId]`; old `.../reports/*` routes removed (404 by design). |
 | **Queries** | `lib/queries/reports.ts` — `getDailySalesSummary`, `getProductSalesForRange`, `listTransactionsForLocationPage`, `getTransactionReportDetail`, `getDailySalesSeries`, `fillDailySalesSeriesGaps`, `listRecentTransactionsForLocation`, CSV helpers; **status** parity uses “all statuses” when unset. |
 | **Dashboard** | `app/(protected)/(org)/[businessSlug]/l/[locationSlug]/dashboard/page.tsx` — **owner/manager**: low-stock banner, KPI strip, 14-day chart, recent sales table, **Lines** / **Receipt** open in **side sheets** (`components/dashboard-recent-sales.tsx`, `lib/actions/dashboard-recent-preview.ts`); **cashier**: shell + register CTA only. |
-| **RBAC** | Reports nav and dashboard analytics both require **owner** or **manager** (`components/app-sidebar.tsx`). |
+| **RBAC** | Transactions/Product Sales nav and dashboard analytics both require **owner** or **manager** (`components/app-sidebar.tsx`). |
 
 **Migrations:** run **`pnpm db:migrate`** whenever you pull schema changes. Use the **same `DATABASE_URL`** for Next.js (e.g. `.env.local`) and for CLI tools so `drizzle.__drizzle_migrations` and the live database stay aligned—otherwise a migration can appear “applied” while a table is missing.

@@ -18,12 +18,13 @@ import {
 import {
   BanknoteIcon,
   BoxesIcon,
-  ChartColumnIcon,
   LayoutDashboardIcon,
   MapPinIcon,
+  ReceiptTextIcon,
   PackageIcon,
   SettingsIcon,
   TagIcon,
+  TrendingUpIcon,
   UsersIcon,
 } from "lucide-react"
 
@@ -46,8 +47,12 @@ export function AppSidebar({
     pathname === dashboardHref || pathname.startsWith(`${dashboardHref}/`)
   const posHref = `${locBase}/pos`
   const posActive = pathname === posHref || pathname.startsWith(`${posHref}/`)
-  const reportsHref = `${locBase}/reports`
-  const reportsActive = pathname === reportsHref || pathname.startsWith(`${reportsHref}/`)
+  const transactionsHref = `${locBase}/transactions`
+  const transactionsActive =
+    pathname === transactionsHref || pathname.startsWith(`${transactionsHref}/`)
+  const productSalesHref = `${locBase}/product-sales`
+  const productSalesActive =
+    pathname === productSalesHref || pathname.startsWith(`${productSalesHref}/`)
 
   const isCashier = orgRole === "cashier"
 
@@ -128,16 +133,28 @@ export function AppSidebar({
                 </SidebarMenuButton>
               </SidebarMenuItem>
               {!isCashier ? (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    tooltip="Reports"
-                    isActive={reportsActive}
-                    render={<Link href={reportsHref} />}
-                  >
-                    <ChartColumnIcon />
-                    <span>Reports</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      tooltip="Transactions"
+                      isActive={transactionsActive}
+                      render={<Link href={transactionsHref} />}
+                    >
+                      <ReceiptTextIcon />
+                      <span>Transactions</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      tooltip="Product Sales"
+                      isActive={productSalesActive}
+                      render={<Link href={productSalesHref} />}
+                    >
+                      <TrendingUpIcon />
+                      <span>Product Sales</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </>
               ) : null}
             </SidebarMenu>
           </SidebarGroupContent>

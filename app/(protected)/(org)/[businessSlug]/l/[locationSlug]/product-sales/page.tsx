@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation"
 
+import { transactionStatusLabels, transactionStatusValues } from "@/lib/db/schema-transactions"
 import { formatMinorToDecimal2 } from "@/lib/money"
 import { getLocationForUserByBusinessAndLocationSlug } from "@/lib/queries/location"
-import { transactionStatusLabels, transactionStatusValues } from "@/lib/db/schema-transactions"
 import {
   getProductSalesForRange,
   parseReportDayEndUtc,
@@ -20,7 +20,7 @@ function defaultRange() {
   return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) }
 }
 
-export default async function ReportsProductsPage({
+export default async function ProductSalesPage({
   params,
   searchParams,
 }: {
@@ -40,8 +40,7 @@ export default async function ReportsProductsPage({
   const def = defaultRange()
   const fromStr = typeof sp.from === "string" && sp.from ? sp.from : def.from
   const toStr = typeof sp.to === "string" && sp.to ? sp.to : def.to
-  const statusParam =
-    typeof sp.status === "string" && sp.status.length > 0 ? sp.status : "all"
+  const statusParam = typeof sp.status === "string" && sp.status.length > 0 ? sp.status : "all"
   const status = parseTransactionStatusFilter(statusParam === "all" ? undefined : statusParam)
   const from = parseReportDayStartUtc(fromStr)
   const to = parseReportDayEndUtc(toStr)
@@ -57,7 +56,7 @@ export default async function ReportsProductsPage({
 
   const csvQs = new URLSearchParams({ from: fromStr, to: toStr })
   if (statusParam !== "all") csvQs.set("status", statusParam)
-  const csvHref = `/${businessSlug}/l/${locationSlug}/reports/products/csv?${csvQs.toString()}`
+  const csvHref = `/${businessSlug}/l/${locationSlug}/product-sales/csv?${csvQs.toString()}`
 
   return (
     <div className="space-y-4">
