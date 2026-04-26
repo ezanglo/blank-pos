@@ -243,10 +243,10 @@ export function CatalogInventoryMovementsPanel({
                   <TableCell>
                     {r.transactionId && r.locationSlug ? (
                       <Link
-                        href={`/${businessSlug}/l/${r.locationSlug}/pos/receipt/${r.transactionId}`}
+                        href={`/${businessSlug}/l/${r.locationSlug}/transactions/${r.transactionId}`}
                         className="text-primary text-sm underline-offset-4 hover:underline"
                       >
-                        Receipt
+                        Transaction
                       </Link>
                     ) : (
                       "—"

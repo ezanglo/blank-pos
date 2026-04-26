@@ -2,6 +2,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { VoidTransactionButton } from "@/components/reports/void-transaction-button"
+import { ReceiptSheetButton } from "@/components/transactions/receipt-sheet-button"
 import { buttonVariants } from "@/components/ui/button"
 import { formatTransactionStatus } from "@/lib/db/schema-transactions"
 import { formatMinorToDecimal2 } from "@/lib/money"
@@ -55,12 +56,11 @@ export default async function TransactionDetailPage({
             transactionId={transaction.id}
             transactionStatus={transaction.status}
           />
-          <Link
-            href={`/${businessSlug}/l/${locationSlug}/pos/receipt/${transaction.id}`}
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-          >
-            Open receipt
-          </Link>
+          <ReceiptSheetButton
+            businessSlug={businessSlug}
+            transactionId={transaction.id}
+            variant="outline"
+          />
         </div>
       </div>
 

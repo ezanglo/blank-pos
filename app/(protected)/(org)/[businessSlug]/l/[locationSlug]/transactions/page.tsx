@@ -2,7 +2,18 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { VoidTransactionButton } from "@/components/reports/void-transaction-button"
+import { LinesSheetButton } from "@/components/transactions/lines-sheet-button"
+import { ReceiptSheetButton } from "@/components/transactions/receipt-sheet-button"
 import { buttonVariants } from "@/components/ui/button"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
 import {
   formatTransactionStatus,
   transactionStatusLabels,
@@ -28,6 +39,21 @@ function defaultRange() {
   return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) }
 }
 
+function buildPageItems(page: number, totalPages: number): Array<number | "ellipsis"> {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, idx) => idx + 1)
+
+  const out: Array<number | "ellipsis"> = [1]
+  const start = Math.max(2, page - 1)
+  const end = Math.min(totalPages - 1, page + 1)
+
+  if (start > 2) out.push("ellipsis")
+  for (let p = start; p <= end; p++) out.push(p)
+  if (end < totalPages - 1) out.push("ellipsis")
+
+  out.push(totalPages)
+  return out
+}
+
 export default async function TransactionsPage({
   params,
   searchParams,
@@ -51,7 +77,10 @@ export default async function TransactionsPage({
   const statusParam = typeof sp.status === "string" && sp.status.length > 0 ? sp.status : "all"
   const status = parseTransactionStatusFilter(statusParam === "all" ? undefined : statusParam)
   const page = Math.max(1, Number.parseInt(typeof sp.page === "string" ? sp.page : "", 10) || 1)
-  const pageSize = 25
+  const pageSize = Math.min(
+    100,
+    Math.max(1, Number.parseInt(typeof sp.pageSize === "string" ? sp.pageSize : "", 10) || 10),
+  )
 
   const from = parseReportDayStartUtc(fromStr)
   const to = parseReportDayEndUtc(toStr)
@@ -68,9 +97,15 @@ export default async function TransactionsPage({
   )
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const pageItems = buildPageItems(page, totalPages)
 
   const qsBase = (p: number) => {
-    const u = new URLSearchParams({ from: fromStr, to: toStr, page: String(p) })
+    const u = new URLSearchParams({
+      from: fromStr,
+      to: toStr,
+      page: String(p),
+      pageSize: String(pageSize),
+    })
     if (statusParam !== "all") u.set("status", statusParam)
     return `?${u.toString()}`
   }
@@ -147,18 +182,12 @@ export default async function TransactionsPage({
                   <td className="p-3 text-right tabular-nums">{formatMinorToDecimal2(t.totalMinor)}</td>
                   <td className="p-3 text-right">
                     <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
-                      <Link
-                        href={`/${businessSlug}/l/${locationSlug}/transactions/${t.id}`}
-                        className={cn(buttonVariants({ variant: "link", size: "sm" }), "h-auto p-0")}
-                      >
-                        Lines
-                      </Link>
-                      <Link
-                        href={`/${businessSlug}/l/${locationSlug}/pos/receipt/${t.id}`}
-                        className={cn(buttonVariants({ variant: "link", size: "sm" }), "h-auto p-0")}
-                      >
-                        Receipt
-                      </Link>
+                      <LinesSheetButton
+                        businessSlug={businessSlug}
+                        locationSlug={locationSlug}
+                        transactionId={t.id}
+                      />
+                      <ReceiptSheetButton businessSlug={businessSlug} transactionId={t.id} />
                       <VoidTransactionButton
                         businessSlug={businessSlug}
                         locationSlug={locationSlug}
@@ -176,24 +205,67 @@ export default async function TransactionsPage({
 
       <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-2 text-sm">
         <p>{total === 0 ? "0 transactions" : `Page ${page} of ${totalPages} (${total} total)`}</p>
-        <div className="flex gap-2">
-          {page > 1 ? (
-            <Link
-              href={`/${businessSlug}/l/${locationSlug}/transactions${qsBase(page - 1)}`}
-              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-            >
-              Previous
-            </Link>
-          ) : null}
-          {page < totalPages ? (
-            <Link
-              href={`/${businessSlug}/l/${locationSlug}/transactions${qsBase(page + 1)}`}
-              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-            >
-              Next
-            </Link>
-          ) : null}
-        </div>
+        {total > 0 ? (
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <form method="get" className="flex items-center gap-2">
+              <input type="hidden" name="from" value={fromStr} />
+              <input type="hidden" name="to" value={toStr} />
+              <input type="hidden" name="status" value={statusParam} />
+              <input type="hidden" name="page" value="1" />
+              <label className="text-muted-foreground text-xs">Rows per page</label>
+              <select
+                name="pageSize"
+                defaultValue={String(pageSize)}
+                className="border-input bg-background h-8 min-w-20 rounded-md border px-2 text-sm"
+              >
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+              <button
+                type="submit"
+                className="border-input bg-background text-foreground inline-flex h-8 items-center rounded-md border px-2 text-xs font-medium hover:bg-muted"
+              >
+                Apply
+              </button>
+            </form>
+            <Pagination className="mx-0 w-auto justify-end">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    href={`/${businessSlug}/l/${locationSlug}/transactions${qsBase(Math.max(1, page - 1))}`}
+                    aria-disabled={page <= 1}
+                    className={cn(page <= 1 && "pointer-events-none opacity-50")}
+                  />
+                </PaginationItem>
+                {pageItems.map((item, idx) =>
+                  item === "ellipsis" ? (
+                    <PaginationItem key={`ellipsis-${idx}`}>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  ) : (
+                    <PaginationItem key={item}>
+                      <PaginationLink
+                        href={`/${businessSlug}/l/${locationSlug}/transactions${qsBase(item)}`}
+                        isActive={item === page}
+                      >
+                        {item}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ),
+                )}
+                <PaginationItem>
+                  <PaginationNext
+                    href={`/${businessSlug}/l/${locationSlug}/transactions${qsBase(Math.min(totalPages, page + 1))}`}
+                    aria-disabled={page >= totalPages}
+                    className={cn(page >= totalPages && "pointer-events-none opacity-50")}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        ) : null}
       </div>
     </div>
   )
