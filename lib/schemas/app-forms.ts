@@ -256,8 +256,11 @@ export type BusinessSettingsSocialFormValues = z.infer<typeof businessSettingsSo
 
 export const staffCreateSchema = z.object({
   email: z.string().min(1, "Email is required").email("Enter a valid email"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  name: z.string().min(1, "Display name is required"),
+  password: z
+    .string()
+    .optional()
+    .refine((v) => !v || v.length >= 8, "Password must be at least 8 characters"),
+  name: z.string().optional(),
   role: z.enum(["manager", "cashier"]),
 })
 export type StaffCreateFormValues = z.infer<typeof staffCreateSchema>

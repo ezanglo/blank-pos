@@ -276,7 +276,9 @@ export function TeamAdminPanel({
         <DialogContent className="max-w-md sm:max-w-lg" showCloseButton>
           <DialogHeader>
             <DialogTitle>Add team member</DialogTitle>
-            <DialogDescription>Create a sign-in with a real email and temporary password.</DialogDescription>
+            <DialogDescription>
+              Add an existing user by email, or create a new sign-in with a temporary password.
+            </DialogDescription>
           </DialogHeader>
           <form className="space-y-4" onSubmit={addForm.handleSubmit(onAddSubmit)}>
             <RootFormError message={addForm.formState.errors.root?.message} />
@@ -286,13 +288,13 @@ export function TeamAdminPanel({
                 <TextFormField
                   control={addForm.control}
                   name="password"
-                  label="Temporary password"
+                  label="Temporary password (new users only)"
                   type="password"
                   autoComplete="new-password"
                 />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <TextFormField control={addForm.control} name="name" label="Display name" />
+                <TextFormField control={addForm.control} name="name" label="Display name (new users only)" />
                 {currentRole === "owner" ? (
                   <SelectFormField
                     control={addForm.control}
@@ -318,7 +320,7 @@ export function TeamAdminPanel({
                 Cancel
               </Button>
               <Button type="submit" disabled={addForm.formState.isSubmitting}>
-                {addForm.formState.isSubmitting ? "Working…" : "Create user & add to team"}
+                {addForm.formState.isSubmitting ? "Working…" : "Add to team"}
               </Button>
             </DialogFooter>
           </form>
