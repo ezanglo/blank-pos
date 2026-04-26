@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from "react"
 import Image from "next/image"
 
 import { PrintReceiptButton } from "@/components/pos/print-receipt-button"
+import { formatOrderNumberLabel } from "@/lib/format-order-number"
 import { formatMinorToDecimal2, parseMinorFromSerialized } from "@/lib/money"
 import type { PosReceiptPreviewModel } from "@/lib/pos/receipt-preview"
 import { cn } from "@/lib/utils"
@@ -76,7 +77,9 @@ export function PosReceiptDocument({
           {model.queueNumber != null ? (
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Order #</dt>
-              <dd className="text-lg font-bold tabular-nums">{model.queueNumber}</dd>
+              <dd className="text-lg font-bold tabular-nums">
+                {formatOrderNumberLabel(new Date(model.createdAtIso), model.queueNumber)}
+              </dd>
             </div>
           ) : null}
           {model.customerCallName ? (

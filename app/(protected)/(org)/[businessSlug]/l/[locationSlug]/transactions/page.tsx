@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { VoidTransactionButton } from "@/components/reports/void-transaction-button"
 import { LinesSheetButton } from "@/components/transactions/lines-sheet-button"
 import { ReceiptSheetButton } from "@/components/transactions/receipt-sheet-button"
+import { TransactionsPageSizeForm } from "@/components/transactions/transactions-page-size-form"
 import { buttonVariants } from "@/components/ui/button"
 import {
   Pagination,
@@ -21,6 +22,7 @@ import {
 } from "@/lib/db/schema-transactions"
 import { formatMinorToDecimal2 } from "@/lib/money"
 import { getLocationForUserByBusinessAndLocationSlug } from "@/lib/queries/location"
+import { formatOrderNumberLabel } from "@/lib/format-order-number"
 import {
   listTransactionsForLocationPage,
   parseReportDayEndUtc,
@@ -177,7 +179,9 @@ export default async function TransactionsPage({
               rows.map((t) => (
                 <tr key={t.id} className="border-t">
                   <td className="p-3 whitespace-nowrap tabular-nums">{t.createdAt.toLocaleString()}</td>
-                  <td className="p-3 tabular-nums">{t.queueNumber ?? "—"}</td>
+                  <td className="p-3 tabular-nums">
+                    {formatOrderNumberLabel(t.createdAt, t.queueNumber)}
+                  </td>
                   <td className="p-3">{formatTransactionStatus(t.status)}</td>
                   <td className="p-3 text-right tabular-nums">{formatMinorToDecimal2(t.totalMinor)}</td>
                   <td className="p-3 text-right">
@@ -207,29 +211,12 @@ export default async function TransactionsPage({
         <p>{total === 0 ? "0 transactions" : `Page ${page} of ${totalPages} (${total} total)`}</p>
         {total > 0 ? (
           <div className="flex flex-wrap items-center justify-end gap-3">
-            <form method="get" className="flex items-center gap-2">
-              <input type="hidden" name="from" value={fromStr} />
-              <input type="hidden" name="to" value={toStr} />
-              <input type="hidden" name="status" value={statusParam} />
-              <input type="hidden" name="page" value="1" />
-              <label className="text-muted-foreground text-xs">Rows per page</label>
-              <select
-                name="pageSize"
-                defaultValue={String(pageSize)}
-                className="border-input bg-background h-8 min-w-20 rounded-md border px-2 text-sm"
-              >
-                <option value="10">10</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
-              <button
-                type="submit"
-                className="border-input bg-background text-foreground inline-flex h-8 items-center rounded-md border px-2 text-xs font-medium hover:bg-muted"
-              >
-                Apply
-              </button>
-            </form>
+            <TransactionsPageSizeForm
+              fromStr={fromStr}
+              toStr={toStr}
+              statusParam={statusParam}
+              pageSize={pageSize}
+            />
             <Pagination className="mx-0 w-auto justify-end">
               <PaginationContent>
                 <PaginationItem>

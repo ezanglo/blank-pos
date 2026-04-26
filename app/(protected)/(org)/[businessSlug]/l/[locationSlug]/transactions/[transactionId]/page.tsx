@@ -7,6 +7,7 @@ import { buttonVariants } from "@/components/ui/button"
 import { formatTransactionStatus } from "@/lib/db/schema-transactions"
 import { formatMinorToDecimal2 } from "@/lib/money"
 import { getLocationForUserByBusinessAndLocationSlug } from "@/lib/queries/location"
+import { formatOrderNumberLabel } from "@/lib/format-order-number"
 import { getTransactionReportDetail } from "@/lib/queries/reports"
 import { requireSession } from "@/lib/server-auth"
 import { cn } from "@/lib/utils"
@@ -45,7 +46,7 @@ export default async function TransactionDetailPage({
           </Link>
           <h2 className="text-lg font-semibold">Transaction lines</h2>
           <p className="text-muted-foreground mt-1 text-sm tabular-nums">
-            {transaction.createdAt.toLocaleString()} · #{transaction.queueNumber ?? "—"} ·{" "}
+            {transaction.createdAt.toLocaleString()} · {formatOrderNumberLabel(transaction.createdAt, transaction.queueNumber)} ·{" "}
             <span>{formatTransactionStatus(transaction.status)}</span>
           </p>
         </div>

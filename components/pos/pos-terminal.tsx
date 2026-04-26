@@ -54,6 +54,7 @@ import {
   parseMinorFromSerialized,
   sumMinor,
 } from "@/lib/money"
+import { formatOrderNumberLabel } from "@/lib/format-order-number"
 import {
   posCartAddonSignature,
   posCartInstructionSignature,
@@ -448,6 +449,7 @@ export function PosTerminal({
     queueNumber: number | null
     customerCallName: string | null
     estimatedPrepSeconds: number | null
+    createdAtIso: string
   } | null>(null)
   const [pickerProduct, setPickerProduct] =
     React.useState<PosProductCard | null>(null)
@@ -631,6 +633,7 @@ export function PosTerminal({
         queueNumber: res.queueNumber,
         customerCallName: res.customerCallName,
         estimatedPrepSeconds: res.estimatedPrepSeconds,
+        createdAtIso: res.createdAtIso,
       })
       setCustomerCallName("")
       reset()
@@ -961,7 +964,9 @@ export function PosTerminal({
         </DialogHeader>
         <div className="space-y-2 text-center text-base text-foreground">
           {completedSale?.queueNumber != null ? (
-            <p className="text-2xl font-bold tabular-nums">Order #{completedSale.queueNumber}</p>
+            <p className="text-2xl font-bold tabular-nums">
+              {formatOrderNumberLabel(new Date(completedSale.createdAtIso), completedSale.queueNumber)}
+            </p>
           ) : null}
           {completedSale?.customerCallName ? (
             <p className="text-muted-foreground">For {completedSale.customerCallName}</p>

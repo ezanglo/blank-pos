@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/sheet"
 import type { DashboardTransactionLinesPreview } from "@/lib/actions/dashboard-recent-preview"
 import { formatTransactionStatus } from "@/lib/db/schema-transactions"
+import { formatOrderNumberLabel } from "@/lib/format-order-number"
 import type { PosReceiptPreviewModel } from "@/lib/pos/receipt-preview"
 import { cn } from "@/lib/utils"
 
@@ -143,7 +144,9 @@ export function DashboardRecentSales({
                   <td className="p-3 whitespace-nowrap tabular-nums">
                     {new Date(t.createdAtIso).toLocaleString()}
                   </td>
-                  <td className="p-3 tabular-nums">{t.queueNumber ?? "—"}</td>
+                  <td className="p-3 tabular-nums">
+                    {formatOrderNumberLabel(new Date(t.createdAtIso), t.queueNumber)}
+                  </td>
                   <td className="p-3">{formatTransactionStatus(t.status)}</td>
                   <td className="p-3 text-right tabular-nums">{t.totalFormatted}</td>
                   <td className="p-3 text-right">
@@ -220,7 +223,8 @@ export function DashboardRecentSales({
             ) : linesData ? (
               <div className="space-y-4">
                 <p className="text-muted-foreground text-sm tabular-nums">
-                  {new Date(linesData.createdAtIso).toLocaleString()} · #{linesData.queueNumber ?? "—"} ·{" "}
+                  {new Date(linesData.createdAtIso).toLocaleString()} ·{" "}
+                  {formatOrderNumberLabel(new Date(linesData.createdAtIso), linesData.queueNumber)} ·{" "}
                   {linesData.statusLabel}
                 </p>
                 <div className="overflow-hidden rounded-lg border">

@@ -41,6 +41,8 @@ export type CreateSaleResult =
       customerCallName: string | null
       /** Sum of per-product prep seconds × line qty when any line has `prep_time_seconds`; else null. */
       estimatedPrepSeconds: number | null
+      /** Transaction `created_at` (for order label OR-YYYYMMDD-counter). */
+      createdAtIso: string
     }
   | {
       ok: false
@@ -77,6 +79,7 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
         .select({
           queueNumber: posTransactions.queueNumber,
           customerCallName: posTransactions.customerCallName,
+          createdAt: posTransactions.createdAt,
         })
         .from(posTransactions)
         .where(and(eq(posTransactions.id, existing), eq(posTransactions.organizationId, organizationId)))
@@ -87,6 +90,7 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
         queueNumber: meta?.queueNumber ?? null,
         customerCallName: meta?.customerCallName ?? null,
         estimatedPrepSeconds: null,
+        createdAtIso: meta?.createdAt.toISOString() ?? new Date().toISOString(),
       }
     }
   }
@@ -286,6 +290,7 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
 
   const transactionId = randomUUID()
   let queueNumber: number | null = null
+  let saleCreatedAtIso: string | null = null
 
   try {
     await db.transaction(async (tx) => {
@@ -307,22 +312,27 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
         throw new Error("queue_counter_failed")
       }
 
-      await tx.insert(posTransactions).values({
-        id: transactionId,
-        organizationId,
-        locationId: location.id,
-        userId,
-        status: "completed",
-        subtotalAmountMinor,
-        discountAmountMinor: ZERO,
-        taxAmountMinor: ZERO,
-        totalAmountMinor,
-        paymentMethod: input.paymentMethod,
-        notes: input.notes?.trim() || null,
-        queueNumber,
-        customerCallName: callName,
-        checkoutId: input.checkoutId ?? null,
-      })
+      const [insertedTx] = await tx
+        .insert(posTransactions)
+        .values({
+          id: transactionId,
+          organizationId,
+          locationId: location.id,
+          userId,
+          status: "completed",
+          subtotalAmountMinor,
+          discountAmountMinor: ZERO,
+          taxAmountMinor: ZERO,
+          totalAmountMinor,
+          paymentMethod: input.paymentMethod,
+          notes: input.notes?.trim() || null,
+          queueNumber,
+          customerCallName: callName,
+          checkoutId: input.checkoutId ?? null,
+        })
+        .returning({ createdAt: posTransactions.createdAt })
+
+      saleCreatedAtIso = insertedTx?.createdAt.toISOString() ?? null
 
       const saleLines: { transactionItemId: string; productId: string; quantity: number }[] = []
       for (const line of resolvedLines) {
@@ -382,6 +392,7 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
           .select({
             queueNumber: posTransactions.queueNumber,
             customerCallName: posTransactions.customerCallName,
+            createdAt: posTransactions.createdAt,
           })
           .from(posTransactions)
           .where(and(eq(posTransactions.id, existing), eq(posTransactions.organizationId, organizationId)))
@@ -392,6 +403,7 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
           queueNumber: meta?.queueNumber ?? null,
           customerCallName: meta?.customerCallName ?? null,
           estimatedPrepSeconds: null,
+          createdAtIso: meta?.createdAt.toISOString() ?? new Date().toISOString(),
         }
       }
     }
@@ -409,5 +421,6 @@ export async function createSale(raw: unknown): Promise<CreateSaleResult> {
     queueNumber,
     customerCallName: callName,
     estimatedPrepSeconds,
+    createdAtIso: saleCreatedAtIso ?? new Date().toISOString(),
   }
 }

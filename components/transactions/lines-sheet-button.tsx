@@ -9,6 +9,7 @@ import {
   loadDashboardTransactionLines,
   type DashboardTransactionLinesPreview,
 } from "@/lib/actions/dashboard-recent-preview"
+import { formatOrderNumberLabel } from "@/lib/format-order-number"
 import { Button, buttonVariants } from "@/components/ui/button"
 import {
   Sheet,
@@ -111,7 +112,8 @@ export function LinesSheetButton({
             ) : data ? (
               <div className="space-y-4">
                 <p className="text-muted-foreground text-sm tabular-nums">
-                  {new Date(data.createdAtIso).toLocaleString()} · #{data.queueNumber ?? "—"} · {data.statusLabel}
+                  {new Date(data.createdAtIso).toLocaleString()} ·{" "}
+                  {formatOrderNumberLabel(new Date(data.createdAtIso), data.queueNumber)} · {data.statusLabel}
                 </p>
                 <div className="overflow-hidden rounded-lg border">
                   <table className="w-full text-sm">
