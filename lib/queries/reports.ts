@@ -238,6 +238,73 @@ export async function getProductSalesForRange(
   })
 }
 
+export async function listProductSalesForRangePage(
+  organizationId: string,
+  locationId: string,
+  from: Date,
+  to: Date,
+  page: number,
+  pageSize: number,
+  status?: TransactionStatus,
+): Promise<{ rows: ProductSalesRow[]; total: number }> {
+  const db = getDb()
+  const p = Math.max(1, page)
+  const ps = Math.max(1, Math.min(100, pageSize))
+  const offset = (p - 1) * ps
+
+  const parts = [
+    eq(posTransactions.organizationId, organizationId),
+    eq(posTransactions.locationId, locationId),
+    gte(posTransactions.createdAt, from),
+    lte(posTransactions.createdAt, to),
+  ]
+  if (status) parts.push(eq(posTransactions.status, status))
+  const whereClause = and(...parts)!
+
+  const groupsSq = db
+    .select({ gid: posTransactionItems.productId })
+    .from(posTransactionItems)
+    .innerJoin(posTransactions, eq(posTransactionItems.transactionId, posTransactions.id))
+    .innerJoin(product, eq(product.id, posTransactionItems.productId))
+    .where(whereClause)
+    .groupBy(posTransactionItems.productId, product.name)
+    .as("product_sales_groups")
+
+  const [{ n: total }] = await db
+    .select({ n: sql<number>`count(*)::int`.mapWith(Number) })
+    .from(groupsSq)
+
+  const rows = await db
+    .select({
+      productId: posTransactionItems.productId,
+      productName: product.name,
+      unitsSold: sql<number>`sum(${posTransactionItems.quantity})::int`.mapWith(Number),
+      revenueMinor: sum(posTransactionItems.subtotalMinor),
+    })
+    .from(posTransactionItems)
+    .innerJoin(posTransactions, eq(posTransactionItems.transactionId, posTransactions.id))
+    .innerJoin(product, eq(product.id, posTransactionItems.productId))
+    .where(whereClause)
+    .groupBy(posTransactionItems.productId, product.name)
+    .orderBy(sql`${sum(posTransactionItems.subtotalMinor)} desc`)
+    .limit(ps)
+    .offset(offset)
+
+  return {
+    rows: rows.map((r) => {
+      const rev = r.revenueMinor
+      const revenueMinor = typeof rev === "bigint" ? rev : BigInt(String(rev ?? 0))
+      return {
+        productId: r.productId,
+        productName: r.productName,
+        unitsSold: r.unitsSold,
+        revenueMinor,
+      }
+    }),
+    total: total ?? 0,
+  }
+}
+
 export type TransactionListRow = {
   id: string
   createdAt: Date

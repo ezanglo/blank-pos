@@ -1,15 +1,26 @@
 import { notFound } from "next/navigation"
 
+import { ProductSalesPageSizeForm } from "@/components/product-sales/product-sales-page-size-form"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
 import { transactionStatusLabels, transactionStatusValues } from "@/lib/db/schema-transactions"
 import { formatMinorToDecimal2 } from "@/lib/money"
 import { getLocationForUserByBusinessAndLocationSlug } from "@/lib/queries/location"
 import {
-  getProductSalesForRange,
+  listProductSalesForRangePage,
   parseReportDayEndUtc,
   parseReportDayStartUtc,
   parseTransactionStatusFilter,
 } from "@/lib/queries/reports"
 import { requireSession } from "@/lib/server-auth"
+import { cn } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
 
@@ -18,6 +29,21 @@ function defaultRange() {
   const from = new Date(to)
   from.setUTCDate(from.getUTCDate() - 7)
   return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) }
+}
+
+function buildPageItems(page: number, totalPages: number): Array<number | "ellipsis"> {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, idx) => idx + 1)
+
+  const out: Array<number | "ellipsis"> = [1]
+  const start = Math.max(2, page - 1)
+  const end = Math.min(totalPages - 1, page + 1)
+
+  if (start > 2) out.push("ellipsis")
+  for (let p = start; p <= end; p++) out.push(p)
+  if (end < totalPages - 1) out.push("ellipsis")
+
+  out.push(totalPages)
+  return out
 }
 
 export default async function ProductSalesPage({
@@ -42,17 +68,38 @@ export default async function ProductSalesPage({
   const toStr = typeof sp.to === "string" && sp.to ? sp.to : def.to
   const statusParam = typeof sp.status === "string" && sp.status.length > 0 ? sp.status : "all"
   const status = parseTransactionStatusFilter(statusParam === "all" ? undefined : statusParam)
+  const page = Math.max(1, Number.parseInt(typeof sp.page === "string" ? sp.page : "", 10) || 1)
+  const pageSize = Math.min(
+    100,
+    Math.max(1, Number.parseInt(typeof sp.pageSize === "string" ? sp.pageSize : "", 10) || 10),
+  )
   const from = parseReportDayStartUtc(fromStr)
   const to = parseReportDayEndUtc(toStr)
   if (!from || !to) notFound()
 
-  const products = await getProductSalesForRange(
+  const { rows: products, total } = await listProductSalesForRangePage(
     row.organization.id,
     row.location.id,
     from,
     to,
+    page,
+    pageSize,
     status,
   )
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const pageItems = buildPageItems(page, totalPages)
+
+  const qsBase = (p: number) => {
+    const u = new URLSearchParams({
+      from: fromStr,
+      to: toStr,
+      page: String(p),
+      pageSize: String(pageSize),
+    })
+    if (statusParam !== "all") u.set("status", statusParam)
+    return `?${u.toString()}`
+  }
 
   const csvQs = new URLSearchParams({ from: fromStr, to: toStr })
   if (statusParam !== "all") csvQs.set("status", statusParam)
@@ -61,6 +108,7 @@ export default async function ProductSalesPage({
   return (
     <div className="space-y-4">
       <form className="flex flex-wrap items-end gap-3" method="get">
+        <input type="hidden" name="page" value="1" />
         <label className="grid gap-1 text-sm">
           <span className="text-muted-foreground">From</span>
           <input
@@ -135,6 +183,54 @@ export default async function ProductSalesPage({
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-2 text-sm">
+        <p>{total === 0 ? "0 products" : `Page ${page} of ${totalPages} (${total} products)`}</p>
+        {total > 0 ? (
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <ProductSalesPageSizeForm
+              fromStr={fromStr}
+              toStr={toStr}
+              statusParam={statusParam}
+              pageSize={pageSize}
+            />
+            <Pagination className="mx-0 w-auto justify-end">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    href={`/${businessSlug}/l/${locationSlug}/product-sales${qsBase(Math.max(1, page - 1))}`}
+                    aria-disabled={page <= 1}
+                    className={cn(page <= 1 && "pointer-events-none opacity-50")}
+                  />
+                </PaginationItem>
+                {pageItems.map((item, idx) =>
+                  item === "ellipsis" ? (
+                    <PaginationItem key={`ellipsis-${idx}`}>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  ) : (
+                    <PaginationItem key={item}>
+                      <PaginationLink
+                        href={`/${businessSlug}/l/${locationSlug}/product-sales${qsBase(item)}`}
+                        isActive={item === page}
+                      >
+                        {item}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ),
+                )}
+                <PaginationItem>
+                  <PaginationNext
+                    href={`/${businessSlug}/l/${locationSlug}/product-sales${qsBase(Math.min(totalPages, page + 1))}`}
+                    aria-disabled={page >= totalPages}
+                    className={cn(page >= totalPages && "pointer-events-none opacity-50")}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        ) : null}
       </div>
     </div>
   )
