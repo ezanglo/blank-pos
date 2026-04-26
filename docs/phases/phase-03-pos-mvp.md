@@ -6,7 +6,7 @@
 
 **References:** [blank-pos-dev-plan.md](../blank-pos-dev-plan.md) §4 (transactions, `transaction_items`, **`transaction_item_addon`**, **`product_addon`**, **`product_category_addon`**), §5 v1 POS bullets.
 
-**Status (repo):** Core Phase 3 **MVP is implemented** — register at **`/{businessSlug}/l/{locationSlug}/pos`**, [`createSale`](../../lib/actions/sales.ts), responsive cart (**`Sheet`** on small viewports, **`aside`** on **`lg+`**), sale-complete **`Dialog`**, in-app receipt preview **`Sheet`** (shared [`PosReceiptDocument`](../../components/pos/pos-receipt-document.tsx)), print rules in [`globals.css`](../../app/globals.css) (`#pos-receipt-root`), **last-receipt** shortcut from the DB + toolbar badge, cart store, category-scoped add-ons and special instructions. **F&B-style extras:** optional **call-out name** on checkout, **per-branch daily queue number** on the transaction + receipt, and **estimated prep** from catalog `prep_time_seconds` × line qty (cart + completion dialog). The checklists below match the codebase; a few items remain **optional** or **informal QA** rather than missing product features.
+**Status (repo):** Core Phase 3 **MVP is implemented** — register at **`/{businessSlug}/l/{locationSlug}/pos`**, [`createSale`](../../lib/actions/sales.ts), responsive cart (**`Sheet`** on small viewports, **`aside`** on **`lg+`**), sale-complete **`Dialog`**, in-app receipt preview **`Sheet`** (shared [`PosReceiptDocument`](../../components/pos/pos-receipt-document.tsx)), print rules in [`globals.css`](../../app/globals.css) (`#pos-receipt-root`), **last-receipt** shortcut from the DB + toolbar badge, cart store, category-scoped add-ons and special instructions. **F&B-style extras:** optional **call-out name** on checkout, **per-branch daily queue number** on the transaction + receipt, and **estimated prep** from catalog `prep_time_seconds` × line qty (cart + completion dialog). **Reorder:** receipt sheet **Reorder** clears the cart and reloads line items (and call-out name) from a past sale via [`getTransactionReorderPayload`](../../lib/queries/transactions.ts) / [`loadPosReorderPayload`](../../lib/actions/pos-reorder.ts) + [`buildCartLinesFromReorderPayload`](../../lib/pos/reorder-to-cart.ts); branch-scoped in the query. From **Transactions** reporting, **Reorder** deep-links to **`/pos?reorder={transactionId}`** (see Phase 4). The checklists below match the codebase; a few items remain **optional** or **informal QA** rather than missing product features.
 
 ---
 
@@ -26,10 +26,12 @@
 - [x] **Receipt routes / flows:**
   - **Standalone page** — [`pos/receipt/[transactionId]/page.tsx`](../../app/(protected)/(org)/[businessSlug]/l/[locationSlug]/pos/receipt/[transactionId]/page.tsx) for bookmarking or opening in a new tab; uses `PosReceiptDocument` + **Print** control.
   - **In-register preview** — after checkout, **Print receipt** opens a **right `Sheet`** (same width pattern as the cart sheet). Data is loaded with the server action [`loadPosReceiptPreview`](../../lib/actions/pos-receipt.ts) (`businessSlug` + `transactionId`).
+  - **Reorder from receipt** — **`Reorder`** in the sheet footer ([`pos-terminal.tsx`](../../components/pos/pos-terminal.tsx)): clears the cart, fetches persisted line keys (`product_id`, `product_price_id`, add-on / instruction ids + snapshot labels), rebuilds [`PosCartLine`](../../lib/stores/pos-cart-store.ts) rows with [`replaceEntireCart`](../../lib/stores/pos-cart-store.ts), restores **`customer_call_name`**, closes the sheet, opens the cart. Lines skipped if the product or price tier disappeared from the menu (toast warnings). **Checkout** still reprices from the live catalog in [`createSale`](../../lib/actions/sales.ts).
+  - **Deep link** — [`pos/page.tsx`](../../app/(protected)/(org)/[businessSlug]/l/[locationSlug]/pos/page.tsx) reads **`?reorder=`** and passes `initialReorderTransactionId` into `PosTerminal`; after load, **`router.replace`** drops the query param. Used by [`ReceiptSheetButton`](../../components/transactions/receipt-sheet-button.tsx) when `locationSlug` is provided (transactions UI).
 - [x] **Sale complete UX:** centered **`Dialog`** (not a full-page takeover) showing **queue #**, optional **for [name]**, optional **est. prep** when catalog prep times exist; **Print receipt** and **New sale**; printing uses the sheet flow above.
 - [x] **Last sale receipt shortcut:** POS page server-loads the latest transaction id for the branch via [`getLatestTransactionIdForLocation`](../../lib/queries/transactions.ts) and passes it as `initialLastOrderTransactionId` ([`pos/page.tsx`](../../app/(protected)/(org)/[businessSlug]/l/[locationSlug]/pos/page.tsx)). [`PosTerminal`](../../components/pos/pos-terminal.tsx) shows a **Last receipt** badge in the **cart header** and a compact **Receipt** badge **next to the cart icon** in the toolbar (always visible even when the desktop cart rail is collapsed). Each successful checkout updates the tracked id client-side.
 - [x] **Print rules:** [`app/globals.css`](../../app/globals.css) — `@media print` scoped with **`body:has(#pos-receipt-root)`** so only the receipt prints (plus `.no-print` for chrome like sheet footers).
-- [x] **Zustand** store for cart ([`pos-cart-store.ts`](../../lib/stores/pos-cart-store.ts)); reset after successful sale. Cart persistence across refresh remains out of scope.
+- [x] **Zustand** store for cart ([`pos-cart-store.ts`](../../lib/stores/pos-cart-store.ts)); **`reset`** after successful sale; **`createPosCartLine`** + **`replaceEntireCart`** support reorder. Cart persistence across refresh remains out of scope.
 
 ---
 
@@ -55,6 +57,7 @@
 - [x] **Sellable prices** from **`product_price`** for org; tier picked per line; validation in **`createSale`**.
 - [ ] **Stock display (optional):** low/zero badge for **`track_inventory`** products — **not** implemented on POS grid (checkout is not blocked on stock).
 - [x] **`createSale`:** single DB transaction; validates products, prices, add-ons (**active**, linked to line’s category, currency match), and optional **`checkoutId`** deduplication.
+- [x] **Reorder read path:** [`getTransactionReorderPayload`](../../lib/queries/transactions.ts) (org + **`location_id`** + `transaction_id`) returns rows suitable for cart rebuild; no separate “historical checkout” — repricing at sale time only.
 
 ---
 
@@ -99,7 +102,7 @@
 
 ## Definition of done (checklist)
 
-- [x] End-to-end path: product → cart (optional add-ons / instructions) → pay → persisted rows (including add-on snapshots) → branded printable receipt (standalone page and/or in-register sheet).
+- [x] End-to-end path: product → cart (optional add-ons / instructions) → pay → persisted rows (including add-on snapshots) → branded printable receipt (standalone page and/or in-register sheet) → optional **Reorder** back into cart from the receipt sheet or from reporting (deep link).
 - [x] **Role matrix:** cashiers use **`requireCatalogMember`** for POS; catalog admin pages **`notFound`** for non–owner/manager (e.g. [`catalog/categories/page.tsx`](../../app/(protected)/(org)/[businessSlug]/catalog/categories/page.tsx)).
 
 ---

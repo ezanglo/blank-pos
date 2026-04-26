@@ -65,7 +65,7 @@ Shared step UI lives under [`components/setup/setup-steps.tsx`](../components/se
 - [schema-better-auth-alignment.md](schema-better-auth-alignment.md) — tenancy, tables, checklist.
 - [blank-pos-dev-plan.md](blank-pos-dev-plan.md) — schema §4 and §9 folder tree (high level).
 - [phases/phase-02-product-engine.md](phases/phase-02-product-engine.md) — catalog routes and implementation status.
-- [phases/phase-03-pos-mvp.md](phases/phase-03-pos-mvp.md) — POS register, **category add-ons**, checkout, receipts.
+- [phases/phase-03-pos-mvp.md](phases/phase-03-pos-mvp.md) — POS register, **category add-ons**, checkout, receipts, **Reorder**.
 - [phases/phase-04-inventory-reports.md](phases/phase-04-inventory-reports.md) — inventory movements, reports, **branch dashboard** (manager/owner analytics).
 - [storage-uploads.md](storage-uploads.md) — uploads env.
 - [security/authorization.md](security/authorization.md) — app-layer access control.

@@ -28,7 +28,7 @@ This section records **intent only**; nothing here is required for Phase 3 POS. 
 - [x] **Low-stock alerts:** configurable per `inventory_item` `reorder_point`; dashboard widget or list page “Below reorder” for this **organization** (store).
 - [x] **Daily sales summary:** date picker (single UTC calendar day); metrics: gross subtotal, transaction count, average basket (subtotal only—no tax); optional **status** filter.
 - [x] **Product sales report:** units sold and revenue per product for range; **CSV** download (same filters as the table).
-- [x] **Transaction list** page (manager): filter by date, **status**; **drill-down** to line items; pagination.
+- [x] **Transaction list** page (manager): filter by date, **status**; **drill-down** to line items; pagination; **Name for order** column (**`customer_call_name`**); combined search **Order # / name** — parses `OR-YYYYMMDD-#`, `YYYYMMDD-#`, or digits-only as **daily queue** within the range; otherwise **case-insensitive substring** on call-out name ([`listTransactionsForLocationPage`](../../lib/queries/reports.ts), [`parseTransactionOrderSearch`](../../lib/format-order-number.ts)).
 
 ---
 
@@ -106,8 +106,9 @@ These items align the phase doc with the current codebase; they do not reopen de
 
 | Area | Location / behavior |
 |------|----------------------|
-| **Sales pages** | `app/(protected)/(org)/[businessSlug]/l/[locationSlug]/transactions/` and `.../product-sales/` — **status** filter on both; **CSV** at `product-sales/csv`; transaction **lines** page at `transactions/[transactionId]`; old `.../reports/*` routes removed (404 by design). |
-| **Queries** | `lib/queries/reports.ts` — `getDailySalesSummary`, `getProductSalesForRange`, `listTransactionsForLocationPage`, `getTransactionReportDetail`, `getDailySalesSeries`, `fillDailySalesSeriesGaps`, `listRecentTransactionsForLocation`, CSV helpers; **status** parity uses “all statuses” when unset. |
+| **Sales pages** | `app/(protected)/(org)/[businessSlug]/l/[locationSlug]/transactions/` and `.../product-sales/` — **status** filter on both; **CSV** at `product-sales/csv`; transaction **lines** page at `transactions/[transactionId]`; old `.../reports/*` routes removed (404 by design). Transactions table shows **Name for order**; filter field **Order # / name** (queue / full order label / name search). **Receipt** sheet: optional **Reorder** → register at `.../pos?reorder={transactionId}` when [`ReceiptSheetButton`](../../components/transactions/receipt-sheet-button.tsx) receives **`locationSlug`**. |
+| **Queries** | `lib/queries/reports.ts` — `getDailySalesSummary`, `getProductSalesForRange`, `listTransactionsForLocationPage` (optional `nameSearch` + `customerCallName` on list rows), `getTransactionReportDetail`, `getDailySalesSeries`, `fillDailySalesSeriesGaps`, `listRecentTransactionsForLocation` (includes `customerCallName` for typing), CSV helpers; **status** parity uses “all statuses” when unset. |
+| **Reorder (POS)** | `lib/queries/transactions.ts` — `getTransactionReorderPayload`; `lib/actions/pos-reorder.ts` — `loadPosReorderPayload`; `lib/pos/reorder-to-cart.ts` — `buildCartLinesFromReorderPayload`. |
 | **Dashboard** | `app/(protected)/(org)/[businessSlug]/l/[locationSlug]/dashboard/page.tsx` — **owner/manager**: low-stock banner, KPI strip, 14-day chart, recent sales table, **Lines** / **Receipt** open in **side sheets** (`components/dashboard-recent-sales.tsx`, `lib/actions/dashboard-recent-preview.ts`); **cashier**: shell + register CTA only. |
 | **RBAC** | Transactions/Product Sales nav and dashboard analytics both require **owner** or **manager** (`components/app-sidebar.tsx`). |
 

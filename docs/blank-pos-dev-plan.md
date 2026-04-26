@@ -251,7 +251,7 @@ transaction_item_addon   -- Drizzle: lib/db/schema-transactions.ts; child of tra
 - [ ] Inventory items (raw materials/stock)
 - [ ] Composite product builder (recipe from inventory items)
 - [ ] Cost calculation (sum of ingredient costs)
-- [x] **POS checkout** — product grid, cart, **price tiers**, **category-scoped add-ons** (configured under **Catalog → Categories**), payment method (**cash** / **card placeholder**), persisted **`transactions`**, **`transaction_items`**, and **`transaction_item_addon`** when applicable, branded **receipt** with nested add-ons ([phases/phase-03-pos-mvp.md](phases/phase-03-pos-mvp.md))
+- [x] **POS checkout** — product grid, cart, **price tiers**, **category-scoped add-ons** (configured under **Catalog → Categories**), payment method (**cash** / **card placeholder**), persisted **`transactions`**, **`transaction_items`**, and **`transaction_item_addon`** when applicable, branded **receipt** with nested add-ons; **Reorder** from the receipt sheet or via **`/pos?reorder=`** rebuilds the cart from a past sale (branch-scoped) ([phases/phase-03-pos-mvp.md](phases/phase-03-pos-mvp.md))
 - [ ] Offline mode with local DB + background sync — **recommended future** ([phases/recommended-future-offline-sync.md](phases/recommended-future-offline-sync.md)); MVP assumes **online-first** POS.
 
 ### v1.1 — Inventory & Reporting
@@ -447,7 +447,7 @@ Shipped in repo (detail: [phases/phase-02-product-engine.md](phases/phase-02-pro
 - Cart with quantity, **price tier** selection, **category-scoped add-ons** (optional step when the category defines add-ons and currency matches the tier); **responsive cart** (**`Sheet`** on small screens, **`aside`** on large)
 - **Cart line identity:** different add-on selections → separate lines; same product + tier + same add-on signature → quantity merge
 - Checkout flow (**cash**, **card placeholder**); **createSale** persists **`transactions`**, **`transaction_items`**, **`transaction_item_addon`**
-- Branded **receipt** (shared document component): standalone **`/pos/receipt/...`** route, **in-app preview sheet** + print, **last-receipt** shortcut from latest branch sale; print CSS scoped via **`#pos-receipt-root`**
+- Branded **receipt** (shared document component): standalone **`/pos/receipt/...`** route, **in-app preview sheet** + print + **Reorder**, **last-receipt** shortcut from latest branch sale; **`?reorder=`** on register loads a past sale into the cart; print CSS scoped via **`#pos-receipt-root`**
 - **Coupon / automatic promotions** → Phase 5 (not in current POS checkout)
 
 ### Phase 4 — Inventory & Reports (Weeks 7–8)
@@ -456,7 +456,7 @@ Shipped in repo (detail: [phases/phase-02-product-engine.md](phases/phase-02-pro
 
 - **`inventory_movements`** + **auto-deduct** on completed composite sales (idempotent per transaction); row locks on **`inventory_stock`**
 - **Adjustment** flow and **movements** log (catalog admin); low-stock **dashboard** banner + deep link to inventory
-- **Sales pages** (branch, manager/owner): **product sales** with **status** filter + **CSV** export, **transactions** list with **status**, pagination, and **line-item** drill-down route; transaction **status labels** in UI. These live at `.../product-sales` and `.../transactions` (not `.../reports/*`).
+- **Sales pages** (branch, manager/owner): **product sales** with **status** filter + **CSV** export, **transactions** list with **status**, **Name for order** column, **Order # / name** search (queue label or call-out name), pagination, **line-item** drill-down route, **Receipt** + **Reorder** (to register); transaction **status labels** in UI. These live at `.../product-sales` and `.../transactions` (not `.../reports/*`).
 - **Dashboard** (same branch URL for all roles): **owner/manager** — KPIs (**today** + **last 7 UTC days**) and **14-day** gross-subtotal chart from **`lib/queries/reports.ts`**; **recent sales** with **Lines** / **Receipt** side sheets (server actions); **cashier** — branch shell + **Open register** only (no analytics; aligns with manager+ access for sales pages in the matrix above)
 
 ### Phase 5 — Promotions & Coupons (Weeks 9–10)
@@ -483,4 +483,4 @@ Not sequenced for MVP. Spec: [phases/recommended-future-offline-sync.md](phases/
 
 ---
 
-*Last updated: April 2026 · Version 0.5 (catalog add-ons on Categories page; shared currency resolver for prices + add-ons)*
+*Last updated: April 2026 · Version 0.6 (transactions: name column + search; receipt Reorder + `?reorder=`; cart `replaceEntireCart`)*
