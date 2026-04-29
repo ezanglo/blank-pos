@@ -1,9 +1,11 @@
 import { and, eq } from "drizzle-orm"
+import { cache } from "react"
 
 import { getDb } from "@/lib/db"
 import { member, organization } from "@/lib/db/schema"
 
-export async function getOrgForUser(businessSlug: string, userId: string) {
+/** Dedupes org+member lookup within a single RSC / request (e.g. business layout + shell). */
+export const getOrgForUser = cache(async (businessSlug: string, userId: string) => {
   const db = getDb()
   const [org] = await db
     .select()
@@ -20,4 +22,4 @@ export async function getOrgForUser(businessSlug: string, userId: string) {
   if (!m) return null
 
   return { organization: org, member: m }
-}
+})

@@ -1,6 +1,6 @@
 import type { BusinessDetails, BusinessLocation } from "@/lib/db/schema-app"
 import {
-  getDefaultLocationSlugForOrganization,
+  getDefaultLocationSlugsForOrganizationIds,
   listLocationsForOrganization,
 } from "@/lib/queries/location"
 import { getOrgForUser } from "@/lib/queries/organization"
@@ -12,9 +12,12 @@ export async function listSidebarBusinessesForUser(
   userId: string,
 ): Promise<SidebarBusinessNavItem[]> {
   const businesses = await listBusinessesForUser(userId)
+  const slugByOrgId = await getDefaultLocationSlugsForOrganizationIds(
+    businesses.map((b) => b.organizationId),
+  )
   const out: SidebarBusinessNavItem[] = []
   for (const b of businesses) {
-    const loc = await getDefaultLocationSlugForOrganization(b.organizationId)
+    const loc = slugByOrgId.get(b.organizationId)
     if (!loc) continue
     out.push({
       organizationId: b.organizationId,
@@ -49,9 +52,11 @@ export async function loadOrgShellData(
   const ctx = await getOrgForUser(businessSlug, userId)
   if (!ctx) return null
 
-  const details = await getBusinessDetailsByOrganizationId(ctx.organization.id)
-  const locations = await listLocationsForOrganization(ctx.organization.id)
-  const sidebarBusinesses = await listSidebarBusinessesForUser(userId)
+  const [details, locations, sidebarBusinesses] = await Promise.all([
+    getBusinessDetailsByOrganizationId(ctx.organization.id),
+    listLocationsForOrganization(ctx.organization.id),
+    listSidebarBusinessesForUser(userId),
+  ])
 
   const defaultLoc = locations[0]
   if (!defaultLoc) return null

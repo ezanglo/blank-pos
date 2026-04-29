@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "drizzle-orm"
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm"
 
 import { getDb } from "@/lib/db"
 import { member, organization } from "@/lib/db/schema"
@@ -25,6 +25,32 @@ export async function getDefaultLocationSlugForOrganization(
     .orderBy(desc(businessLocation.isDefault), asc(businessLocation.createdAt))
     .limit(1)
   return rows[0]?.slug ?? null
+}
+
+/**
+ * One default branch slug per org, same ordering as {@link getDefaultLocationSlugForOrganization}:
+ * `is_default` desc, then `created_at` asc.
+ */
+export async function getDefaultLocationSlugsForOrganizationIds(
+  organizationIds: string[],
+): Promise<Map<string, string>> {
+  if (organizationIds.length === 0) return new Map()
+
+  const db = getDb()
+  const rows = await db.execute(
+    sql`
+      SELECT DISTINCT ON (${businessLocation.organizationId}) organization_id, slug
+      FROM ${businessLocation}
+      WHERE ${inArray(businessLocation.organizationId, organizationIds)}
+      ORDER BY ${businessLocation.organizationId}, ${businessLocation.isDefault} DESC, ${businessLocation.createdAt} ASC
+    `,
+  )
+
+  const out = new Map<string, string>()
+  for (const row of rows as unknown as { organization_id: string; slug: string }[]) {
+    out.set(row.organization_id, row.slug)
+  }
+  return out
 }
 
 export async function getLocationByIdForOrganization(organizationId: string, locationId: string) {
