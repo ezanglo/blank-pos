@@ -31,13 +31,19 @@ export type DashboardSalesChartPoint = {
   transactions: number
 }
 
-export function DashboardSalesChart({ data }: { data: DashboardSalesChartPoint[] }) {
+export function DashboardSalesChart({
+  data,
+  rangeDescription,
+}: {
+  data: DashboardSalesChartPoint[]
+  rangeDescription: string
+}) {
   if (data.length === 0) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Daily gross subtotal</CardTitle>
-          <CardDescription>Last 14 days (UTC)</CardDescription>
+          <CardDescription>{rangeDescription}</CardDescription>
         </CardHeader>
         <CardContent className="text-muted-foreground py-8 text-center text-sm">No data in range.</CardContent>
       </Card>
@@ -53,7 +59,7 @@ export function DashboardSalesChart({ data }: { data: DashboardSalesChartPoint[]
     <Card>
       <CardHeader>
         <CardTitle>Daily gross subtotal</CardTitle>
-        <CardDescription>Last 14 days (UTC), tax excluded</CardDescription>
+        <CardDescription>{rangeDescription}, tax excluded</CardDescription>
       </CardHeader>
       <CardContent className="pl-0">
         <ChartContainer config={chartConfig} className="aspect-auto h-[240px] w-full">

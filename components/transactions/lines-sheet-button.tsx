@@ -25,6 +25,8 @@ type LinesSheetButtonProps = {
   locationSlug: string
   transactionId: string
   trigger?: "text" | "icon"
+  /** Visible label when `trigger` is `"text"`. */
+  textLabel?: string
 }
 
 export function LinesSheetButton({
@@ -32,6 +34,7 @@ export function LinesSheetButton({
   locationSlug,
   transactionId,
   trigger = "text",
+  textLabel = "Lines",
 }: LinesSheetButtonProps) {
   const [open, setOpen] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
@@ -80,7 +83,7 @@ export function LinesSheetButton({
           className={cn(buttonVariants({ variant: "link", size: "sm" }), "h-auto p-0")}
           onClick={() => setOpen(true)}
         >
-          Lines
+          {textLabel}
         </button>
       )}
       <Sheet

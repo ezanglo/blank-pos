@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "lucide-react"
 
+import { LinesSheetButton } from "@/components/transactions/lines-sheet-button"
 import { Button, buttonVariants } from "@/components/ui/button"
 import {
   Dialog,
@@ -242,12 +243,13 @@ export function CatalogInventoryMovementsPanel({
                   </TableCell>
                   <TableCell>
                     {r.transactionId && r.locationSlug ? (
-                      <Link
-                        href={`/${businessSlug}/l/${r.locationSlug}/transactions/${r.transactionId}`}
-                        className="text-primary text-sm underline-offset-4 hover:underline"
-                      >
-                        Transaction
-                      </Link>
+                      <LinesSheetButton
+                        businessSlug={businessSlug}
+                        locationSlug={r.locationSlug}
+                        transactionId={r.transactionId}
+                        trigger="text"
+                        textLabel="Transaction"
+                      />
                     ) : (
                       "—"
                     )}

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation"
 
+import { ProductSalesOrdersDialog } from "@/components/product-sales/product-sales-orders-dialog"
 import { ProductSalesPageSizeForm } from "@/components/product-sales/product-sales-page-size-form"
 import {
   Pagination,
@@ -163,12 +164,13 @@ export default async function ProductSalesPage({
               <th className="p-3 text-left font-medium">Product</th>
               <th className="p-3 text-right font-medium">Units</th>
               <th className="p-3 text-right font-medium">Revenue</th>
+              <th className="p-3 text-right font-medium">From orders</th>
             </tr>
           </thead>
           <tbody>
             {products.length === 0 ? (
               <tr>
-                <td colSpan={3} className="text-muted-foreground p-6 text-center">
+                <td colSpan={4} className="text-muted-foreground p-6 text-center">
                   No line items in this range.
                 </td>
               </tr>
@@ -178,6 +180,18 @@ export default async function ProductSalesPage({
                   <td className="p-3">{p.productName}</td>
                   <td className="p-3 text-right tabular-nums">{p.unitsSold}</td>
                   <td className="p-3 text-right tabular-nums">{formatMinorToDecimal2(p.revenueMinor)}</td>
+                  <td className="p-3 text-right align-middle">
+                    <ProductSalesOrdersDialog
+                      businessSlug={businessSlug}
+                      locationSlug={locationSlug}
+                      productId={p.productId}
+                      productName={p.productName}
+                      orderCount={p.orderCount}
+                      fromStr={fromStr}
+                      toStr={toStr}
+                      statusParam={statusParam}
+                    />
+                  </td>
                 </tr>
               ))
             )}
