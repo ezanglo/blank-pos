@@ -13,6 +13,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
+    "db:restore": "bash scripts/restore-docker-db.sh",
+    "docker:up": "docker compose --env-file .env.docker up -d --build",
     "db:seed:coffee": "tsx scripts/seed-coffee-catalog.ts",
     "auth:schema": "pnpm dlx @better-auth/cli generate --config ./lib/auth.config.ts --output ./lib/db/auth-schema.ts"
   },

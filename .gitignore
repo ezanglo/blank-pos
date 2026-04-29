@@ -32,7 +32,12 @@ yarn-error.log*
 pnpm-debug.log*
 
 # env files
+/.env
+.env.docker
 .env*.local
+
+# database dumps / pg_restore archives (large, may contain secrets or PII)
+/backups/
 
 # typescript
 *.tsbuildinfo

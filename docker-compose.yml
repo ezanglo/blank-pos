@@ -1,0 +1,65 @@
+# Postgres → migrate → app. Copy `.env.docker.example` → `.env.docker`, then:
+# Published Postgres port on the host is 5433 (container stays postgres:5432).
+#   docker compose --env-file .env.docker up -d --build
+#
+# `-d` runs containers in the background. `pnpm docker:up` runs the same command.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: blank-pos-postgres
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: blankpos
+    volumes:
+      - blank-pos-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d blankpos"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migration
+    env_file:
+      - path: .env.docker
+        required: true
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/blankpos
+      SKIP_DB_MIGRATE: ${SKIP_DB_MIGRATE:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+    ports:
+      - "3000:3000"
+    env_file:
+      - path: .env.docker
+        required: true
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/blankpos
+    volumes:
+      - ./public/uploads:/app/public/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  blank-pos-pgdata:

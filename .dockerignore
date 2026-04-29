@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+backups
+*.dump
+pnpm-debug.log*
+.DS_Store
+coverage
+
+# Never bake secrets into an image
+.env
+.env.local
+.env.docker
+.env.*.local
