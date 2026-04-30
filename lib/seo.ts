@@ -43,9 +43,15 @@ export const privateAppRobots: Metadata["robots"] = {
   googleBot: { index: false, follow: false },
 }
 
-function siteLabelFromBranding(branding: Pick<BusinessDetails, "displayName"> | null): string {
-  const name = branding?.displayName?.trim()
-  return name && name.length > 0 ? name : SITE_LABEL_FALLBACK
+function siteLabelFromOrg(
+  branding: Pick<BusinessDetails, "displayName"> | null,
+  organizationName: string,
+): string {
+  const display = branding?.displayName?.trim()
+  if (display && display.length > 0) return display
+  const name = organizationName.trim()
+  if (name.length > 0) return name
+  return SITE_LABEL_FALLBACK
 }
 
 function descriptionFromBranding(branding: Pick<BusinessDetails, "tagline"> | null): string {
@@ -53,27 +59,41 @@ function descriptionFromBranding(branding: Pick<BusinessDetails, "tagline"> | nu
   return tagline && tagline.length > 0 ? tagline : DEFAULT_DESCRIPTION
 }
 
-export function buildRootMetadataFromBranding(branding: BusinessDetails | null): Metadata {
-  const label = siteLabelFromBranding(branding)
-  const description = descriptionFromBranding(branding)
+/** App-wide fallback (routes outside `/{businessSlug}/…`). No tenant branding. */
+export function buildGlobalRootMetadata(): Metadata {
   return {
     metadataBase: getMetadataBase(),
     applicationName: APP_PRODUCT_NAME,
+    title: APP_PRODUCT_NAME,
+    description: DEFAULT_DESCRIPTION,
+    robots: privateAppRobots,
+  }
+}
+
+/** Metadata under `/(protected)/(org)/[businessSlug]` — uses that org's branding / name. */
+export function buildOrgScopedMetadata(
+  branding: BusinessDetails | null,
+  organizationName: string,
+): Metadata {
+  const label = siteLabelFromOrg(branding, organizationName)
+  const description = descriptionFromBranding(branding)
+  return {
+    applicationName: label,
     title: {
-      default: APP_PRODUCT_NAME,
+      default: label,
       template: `%s · ${label}`,
     },
     description,
     openGraph: {
       type: "website",
       locale: "en_US",
-      siteName: APP_PRODUCT_NAME,
-      title: APP_PRODUCT_NAME,
+      siteName: label,
+      title: label,
       description,
     },
     twitter: {
       card: "summary_large_image",
-      title: APP_PRODUCT_NAME,
+      title: label,
       description,
     },
     robots: privateAppRobots,

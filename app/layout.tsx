@@ -2,18 +2,12 @@ import type { Metadata, Viewport } from "next"
 import { Geist_Mono, Inter } from "next/font/google"
 
 import { ThemeProvider } from "@/components/theme-provider"
-import { getAnyBusinessDetailsForPublicSite } from "@/lib/queries/business-details"
-import { buildRootMetadataFromBranding } from "@/lib/seo"
+import { buildGlobalRootMetadata } from "@/lib/seo"
 import { cn } from "@/lib/utils"
 import "./globals.css"
 
 export async function generateMetadata(): Promise<Metadata> {
-  try {
-    const branding = await getAnyBusinessDetailsForPublicSite()
-    return buildRootMetadataFromBranding(branding)
-  } catch {
-    return buildRootMetadataFromBranding(null)
-  }
+  return buildGlobalRootMetadata()
 }
 
 export const viewport: Viewport = {
