@@ -2,11 +2,12 @@
 
 import { useEffect, useId, useRef, useState, useTransition } from "react"
 
-import { BanIcon, CopyIcon, Loader2Icon } from "lucide-react"
+import { BanIcon, Loader2Icon } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
 import { Button, buttonVariants } from "@/components/ui/button"
+import { CopyTextButton } from "@/components/ui/copy-text-button"
 import {
   Dialog,
   DialogClose,
@@ -19,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { voidTransaction } from "@/lib/actions/transactions"
+import { copyToClipboard } from "@/lib/copy-to-clipboard"
 import { cn } from "@/lib/utils"
 
 type VoidTransactionButtonProps = {
@@ -63,12 +65,14 @@ export function VoidTransactionButton({
     setConfirmOpen(true)
   }
 
-  const copyOrderNumberHint = async () => {
+  const copyOrderNumber = async (): Promise<boolean> => {
     try {
-      await navigator.clipboard.writeText(confirmOrderLabel)
+      await copyToClipboard(confirmOrderLabel)
       toast.success("Order number copied.")
+      return true
     } catch {
       toast.error("Could not copy. Select the number and copy manually.")
+      return false
     }
   }
 
@@ -159,16 +163,17 @@ export function VoidTransactionButton({
                 <code className="max-w-full rounded-xl border border-border/80 bg-muted/80 px-2 py-1 font-mono text-xs leading-normal break-all tabular-nums select-all sm:text-sm">
                   {confirmOrderLabel}
                 </code>
-                <Button
-                  type="button"
+                <CopyTextButton
                   variant="outline"
                   size="icon-sm"
                   className="shrink-0"
-                  aria-label="Copy order number"
-                  onClick={() => void copyOrderNumberHint()}
-                >
-                  <CopyIcon />
-                </Button>
+                  clearCopied={!confirmOpen}
+                  ariaLabelIdle="Copy order number"
+                  ariaLabelCopied="Order number copied"
+                  titleIdle="Copy"
+                  titleCopied="Copied"
+                  onCopy={copyOrderNumber}
+                />
               </div>
             </div>
             <Input

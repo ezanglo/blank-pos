@@ -2,7 +2,6 @@
 
 import {
   ChefHatIcon,
-  CopyIcon,
   FileTextIcon,
   Layers2Icon,
   MinusIcon,
@@ -20,6 +19,7 @@ import { toast } from "sonner"
 
 import { loadPosReceiptPreview } from "@/lib/actions/pos-receipt"
 import { loadPosReorderPayload } from "@/lib/actions/pos-reorder"
+import { copyToClipboard } from "@/lib/copy-to-clipboard"
 import { PosAddonsDialog } from "@/components/pos/pos-addons-dialog"
 import { PosPricePickerDialog } from "@/components/pos/pos-price-picker-dialog"
 import { PosReceiptDocument } from "@/components/pos/pos-receipt-document"
@@ -42,6 +42,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { ButtonGroup } from "@/components/ui/button-group"
+import { CopyTextButton } from "@/components/ui/copy-text-button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -207,7 +208,7 @@ type PosCartPanelInnerProps = {
   setPaymentMethod: (v: string) => void
   submitting: boolean
   onCheckout: () => void
-  onCopyOrderDetails: () => void
+  onCopyOrderDetails: () => Promise<boolean>
   onCloseCart: () => void
   lastOrderTransactionId: string | null
   onOpenLastReceipt: () => void
@@ -250,18 +251,18 @@ function PosCartPanelInner({
         <h2 className="text-base font-semibold tracking-tight">Cart</h2>
         <LastReceiptBadge transactionId={lastOrderTransactionId} onOpen={onOpenLastReceipt} />
         <div className="ml-auto flex shrink-0 items-center gap-0.5">
-          <Button
-            type="button"
+          <CopyTextButton
             variant="ghost"
             size="icon"
             className="size-11 rounded-xl"
             disabled={lines.length === 0}
-            aria-label="Copy order details for customer confirmation"
-            title="Copy order details"
-            onClick={() => void onCopyOrderDetails()}
-          >
-            <CopyIcon className="size-4" />
-          </Button>
+            clearCopied={lines.length === 0}
+            ariaLabelIdle="Copy order details for customer confirmation"
+            ariaLabelCopied="Order details copied"
+            titleIdle="Copy order details"
+            titleCopied="Copied"
+            onCopy={onCopyOrderDetails}
+          />
           <Button
             type="button"
             variant="ghost"
@@ -802,7 +803,7 @@ export function PosTerminal({
     }
   }
 
-  async function copyOrderDetailsToClipboard() {
+  async function copyOrderDetailsToClipboard(): Promise<boolean> {
     const paymentLabel =
       paymentMethods.find((p) => p.key === paymentMethod)?.label?.trim() || paymentMethod || "—"
     const text = formatOrderDetailsForClipboard({
@@ -815,10 +816,12 @@ export function PosTerminal({
       estimatedPrepLabel,
     })
     try {
-      await navigator.clipboard.writeText(text)
+      await copyToClipboard(text)
       toast.success("Order details copied.")
+      return true
     } catch {
       toast.error("Could not copy to clipboard.")
+      return false
     }
   }
 
