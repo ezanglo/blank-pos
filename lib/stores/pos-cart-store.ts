@@ -3,6 +3,7 @@
 import { create } from "zustand"
 
 import { posCartAddonSignature, posCartInstructionSignature } from "@/lib/pos/pos-addon-signature"
+import { generateClientUuid } from "@/lib/utils"
 import { pickDefaultProductPriceId, type PosProductCard } from "@/lib/pos/pos-types"
 
 export type PosCartAddonLine = {
@@ -48,8 +49,7 @@ export type PosCartInstructionSelection = {
 }
 
 function newLineKey(): string {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID()
-  return `line-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return generateClientUuid()
 }
 
 function addonSelectionsToLines(selections: PosCartAddonSelection[]): PosCartAddonLine[] {

@@ -3,6 +3,8 @@
  * Browser-only — do not import from server code.
  */
 
+import { generateClientUuid } from "@/lib/utils"
+
 const DB_NAME = "blank-pos-offline"
 const DB_VERSION = 1
 const STORE = "pendingImages"
@@ -41,7 +43,7 @@ export function isLocalImageRef(value: string | null | undefined): boolean {
 
 export async function enqueuePendingImage(blob: Blob, mimeType: string): Promise<string> {
   const db = await openDb()
-  const id = crypto.randomUUID()
+  const id = generateClientUuid()
   const row: PendingImageRow = { id, blob, mimeType, createdAt: Date.now() }
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite")

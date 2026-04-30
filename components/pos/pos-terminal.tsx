@@ -71,7 +71,7 @@ import type { PosCategoryAddon } from "@/lib/queries/catalog-addons"
 import { buildCartLinesFromReorderPayload } from "@/lib/pos/reorder-to-cart"
 import type { PosReceiptPreviewModel } from "@/lib/pos/receipt-preview"
 import { usePosCartStore, type PosCartLine } from "@/lib/stores/pos-cart-store"
-import { cn } from "@/lib/utils"
+import { cn, generateClientUuid } from "@/lib/utils"
 
 function formatCartPrepEstimate(seconds: number): string {
   if (seconds >= 60) {
@@ -744,10 +744,7 @@ export function PosTerminal({
       setCheckoutConfirmOpen(false)
       return
     }
-    const checkoutId =
-      typeof crypto !== "undefined" && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `${Date.now()}`
+    const checkoutId = generateClientUuid()
     setSubmitting(true)
     try {
       const callNameTrim = customerCallName.trim()
