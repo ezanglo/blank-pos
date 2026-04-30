@@ -2,10 +2,10 @@ import type { Metadata } from "next"
 
 import type { BusinessDetails } from "@/lib/db/schema-app"
 
-/** Shown in titles and Open Graph until `business_details.display_name` is set. */
+/** Business display name for nested `title` template (`%s · …`); fallback when unset in DB. */
 const SITE_LABEL_FALLBACK = "Business"
 
-/** Public app name for `/login` (static chrome; not per-store branding). */
+/** Public app name — default `<title>`, `/login`, and global app/chrome metadata (not per-store branding). */
 export const APP_PRODUCT_NAME = "Blank POS"
 
 export const DEFAULT_DESCRIPTION =
@@ -58,22 +58,22 @@ export function buildRootMetadataFromBranding(branding: BusinessDetails | null):
   const description = descriptionFromBranding(branding)
   return {
     metadataBase: getMetadataBase(),
-    applicationName: label,
+    applicationName: APP_PRODUCT_NAME,
     title: {
-      default: label,
+      default: APP_PRODUCT_NAME,
       template: `%s · ${label}`,
     },
     description,
     openGraph: {
       type: "website",
       locale: "en_US",
-      siteName: label,
-      title: label,
+      siteName: APP_PRODUCT_NAME,
+      title: APP_PRODUCT_NAME,
       description,
     },
     twitter: {
       card: "summary_large_image",
-      title: label,
+      title: APP_PRODUCT_NAME,
       description,
     },
     robots: privateAppRobots,
