@@ -13,9 +13,11 @@ export function businessLocationToStoreSettingsFields(
   | "postalCode"
   | "phone"
   | "locationName"
+  | "locationSlug"
 > {
   return {
     locationName: row?.name ?? "",
+    locationSlug: row?.slug ?? "",
     defaultCurrency: (row?.defaultCurrency ?? "PHP") as StoreSettingsFormValues["defaultCurrency"],
     addressLine1: row?.addressLine1 ?? "",
     addressLine2: row?.addressLine2 ?? "",

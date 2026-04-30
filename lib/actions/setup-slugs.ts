@@ -33,6 +33,7 @@ export async function checkSetupStoreSlugAvailable(
 export async function checkSetupLocationSlugAvailable(
   businessSlug: string,
   rawLocationSlug: string,
+  excludingLocationId?: string,
 ): Promise<{ status: SetupSlugCheckStatus | "forbidden" }> {
   const session = await getServerSession()
   if (!session?.user?.id) return { status: "invalid" }
@@ -55,5 +56,7 @@ export async function checkSetupLocationSlugAvailable(
     )
     .limit(1)
 
-  return row ? { status: "taken" } : { status: "available" }
+  if (!row) return { status: "available" }
+  if (excludingLocationId && row.id === excludingLocationId) return { status: "available" }
+  return { status: "taken" }
 }

@@ -9,6 +9,7 @@ import { businessLocation } from "@/lib/db/schema-app"
 import type { OrganizationLocationInput } from "@/lib/actions/organization"
 import { checkSetupLocationSlugAvailable } from "@/lib/actions/setup-slugs"
 import { getOrgForUser } from "@/lib/queries/organization"
+import { normalizeSetupWebSlug } from "@/lib/setup-slug-normalize"
 import { getServerSession } from "@/lib/server-auth"
 
 async function requireOrgManager(businessSlug: string) {
@@ -76,6 +77,8 @@ export async function updateOrganizationLocationBranch(
   input: {
     locationName: string
     location: OrganizationLocationInput
+    /** When set (and differs from the current slug), updates the `/l/[locationSlug]` URL segment after validation. */
+    locationSlug?: string
   },
 ) {
   const ctx = await requireOrgManager(businessSlug)
@@ -84,7 +87,7 @@ export async function updateOrganizationLocationBranch(
   const loc = input.location
 
   const [existing] = await db
-    .select({ id: businessLocation.id })
+    .select({ id: businessLocation.id, slug: businessLocation.slug })
     .from(businessLocation)
     .where(
       and(eq(businessLocation.organizationId, ctx.organization.id), eq(businessLocation.id, locationId)),
@@ -92,9 +95,31 @@ export async function updateOrganizationLocationBranch(
     .limit(1)
   if (!existing) throw new Error("Location not found.")
 
+  let nextSlug = existing.slug
+  if (input.locationSlug !== undefined) {
+    const normalized = normalizeSetupWebSlug(input.locationSlug)
+    if (!normalized) {
+      throw new Error("Use a valid location link (lowercase letters, numbers, hyphens).")
+    }
+    if (normalized !== existing.slug) {
+      const slugCheck = await checkSetupLocationSlugAvailable(businessSlug, normalized, existing.id)
+      if (slugCheck.status !== "available") {
+        throw new Error(
+          slugCheck.status === "taken"
+            ? "That location link is already in use."
+            : slugCheck.status === "forbidden"
+              ? "You cannot change this location."
+              : "Use a valid location link (lowercase letters, numbers, hyphens).",
+        )
+      }
+      nextSlug = normalized
+    }
+  }
+
   await db
     .update(businessLocation)
     .set({
+      slug: nextSlug,
       name: input.locationName.trim(),
       defaultCurrency: loc.defaultCurrency,
       addressLine1: loc.addressLine1?.trim() || null,
@@ -107,7 +132,7 @@ export async function updateOrganizationLocationBranch(
     })
     .where(eq(businessLocation.id, existing.id))
 
-  return { ok: true as const }
+  return { ok: true as const, locationSlug: nextSlug }
 }
 
 export async function deleteOrganizationLocation(businessSlug: string, locationId: string) {

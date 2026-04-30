@@ -14,6 +14,7 @@ import {
   deleteOrganizationLocation,
   updateOrganizationLocationBranch,
 } from "@/lib/actions/locations"
+import { checkSetupLocationSlugAvailable } from "@/lib/actions/setup-slugs"
 import { SelectFormField, TextFormField } from "@/components/form"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -34,8 +35,13 @@ import {
   setupLocationSchema,
   type SetupLocationFormValues,
 } from "@/lib/schemas/app-forms"
+import { normalizeSetupWebSlug } from "@/lib/setup-slug-normalize"
 import { slugifyWebSegmentFromName } from "@/lib/slugify-web-segment"
 import { cn } from "@/lib/utils"
+
+const SLUG_AVAILABILITY_DEBOUNCE_MS = 1400
+
+type SlugAvailabilityHint = "idle" | "checking" | "available" | "taken" | "invalid" | "forbidden"
 
 export type LocationAdminRow = {
   id: string
@@ -107,6 +113,8 @@ export function LocationsAdminPanel({
   const [addressRow, setAddressRow] = useState<LocationAdminRow | null>(null)
   const [deleteRow, setDeleteRow] = useState<LocationAdminRow | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [editSlugAvailability, setEditSlugAvailability] =
+    useState<SlugAvailabilityHint>("idle")
 
   const addFromQuery = searchParams.get("add")
   useEffect(() => {
@@ -144,9 +152,59 @@ export function LocationsAdminPanel({
     resolver: standardSchemaResolver(adminLocationBranchCoreSchema),
     defaultValues: {
       locationName: "",
+      locationSlug: "",
       defaultCurrency: "PHP",
     },
   })
+
+  const editSlugWatch = editForm.watch("locationSlug")
+
+  useEffect(() => {
+    if (!editRow) {
+      setEditSlugAvailability("idle")
+      return
+    }
+    const raw = editSlugWatch ?? ""
+    if (!raw.trim()) {
+      setEditSlugAvailability("idle")
+      return
+    }
+    const normalized = normalizeSetupWebSlug(raw)
+    if (!normalized) {
+      setEditSlugAvailability("invalid")
+      return
+    }
+    if (normalized === editRow.slug) {
+      setEditSlugAvailability("available")
+      return
+    }
+    setEditSlugAvailability("checking")
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      if (cancelled) return
+      const latest = editForm.getValues("locationSlug") ?? ""
+      const latestN = normalizeSetupWebSlug(latest)
+      if (!latestN) {
+        if (!cancelled) setEditSlugAvailability("invalid")
+        return
+      }
+      if (latestN === editRow.slug) {
+        if (!cancelled) setEditSlugAvailability("available")
+        return
+      }
+      const res = await checkSetupLocationSlugAvailable(businessSlug, latest, editRow.id)
+      if (cancelled) return
+      if (res.status === "forbidden") {
+        setEditSlugAvailability("forbidden")
+        return
+      }
+      setEditSlugAvailability(res.status)
+    }, SLUG_AVAILABILITY_DEBOUNCE_MS)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [editSlugWatch, editRow, businessSlug, editForm])
 
   const addressForm = useForm<SetupLocationFormValues>({
     resolver: standardSchemaResolver(setupLocationSchema),
@@ -179,6 +237,7 @@ export function LocationsAdminPanel({
     (row: LocationAdminRow) => {
       editForm.reset({
         locationName: row.name,
+        locationSlug: row.slug,
         defaultCurrency: row.defaultCurrency as AdminLocationBranchCoreFormValues["defaultCurrency"],
       })
       setEditRow(row)
@@ -291,6 +350,7 @@ export function LocationsAdminPanel({
     try {
       await updateOrganizationLocationBranch(businessSlug, editRow.id, {
         locationName: values.locationName,
+        locationSlug: values.locationSlug,
         location: {
           defaultCurrency: values.defaultCurrency,
           addressLine1: editRow.addressLine1 ?? undefined,
@@ -485,14 +545,34 @@ export function LocationsAdminPanel({
           <DialogHeader>
             <DialogTitle>Edit location</DialogTitle>
             <DialogDescription>
-              Link: <span className="font-mono text-foreground">{editRow?.slug}</span> (read-only). Address is edited
-              from the Address column.
+              Change display name or the URL segment for this branch. Address is edited from the Address column.
             </DialogDescription>
           </DialogHeader>
           <form className="space-y-4" onSubmit={editForm.handleSubmit(onEditSubmit)}>
             <RootFormError message={editForm.formState.errors.root?.message} />
             <FieldGroup>
               <TextFormField control={editForm.control} name="locationName" label="Location name" />
+              <TextFormField
+                control={editForm.control}
+                name="locationSlug"
+                label="Location link"
+                description="Used in URLs: /your-store/l/[link]/…. Lowercase letters, numbers, hyphens."
+              />
+              {editSlugAvailability === "checking" ? (
+                <p className="text-muted-foreground text-xs">Checking link availability…</p>
+              ) : null}
+              {editSlugAvailability === "available" ? (
+                <p className="text-xs text-green-700 dark:text-green-400">This link can be used.</p>
+              ) : null}
+              {editSlugAvailability === "taken" ? (
+                <p className="text-destructive text-xs">Another branch already uses this link.</p>
+              ) : null}
+              {editSlugAvailability === "invalid" ? (
+                <p className="text-destructive text-xs">Use lowercase letters, numbers, and hyphens only (min 2 characters).</p>
+              ) : null}
+              {editSlugAvailability === "forbidden" ? (
+                <p className="text-destructive text-xs">You cannot use this link here.</p>
+              ) : null}
               <SelectFormField
                 control={editForm.control}
                 name="defaultCurrency"
@@ -509,7 +589,16 @@ export function LocationsAdminPanel({
               <Button type="button" variant="outline" onClick={() => setEditRow(null)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={editForm.formState.isSubmitting}>
+              <Button
+                type="submit"
+                disabled={
+                  editForm.formState.isSubmitting ||
+                  editSlugAvailability === "taken" ||
+                  editSlugAvailability === "invalid" ||
+                  editSlugAvailability === "forbidden" ||
+                  editSlugAvailability === "checking"
+                }
+              >
                 {editForm.formState.isSubmitting ? "Saving…" : "Save"}
               </Button>
             </DialogFooter>

@@ -6,12 +6,14 @@ import { APIError } from "better-auth/api"
 import { and, eq } from "drizzle-orm"
 import { headers } from "next/headers"
 
+import { checkSetupLocationSlugAvailable } from "@/lib/actions/setup-slugs"
 import { auth } from "@/lib/auth"
 import { getDb } from "@/lib/db"
 import { businessLocation } from "@/lib/db/schema-app"
 import { logAuthEvent } from "@/lib/log-server"
 import { stripLocationKeysFromOrganizationMetadata } from "@/lib/org-metadata"
 import { getOrgForUser } from "@/lib/queries/organization"
+import { normalizeSetupWebSlug } from "@/lib/setup-slug-normalize"
 import { getServerSession } from "@/lib/server-auth"
 
 export type OrganizationLocationInput = {
@@ -100,6 +102,8 @@ export async function updateStoreAndLocationSettings(
     storeName: string
     locationName: string
     location: OrganizationLocationInput
+    /** New `/l/[…]` segment; omit only when callers do not expose slug editing (default = keep current). */
+    desiredBranchSlug?: string
   },
 ) {
   const session = await getServerSession()
@@ -138,7 +142,7 @@ export async function updateStoreAndLocationSettings(
   const loc = input.location
 
   const [existing] = await db
-    .select({ id: businessLocation.id })
+    .select({ id: businessLocation.id, slug: businessLocation.slug })
     .from(businessLocation)
     .where(
       and(
@@ -149,9 +153,31 @@ export async function updateStoreAndLocationSettings(
     .limit(1)
   if (!existing) throw new Error("Location not found")
 
+  let nextSlug = existing.slug
+  if (input.desiredBranchSlug !== undefined) {
+    const normalized = normalizeSetupWebSlug(input.desiredBranchSlug)
+    if (!normalized) {
+      throw new Error("Use a valid location link (lowercase letters, numbers, hyphens).")
+    }
+    if (normalized !== existing.slug) {
+      const slugCheck = await checkSetupLocationSlugAvailable(businessSlug, normalized, existing.id)
+      if (slugCheck.status !== "available") {
+        throw new Error(
+          slugCheck.status === "taken"
+            ? "That location link is already in use."
+            : slugCheck.status === "forbidden"
+              ? "You cannot change this location."
+              : "Use a valid location link (lowercase letters, numbers, hyphens).",
+        )
+      }
+      nextSlug = normalized
+    }
+  }
+
   await db
     .update(businessLocation)
     .set({
+      slug: nextSlug,
       name: input.locationName.trim(),
       defaultCurrency: loc.defaultCurrency,
       addressLine1: loc.addressLine1?.trim() || null,
@@ -164,7 +190,7 @@ export async function updateStoreAndLocationSettings(
     })
     .where(eq(businessLocation.id, existing.id))
 
-  return { ok: true as const }
+  return { ok: true as const, locationSlug: nextSlug }
 }
 
 /** Update better-auth organization display name only (org-wide “store name”). */

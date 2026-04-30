@@ -73,7 +73,7 @@ export const setupFirstLocationSchema = setupLocationSchema.extend({
 })
 export type SetupFirstLocationFormValues = z.infer<typeof setupFirstLocationSchema>
 
-/** Org admin: edit branch row (slug not editable here). */
+/** Org admin: edit branch street + currency (`locations-admin-panel` address dialog — no slug field). */
 export const adminLocationBranchSchema = setupLocationSchema.extend({
   locationName: z.string().min(1, "Location name is required"),
 })
@@ -94,16 +94,34 @@ export const adminAddLocationSchema = z.object({
 })
 export type AdminAddLocationFormValues = z.infer<typeof adminAddLocationSchema>
 
-/** Settings → Locations: edit branch name + currency (address edited separately). */
+/** Settings → Locations: edit branch name, `/l/[…]` link, currency (address edited separately). */
 export const adminLocationBranchCoreSchema = z.object({
   locationName: z.string().min(1, "Location name is required"),
   defaultCurrency: z.enum(["PHP", "USD", "EUR", "GBP"]),
+  locationSlug: z
+    .string()
+    .transform((s) => s.trim().toLowerCase())
+    .pipe(
+      z
+        .string()
+        .min(2, "Location link is too short")
+        .regex(SETUP_WEB_SLUG_REGEX, "Use lowercase letters, numbers, and hyphens only"),
+    ),
 })
 export type AdminLocationBranchCoreFormValues = z.infer<typeof adminLocationBranchCoreSchema>
 
 export const storeSettingsSchema = z.object({
   storeName: z.string().min(1, "Store name is required"),
   locationName: z.string().min(1, "Location name is required"),
+  locationSlug: z
+    .string()
+    .transform((s) => s.trim().toLowerCase())
+    .pipe(
+      z
+        .string()
+        .min(2, "Location link is too short")
+        .regex(SETUP_WEB_SLUG_REGEX, "Use lowercase letters, numbers, and hyphens only"),
+    ),
   defaultCurrency: z.enum(["PHP", "USD", "EUR", "GBP"]),
   addressLine1: z.string().optional(),
   addressLine2: z.string().optional(),
