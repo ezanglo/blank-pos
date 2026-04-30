@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+  // Allow LAN devices (e.g. tablet POS) and numeric localhost during `next dev`.
+  // Wildcards match hostname labels per Next.js CSRF-style origin rules.
+  allowedDevOrigins: ["127.0.0.1", "192.168.*.*", "10.*.*.*"],
   async redirects() {
     return [
       {

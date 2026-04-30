@@ -11,15 +11,9 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination"
-import { transactionStatusLabels, transactionStatusValues } from "@/lib/db/schema-transactions"
 import { formatMinorToDecimal2 } from "@/lib/money"
 import { getLocationForUserByBusinessAndLocationSlug } from "@/lib/queries/location"
-import {
-  listProductSalesForRangePage,
-  parseReportDayEndUtc,
-  parseReportDayStartUtc,
-  parseTransactionStatusFilter,
-} from "@/lib/queries/reports"
+import { listProductSalesForRangePage, parseReportDayEndUtc, parseReportDayStartUtc } from "@/lib/queries/reports"
 import { requireSession } from "@/lib/server-auth"
 import { cn } from "@/lib/utils"
 
@@ -67,8 +61,6 @@ export default async function ProductSalesPage({
   const def = defaultRange()
   const fromStr = typeof sp.from === "string" && sp.from ? sp.from : def.from
   const toStr = typeof sp.to === "string" && sp.to ? sp.to : def.to
-  const statusParam = typeof sp.status === "string" && sp.status.length > 0 ? sp.status : "all"
-  const status = parseTransactionStatusFilter(statusParam === "all" ? undefined : statusParam)
   const page = Math.max(1, Number.parseInt(typeof sp.page === "string" ? sp.page : "", 10) || 1)
   const pageSize = Math.min(
     100,
@@ -85,7 +77,6 @@ export default async function ProductSalesPage({
     to,
     page,
     pageSize,
-    status,
   )
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
@@ -98,12 +89,10 @@ export default async function ProductSalesPage({
       page: String(p),
       pageSize: String(pageSize),
     })
-    if (statusParam !== "all") u.set("status", statusParam)
     return `?${u.toString()}`
   }
 
   const csvQs = new URLSearchParams({ from: fromStr, to: toStr })
-  if (statusParam !== "all") csvQs.set("status", statusParam)
   const csvHref = `/${businessSlug}/l/${locationSlug}/product-sales/csv?${csvQs.toString()}`
 
   return (
@@ -127,21 +116,6 @@ export default async function ProductSalesPage({
             defaultValue={toStr}
             className="border-input bg-background h-9 rounded-md border px-2 text-sm"
           />
-        </label>
-        <label className="grid gap-1 text-sm">
-          <span className="text-muted-foreground">Status</span>
-          <select
-            name="status"
-            defaultValue={statusParam}
-            className="border-input bg-background h-9 min-w-40 rounded-md border px-2 text-sm"
-          >
-            <option value="all">All</option>
-            {transactionStatusValues.map((s) => (
-              <option key={s} value={s}>
-                {transactionStatusLabels[s]}
-              </option>
-            ))}
-          </select>
         </label>
         <button
           type="submit"
@@ -171,7 +145,7 @@ export default async function ProductSalesPage({
             {products.length === 0 ? (
               <tr>
                 <td colSpan={4} className="text-muted-foreground p-6 text-center">
-                  No line items in this range.
+                  No completed sales with product lines in this range.
                 </td>
               </tr>
             ) : (
@@ -189,7 +163,6 @@ export default async function ProductSalesPage({
                       orderCount={p.orderCount}
                       fromStr={fromStr}
                       toStr={toStr}
-                      statusParam={statusParam}
                     />
                   </td>
                 </tr>
@@ -203,12 +176,7 @@ export default async function ProductSalesPage({
         <p>{total === 0 ? "0 products" : `Page ${page} of ${totalPages} (${total} products)`}</p>
         {total > 0 ? (
           <div className="flex flex-wrap items-center justify-end gap-3">
-            <ProductSalesPageSizeForm
-              fromStr={fromStr}
-              toStr={toStr}
-              statusParam={statusParam}
-              pageSize={pageSize}
-            />
+            <ProductSalesPageSizeForm fromStr={fromStr} toStr={toStr} pageSize={pageSize} />
             <Pagination className="mx-0 w-auto justify-end">
               <PaginationContent>
                 <PaginationItem>

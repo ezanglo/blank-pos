@@ -154,6 +154,96 @@ type PosCartState = {
   clearAnnounce: () => void
 }
 
+const STORAGE_PREFIX = "blank-pos-cart:v1:"
+
+function storageKeyForScope(scope: string) {
+  return STORAGE_PREFIX + encodeURIComponent(scope)
+}
+
+function isCartAddonLine(v: unknown): v is PosCartAddonLine {
+  if (!v || typeof v !== "object") return false
+  const o = v as Record<string, unknown>
+  return (
+    typeof o.key === "string" &&
+    typeof o.addonId === "string" &&
+    typeof o.name === "string" &&
+    typeof o.unitPriceMinor === "string" &&
+    typeof o.currency === "string" &&
+    typeof o.quantity === "number"
+  )
+}
+
+function isCartInstructionLine(v: unknown): v is PosCartInstructionLine {
+  if (!v || typeof v !== "object") return false
+  const o = v as Record<string, unknown>
+  return typeof o.key === "string" && typeof o.instructionId === "string" && typeof o.label === "string"
+}
+
+function isPosCartLine(v: unknown): v is PosCartLine {
+  if (!v || typeof v !== "object") return false
+  const o = v as Record<string, unknown>
+  if (
+    typeof o.key !== "string" ||
+    typeof o.productId !== "string" ||
+    typeof o.productName !== "string" ||
+    typeof o.productPriceId !== "string" ||
+    typeof o.priceLabel !== "string" ||
+    typeof o.unitPriceMinor !== "string" ||
+    typeof o.currency !== "string" ||
+    typeof o.quantity !== "number"
+  ) {
+    return false
+  }
+  if (!Array.isArray(o.addons) || !Array.isArray(o.instructions)) return false
+  if (!o.addons.every(isCartAddonLine)) return false
+  if (!o.instructions.every(isCartInstructionLine)) return false
+  return true
+}
+
+function parseStoredLines(raw: string): PosCartLine[] {
+  try {
+    const data = JSON.parse(raw) as unknown
+    if (!Array.isArray(data)) return []
+    return data.filter(isPosCartLine)
+  } catch {
+    return []
+  }
+}
+
+/** Active POS branch for cart persistence (`businessSlug:locationSlug`). Set only while POS is mounted. */
+let activePersistenceScope: string | null = null
+
+function persistLinesForScope(scope: string, lines: PosCartLine[]) {
+  if (typeof localStorage === "undefined") return
+  try {
+    localStorage.setItem(storageKeyForScope(scope), JSON.stringify(lines))
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+/**
+ * Call when entering the POS for a branch. Saves the previous branch’s cart (if any), then restores
+ * this branch’s cart from `localStorage`.
+ */
+export function syncPosCartPersistenceScope(businessSlug: string, locationSlug: string) {
+  if (typeof localStorage === "undefined") return
+
+  const nextScope = `${businessSlug}:${locationSlug}`
+  if (activePersistenceScope === nextScope) return
+
+  const outgoing = activePersistenceScope
+  if (outgoing) {
+    persistLinesForScope(outgoing, usePosCartStore.getState().lines)
+  }
+
+  activePersistenceScope = nextScope
+
+  const raw = localStorage.getItem(storageKeyForScope(nextScope))
+  const lines = raw ? parseStoredLines(raw) : []
+  usePosCartStore.setState({ lines })
+}
+
 export const usePosCartStore = create<PosCartState>((set) => ({
   lines: [],
   cartAnnounce: "",
@@ -228,3 +318,18 @@ export const usePosCartStore = create<PosCartState>((set) => ({
   replaceEntireCart: (lines, announce = "") => set({ lines, cartAnnounce: announce }),
   clearAnnounce: () => set({ cartAnnounce: "" }),
 }))
+
+usePosCartStore.subscribe((state, prevState) => {
+  if (!activePersistenceScope) return
+  if (state.lines === prevState.lines) return
+  persistLinesForScope(activePersistenceScope, state.lines)
+})
+
+/** Persist cart for this branch and detach persistence (POS effect cleanup on unmount or slug change). */
+export function flushPosCartPersistenceForBranch(businessSlug: string, locationSlug: string) {
+  if (typeof localStorage === "undefined") return
+  const scope = `${businessSlug}:${locationSlug}`
+  if (activePersistenceScope !== scope) return
+  persistLinesForScope(scope, usePosCartStore.getState().lines)
+  activePersistenceScope = null
+}

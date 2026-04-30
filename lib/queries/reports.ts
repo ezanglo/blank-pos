@@ -1,6 +1,5 @@
 import { and, asc, count, desc, eq, exists, gte, lte, sql, sum } from "drizzle-orm"
 
-import type { TransactionOrderSearchFilter } from "@/lib/format-order-number"
 import { getDb } from "@/lib/db"
 import { product } from "@/lib/db/schema-catalog"
 import {
@@ -9,6 +8,7 @@ import {
   transactionStatusValues,
   type TransactionStatus,
 } from "@/lib/db/schema-transactions"
+import type { TransactionOrderSearchFilter } from "@/lib/format-order-number"
 
 export function parseReportDayStartUtc(isoDate: string): Date | null {
   const t = isoDate.trim()
@@ -350,28 +350,30 @@ export type ProductSalesRow = {
   orderCount: number
 }
 
+/** Base product line revenue (catalog unit price × qty − line discount). Excludes add-on amounts rolled into `subtotal_minor`. */
+const productLineBaseRevenueSql = sql`(${posTransactionItems.unitPriceMinor} * ${posTransactionItems.quantity}) - ${posTransactionItems.discountMinor}`
+
 export async function getProductSalesForRange(
   organizationId: string,
   locationId: string,
   from: Date,
   to: Date,
-  status?: TransactionStatus,
 ): Promise<ProductSalesRow[]> {
   const db = getDb()
   const parts = [
     eq(posTransactions.organizationId, organizationId),
     eq(posTransactions.locationId, locationId),
+    eq(posTransactions.status, "completed"),
     gte(posTransactions.createdAt, from),
     lte(posTransactions.createdAt, to),
   ]
-  if (status) parts.push(eq(posTransactions.status, status))
 
   const rows = await db
     .select({
       productId: posTransactionItems.productId,
       productName: product.name,
       unitsSold: sql<number>`sum(${posTransactionItems.quantity})::int`.mapWith(Number),
-      revenueMinor: sum(posTransactionItems.subtotalMinor),
+      revenueMinor: sql`coalesce(sum(${productLineBaseRevenueSql}), 0)`,
       orderCount: sql<number>`count(distinct ${posTransactionItems.transactionId})::int`.mapWith(Number),
     })
     .from(posTransactionItems)
@@ -379,7 +381,7 @@ export async function getProductSalesForRange(
     .innerJoin(product, eq(product.id, posTransactionItems.productId))
     .where(and(...parts)!)
     .groupBy(posTransactionItems.productId, product.name)
-    .orderBy(sql`${sum(posTransactionItems.subtotalMinor)} desc`)
+    .orderBy(sql`coalesce(sum(${productLineBaseRevenueSql}), 0) desc`)
 
   return rows.map((r) => {
     const rev = r.revenueMinor
@@ -401,7 +403,6 @@ export async function listProductSalesForRangePage(
   to: Date,
   page: number,
   pageSize: number,
-  status?: TransactionStatus,
 ): Promise<{ rows: ProductSalesRow[]; total: number }> {
   const db = getDb()
   const p = Math.max(1, page)
@@ -411,10 +412,10 @@ export async function listProductSalesForRangePage(
   const parts = [
     eq(posTransactions.organizationId, organizationId),
     eq(posTransactions.locationId, locationId),
+    eq(posTransactions.status, "completed"),
     gte(posTransactions.createdAt, from),
     lte(posTransactions.createdAt, to),
   ]
-  if (status) parts.push(eq(posTransactions.status, status))
   const whereClause = and(...parts)!
 
   const groupsSq = db
@@ -435,7 +436,7 @@ export async function listProductSalesForRangePage(
       productId: posTransactionItems.productId,
       productName: product.name,
       unitsSold: sql<number>`sum(${posTransactionItems.quantity})::int`.mapWith(Number),
-      revenueMinor: sum(posTransactionItems.subtotalMinor),
+      revenueMinor: sql`coalesce(sum(${productLineBaseRevenueSql}), 0)`,
       orderCount: sql<number>`count(distinct ${posTransactionItems.transactionId})::int`.mapWith(Number),
     })
     .from(posTransactionItems)
@@ -443,7 +444,7 @@ export async function listProductSalesForRangePage(
     .innerJoin(product, eq(product.id, posTransactionItems.productId))
     .where(whereClause)
     .groupBy(posTransactionItems.productId, product.name)
-    .orderBy(sql`${sum(posTransactionItems.subtotalMinor)} desc`)
+    .orderBy(sql`coalesce(sum(${productLineBaseRevenueSql}), 0) desc`)
     .limit(ps)
     .offset(offset)
 
@@ -537,7 +538,7 @@ export async function listTransactionsForLocationPage(
   return { rows, total: total ?? 0 }
 }
 
-/** Transactions in range that include at least one line for `productId` (same status filter as product sales). */
+/** Transactions in range that include at least one line for `productId` (completed sales only; matches product sales report). */
 export async function listTransactionsForProductInRangePage(
   organizationId: string,
   locationId: string,
@@ -546,7 +547,6 @@ export async function listTransactionsForProductInRangePage(
   to: Date,
   page: number,
   pageSize: number,
-  status?: TransactionStatus,
 ): Promise<{ rows: TransactionListRow[]; total: number }> {
   const db = getDb()
   const p = Math.max(1, page)
@@ -568,11 +568,11 @@ export async function listTransactionsForProductInRangePage(
   const parts = [
     eq(posTransactions.organizationId, organizationId),
     eq(posTransactions.locationId, locationId),
+    eq(posTransactions.status, "completed"),
     gte(posTransactions.createdAt, from),
     lte(posTransactions.createdAt, to),
     hasProductLine,
   ]
-  if (status) parts.push(eq(posTransactions.status, status))
   const whereClause = and(...parts)!
 
   const [{ n: total }] = await db

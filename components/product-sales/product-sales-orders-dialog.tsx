@@ -4,6 +4,7 @@ import * as React from "react"
 
 import { loadProductSalesOrdersPage } from "@/lib/actions/product-sales-orders"
 import { LinesSheetButton } from "@/components/transactions/lines-sheet-button"
+import { ReceiptSheetButton } from "@/components/transactions/receipt-sheet-button"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -23,7 +24,6 @@ export function ProductSalesOrdersDialog({
   orderCount,
   fromStr,
   toStr,
-  statusParam,
 }: {
   businessSlug: string
   locationSlug: string
@@ -32,7 +32,6 @@ export function ProductSalesOrdersDialog({
   orderCount: number
   fromStr: string
   toStr: string
-  statusParam: string
 }) {
   const [open, setOpen] = React.useState(false)
   const [page, setPage] = React.useState(1)
@@ -46,15 +45,7 @@ export function ProductSalesOrdersDialog({
     let cancelled = false
     setLoading(true)
     setData(null)
-    void loadProductSalesOrdersPage(
-      businessSlug,
-      locationSlug,
-      productId,
-      fromStr,
-      toStr,
-      statusParam,
-      page,
-    ).then((r) => {
+    void loadProductSalesOrdersPage(businessSlug, locationSlug, productId, fromStr, toStr, page).then((r) => {
       if (!cancelled) {
         setData(r)
         setLoading(false)
@@ -63,7 +54,7 @@ export function ProductSalesOrdersDialog({
     return () => {
       cancelled = true
     }
-  }, [open, page, businessSlug, locationSlug, productId, fromStr, toStr, statusParam])
+  }, [open, page, businessSlug, locationSlug, productId, fromStr, toStr])
 
   return (
     <Dialog
@@ -99,24 +90,23 @@ export function ProductSalesOrdersDialog({
           <table className="w-full text-xs sm:text-sm">
             <thead className="bg-muted sticky top-0">
               <tr>
-                <th className="p-2 text-left font-medium sm:p-3">When</th>
-                <th className="p-2 text-left font-medium sm:p-3">#</th>
+                <th className="p-2 text-left font-medium sm:p-3">Order</th>
                 <th className="hidden p-2 text-left font-medium sm:table-cell sm:p-3">Name</th>
                 <th className="p-2 text-left font-medium sm:p-3">Status</th>
                 <th className="p-2 text-right font-medium sm:p-3">Total</th>
-                <th className="p-2 text-right font-medium sm:p-3">Lines</th>
+                <th className="p-2 text-right font-medium sm:p-3">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading || !data ? (
                 <tr>
-                  <td colSpan={6} className="text-muted-foreground p-6 text-center">
+                  <td colSpan={5} className="text-muted-foreground p-6 text-center">
                     Loading…
                   </td>
                 </tr>
               ) : !data.ok ? (
                 <tr>
-                  <td colSpan={6} className="text-muted-foreground p-6 text-center">
+                  <td colSpan={5} className="text-muted-foreground p-6 text-center">
                     {data.error === "forbidden"
                       ? "You do not have access to this report."
                       : "Invalid date range."}
@@ -124,17 +114,21 @@ export function ProductSalesOrdersDialog({
                 </tr>
               ) : data.rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-muted-foreground p-6 text-center">
-                    No transactions in this range include this product (with the current status filter).
+                  <td colSpan={5} className="text-muted-foreground p-6 text-center">
+                    No completed transactions in this range include this product.
                   </td>
                 </tr>
               ) : (
                 data.rows.map((row) => (
                   <tr key={row.id} className="border-t">
-                    <td className="p-2 whitespace-nowrap tabular-nums sm:p-3">
-                      {new Date(row.createdAtIso).toLocaleString()}
+                    <td className="p-2 sm:p-3">
+                      <div className="flex min-w-0 flex-col gap-0.5">
+                        <span className="tabular-nums">{row.queueLabel}</span>
+                        <span className="text-muted-foreground whitespace-nowrap text-xs tabular-nums">
+                          {new Date(row.createdAtIso).toLocaleString()}
+                        </span>
+                      </div>
                     </td>
-                    <td className="p-2 tabular-nums sm:p-3">{row.queueLabel}</td>
                     <td
                       className="text-muted-foreground hidden max-w-40 truncate p-2 sm:table-cell sm:p-3"
                       title={row.customerCallName ?? undefined}
@@ -144,8 +138,14 @@ export function ProductSalesOrdersDialog({
                     <td className="p-2 sm:p-3">{row.statusLabel}</td>
                     <td className="p-2 text-right tabular-nums sm:p-3">{row.totalDisplay}</td>
                     <td className="p-2 text-right sm:p-3">
-                      <div className="flex justify-end">
+                      <div className="flex flex-wrap items-center justify-end gap-1.5">
                         <LinesSheetButton
+                          businessSlug={businessSlug}
+                          locationSlug={locationSlug}
+                          transactionId={row.id}
+                          trigger="icon"
+                        />
+                        <ReceiptSheetButton
                           businessSlug={businessSlug}
                           locationSlug={locationSlug}
                           transactionId={row.id}

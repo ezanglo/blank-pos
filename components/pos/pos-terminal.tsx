@@ -70,7 +70,12 @@ import type { PosCategoryInstruction } from "@/lib/queries/catalog"
 import type { PosCategoryAddon } from "@/lib/queries/catalog-addons"
 import { buildCartLinesFromReorderPayload } from "@/lib/pos/reorder-to-cart"
 import type { PosReceiptPreviewModel } from "@/lib/pos/receipt-preview"
-import { usePosCartStore, type PosCartLine } from "@/lib/stores/pos-cart-store"
+import {
+  flushPosCartPersistenceForBranch,
+  syncPosCartPersistenceScope,
+  usePosCartStore,
+  type PosCartLine,
+} from "@/lib/stores/pos-cart-store"
 import { cn, generateClientUuid } from "@/lib/utils"
 
 function formatCartPrepEstimate(seconds: number): string {
@@ -576,6 +581,11 @@ export function PosTerminal({
     },
     [businessSlug, locationSlug, products, reset, replaceEntireCart],
   )
+
+  React.useLayoutEffect(() => {
+    syncPosCartPersistenceScope(businessSlug, locationSlug)
+    return () => flushPosCartPersistenceForBranch(businessSlug, locationSlug)
+  }, [businessSlug, locationSlug])
 
   React.useEffect(() => {
     const tid = initialReorderTransactionId?.trim()

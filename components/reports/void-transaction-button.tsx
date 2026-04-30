@@ -2,11 +2,10 @@
 
 import { useEffect, useId, useRef, useState, useTransition } from "react"
 
-import { useRouter } from "next/navigation"
 import { BanIcon, CopyIcon, Loader2Icon } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
-import { voidTransaction } from "@/lib/actions/transactions"
 import { Button, buttonVariants } from "@/components/ui/button"
 import {
   Dialog,
@@ -19,6 +18,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { voidTransaction } from "@/lib/actions/transactions"
 import { cn } from "@/lib/utils"
 
 type VoidTransactionButtonProps = {
@@ -76,7 +76,11 @@ export function VoidTransactionButton({
     if (alreadyVoided || isPending || !typedMatches) return
 
     startTransition(async () => {
-      const result = await voidTransaction(businessSlug, locationSlug, transactionId)
+      const result = await voidTransaction(
+        businessSlug,
+        locationSlug,
+        transactionId
+      )
       if (!result.ok) {
         toast.error(result.message)
         return
@@ -98,11 +102,15 @@ export function VoidTransactionButton({
         className={cn(
           "size-8",
           !alreadyVoided &&
-            "text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30",
+            "border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
         )}
         disabled={isPending || alreadyVoided}
         aria-label={
-          alreadyVoided ? "Voided" : isPending ? "Voiding transaction" : "Void transaction"
+          alreadyVoided
+            ? "Voided"
+            : isPending
+              ? "Voiding transaction"
+              : "Void transaction"
         }
         onClick={openConfirmation}
       >
@@ -115,7 +123,7 @@ export function VoidTransactionButton({
         className={cn(
           buttonVariants({ variant: "link", size: "sm" }),
           "h-auto p-0",
-          !alreadyVoided && "text-destructive hover:text-destructive",
+          !alreadyVoided && "text-destructive hover:text-destructive"
         )}
         onClick={openConfirmation}
       >
@@ -137,8 +145,9 @@ export function VoidTransactionButton({
           <DialogHeader>
             <DialogTitle>Void this transaction?</DialogTitle>
             <DialogDescription>
-              This keeps the record but removes it from completed sales. Paste or type the order
-              number so it matches exactly — including letters, digits, and hyphens.
+              This keeps the record but removes it from completed sales. Paste
+              or type the order number so it matches exactly — including
+              letters, digits, and hyphens.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">
@@ -147,7 +156,7 @@ export function VoidTransactionButton({
                 Confirm order number
               </Label>
               <div className="flex min-w-0 flex-1 items-center gap-1 sm:flex-initial sm:justify-end">
-                <code className="bg-muted/80 max-w-full rounded-xl border border-border/80 px-2 py-1 font-mono text-xs leading-normal break-all tabular-nums select-all sm:text-sm">
+                <code className="max-w-full rounded-xl border border-border/80 bg-muted/80 px-2 py-1 font-mono text-xs leading-normal break-all tabular-nums select-all sm:text-sm">
                   {confirmOrderLabel}
                 </code>
                 <Button
@@ -180,7 +189,9 @@ export function VoidTransactionButton({
             />
           </div>
           <DialogFooter>
-            <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
+            <DialogClose render={<Button type="button" variant="outline" />}>
+              Cancel
+            </DialogClose>
             <Button
               type="button"
               variant="destructive"

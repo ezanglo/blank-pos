@@ -7,12 +7,10 @@ const OPTIONS = ["10", "25", "50", "100"] as const
 export function ProductSalesPageSizeForm({
   fromStr,
   toStr,
-  statusParam,
   pageSize,
 }: {
   fromStr: string
   toStr: string
-  statusParam: string
   pageSize: number
 }) {
   const formRef = React.useRef<HTMLFormElement>(null)
@@ -21,7 +19,6 @@ export function ProductSalesPageSizeForm({
     <form ref={formRef} method="get" className="flex items-center gap-2">
       <input type="hidden" name="from" value={fromStr} />
       <input type="hidden" name="to" value={toStr} />
-      <input type="hidden" name="status" value={statusParam} />
       <input type="hidden" name="page" value="1" />
       <label htmlFor="product-sales-page-size" className="text-muted-foreground text-xs">
         Rows per page

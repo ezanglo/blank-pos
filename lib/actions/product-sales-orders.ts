@@ -4,12 +4,7 @@ import { formatTransactionStatus } from "@/lib/db/schema-transactions"
 import { formatOrderNumberLabel } from "@/lib/format-order-number"
 import { formatMinorToDecimal2 } from "@/lib/money"
 import { getLocationForUserByBusinessAndLocationSlug } from "@/lib/queries/location"
-import {
-  listTransactionsForProductInRangePage,
-  parseReportDayEndUtc,
-  parseReportDayStartUtc,
-  parseTransactionStatusFilter,
-} from "@/lib/queries/reports"
+import { listTransactionsForProductInRangePage, parseReportDayEndUtc, parseReportDayStartUtc } from "@/lib/queries/reports"
 import { requireSession } from "@/lib/server-auth"
 
 export type ProductSalesOrderListItem = {
@@ -41,7 +36,6 @@ export async function loadProductSalesOrdersPage(
   productId: string,
   fromStr: string,
   toStr: string,
-  statusParam: string,
   page: number,
 ): Promise<LoadProductSalesOrdersPageResult> {
   const session = await requireSession()
@@ -58,7 +52,6 @@ export async function loadProductSalesOrdersPage(
   const to = parseReportDayEndUtc(toStr)
   if (!from || !to) return { ok: false, error: "bad_range" }
 
-  const status = parseTransactionStatusFilter(statusParam === "all" ? undefined : statusParam)
   const p = Math.max(1, page)
 
   const { rows, total } = await listTransactionsForProductInRangePage(
@@ -69,7 +62,6 @@ export async function loadProductSalesOrdersPage(
     to,
     p,
     DIALOG_PAGE_SIZE,
-    status,
   )
 
   const totalPages = Math.max(1, Math.ceil(total / DIALOG_PAGE_SIZE))

@@ -1,4 +1,3 @@
-import Link from "next/link"
 import { notFound } from "next/navigation"
 
 import { VoidTransactionButton } from "@/components/reports/void-transaction-button"
@@ -121,32 +120,34 @@ export default async function TransactionsPage({
 
   return (
     <div className="space-y-4">
-      <form className="flex flex-wrap items-end gap-3" method="get">
+      <form className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-end" method="get">
         <input type="hidden" name="page" value="1" />
-        <label className="grid gap-1 text-sm">
-          <span className="text-muted-foreground">From</span>
-          <input
-            type="date"
-            name="from"
-            defaultValue={fromStr}
-            className="border-input bg-background h-9 rounded-md border px-2 text-sm"
-          />
-        </label>
-        <label className="grid gap-1 text-sm">
-          <span className="text-muted-foreground">To</span>
-          <input
-            type="date"
-            name="to"
-            defaultValue={toStr}
-            className="border-input bg-background h-9 rounded-md border px-2 text-sm"
-          />
-        </label>
-        <label className="grid gap-1 text-sm">
+        <div className="grid grid-cols-2 gap-3 md:contents">
+          <label className="grid min-w-0 gap-1 text-sm">
+            <span className="text-muted-foreground">From</span>
+            <input
+              type="date"
+              name="from"
+              defaultValue={fromStr}
+              className="border-input bg-background h-9 min-w-0 rounded-md border px-2 text-sm"
+            />
+          </label>
+          <label className="grid min-w-0 gap-1 text-sm">
+            <span className="text-muted-foreground">To</span>
+            <input
+              type="date"
+              name="to"
+              defaultValue={toStr}
+              className="border-input bg-background h-9 min-w-0 rounded-md border px-2 text-sm"
+            />
+          </label>
+        </div>
+        <label className="grid gap-1 text-sm md:min-w-40">
           <span className="text-muted-foreground">Status</span>
           <select
             name="status"
             defaultValue={statusParam}
-            className="border-input bg-background h-9 min-w-40 rounded-md border px-2 text-sm"
+            className="border-input bg-background h-9 min-w-0 rounded-md border px-2 text-sm md:min-w-40"
           >
             <option value="all">All</option>
             {transactionStatusValues.map((s) => (
@@ -156,7 +157,7 @@ export default async function TransactionsPage({
             ))}
           </select>
         </label>
-        <label className="grid min-w-[12rem] flex-1 gap-1 text-sm sm:min-w-[14rem]">
+        <label className="grid min-w-0 flex-1 gap-1 text-sm md:min-w-48 lg:min-w-56">
           <span className="text-muted-foreground">Order # / name</span>
           <input
             type="search"
@@ -169,28 +170,31 @@ export default async function TransactionsPage({
         </label>
         <button
           type="submit"
-          className="bg-primary text-primary-foreground h-9 rounded-md px-3 text-sm font-medium"
+          className="bg-primary text-primary-foreground h-9 shrink-0 rounded-md px-3 text-sm font-medium md:w-auto"
         >
           Apply
         </button>
       </form>
 
-      <div className="overflow-hidden rounded-lg border">
+      <div className="overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <thead className="bg-muted">
             <tr>
-              <th className="p-3 text-left font-medium">When</th>
-              <th className="p-3 text-left font-medium">#</th>
-              <th className="p-3 text-left font-medium">Name for order</th>
-              <th className="p-3 text-left font-medium">Status</th>
-              <th className="p-3 text-right font-medium">Total</th>
-              <th className="p-3 text-right font-medium">Actions</th>
+              <th className="hidden p-2 text-left font-medium md:table-cell md:p-3">When</th>
+              <th className="p-2 text-left font-medium md:p-3">
+                <span className="md:hidden">Order</span>
+                <span className="hidden md:inline">#</span>
+              </th>
+              <th className="hidden p-2 text-left font-medium md:table-cell md:p-3">Name for order</th>
+              <th className="hidden p-2 text-left font-medium md:table-cell md:p-3">Status</th>
+              <th className="p-2 text-right font-medium md:p-3">Total</th>
+              <th className="p-2 text-right font-medium md:p-3">Actions</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-muted-foreground p-6 text-center">
+                <td colSpan={6} className="text-muted-foreground p-4 text-center md:p-6">
                   {orderFilter
                     ? "No transactions match this order in the selected range."
                     : nameSearch
@@ -201,17 +205,27 @@ export default async function TransactionsPage({
             ) : (
               rows.map((t) => (
                 <tr key={t.id} className="border-t">
-                  <td className="p-3 whitespace-nowrap tabular-nums">{t.createdAt.toLocaleString()}</td>
-                  <td className="p-3 tabular-nums">
-                    {formatOrderNumberLabel(t.createdAt, t.queueNumber)}
+                  <td className="hidden whitespace-nowrap p-2 tabular-nums md:table-cell md:p-3">
+                    {t.createdAt.toLocaleString()}
                   </td>
-                  <td className="text-muted-foreground max-w-[12rem] truncate p-3" title={t.customerCallName ?? undefined}>
+                  <td className="p-2 tabular-nums md:p-3">
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <span className="truncate">{formatOrderNumberLabel(t.createdAt, t.queueNumber)}</span>
+                      <span className="text-muted-foreground text-xs font-normal md:hidden">
+                        {formatTransactionStatus(t.status)}
+                      </span>
+                    </div>
+                  </td>
+                  <td
+                    className="text-muted-foreground hidden max-w-48 truncate p-2 md:table-cell md:p-3"
+                    title={t.customerCallName ?? undefined}
+                  >
                     {t.customerCallName?.trim() ? t.customerCallName.trim() : "—"}
                   </td>
-                  <td className="p-3">{formatTransactionStatus(t.status)}</td>
-                  <td className="p-3 text-right tabular-nums">{formatMinorToDecimal2(t.totalMinor)}</td>
-                  <td className="p-3 text-right">
-                    <div className="flex flex-wrap items-center justify-end gap-1.5">
+                  <td className="hidden p-2 md:table-cell md:p-3">{formatTransactionStatus(t.status)}</td>
+                  <td className="p-2 text-right tabular-nums md:p-3">{formatMinorToDecimal2(t.totalMinor)}</td>
+                  <td className="p-2 text-right md:p-3">
+                    <div className="flex flex-nowrap items-center justify-end gap-1 md:flex-wrap md:gap-1.5">
                       <LinesSheetButton
                         businessSlug={businessSlug}
                         locationSlug={locationSlug}
@@ -241,10 +255,10 @@ export default async function TransactionsPage({
         </table>
       </div>
 
-      <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-2 text-sm">
-        <p>{total === 0 ? "0 transactions" : `Page ${page} of ${totalPages} (${total} total)`}</p>
+      <div className="text-muted-foreground flex flex-col gap-3 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2">
+        <p className="shrink-0">{total === 0 ? "0 transactions" : `Page ${page} of ${totalPages} (${total} total)`}</p>
         {total > 0 ? (
-          <div className="flex flex-wrap items-center justify-end gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
             <TransactionsPageSizeForm
               fromStr={fromStr}
               toStr={toStr}

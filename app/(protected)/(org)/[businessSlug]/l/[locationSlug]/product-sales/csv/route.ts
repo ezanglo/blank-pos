@@ -2,13 +2,7 @@ import { NextResponse } from "next/server"
 
 import { getLocationByOrganizationAndSlug } from "@/lib/queries/location"
 import { getOrgForUser } from "@/lib/queries/organization"
-import {
-  getProductSalesForRange,
-  parseReportDayEndUtc,
-  parseReportDayStartUtc,
-  parseTransactionStatusFilter,
-  productSalesRowsToCsv,
-} from "@/lib/queries/reports"
+import { getProductSalesForRange, parseReportDayEndUtc, parseReportDayStartUtc, productSalesRowsToCsv } from "@/lib/queries/reports"
 import { getServerSession } from "@/lib/server-auth"
 
 export const runtime = "nodejs"
@@ -42,8 +36,7 @@ export async function GET(
     return NextResponse.json({ error: "Invalid from/to dates (YYYY-MM-DD)." }, { status: 400 })
   }
 
-  const status = parseTransactionStatusFilter(searchParams.get("status") ?? undefined)
-  const rows = await getProductSalesForRange(ctx.organization.id, location.id, from, to, status)
+  const rows = await getProductSalesForRange(ctx.organization.id, location.id, from, to)
   const csv = productSalesRowsToCsv(rows)
   const filename = `product-sales-${fromStr}-to-${toStr}.csv`
 

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
 import { loadPosReceiptPreview } from "@/lib/actions/pos-receipt"
+import { formatOrderNumberLabel } from "@/lib/format-order-number"
 import { PosReceiptDocument } from "@/components/pos/pos-receipt-document"
 import { PrintReceiptButton } from "@/components/pos/print-receipt-button"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -66,7 +67,7 @@ export function ReceiptSheetButton({
   }, [open, businessSlug, transactionId])
 
   return (
-    <>
+    <span className="inline-flex shrink-0 align-middle">
       {trigger === "icon" ? (
         <Button
           type="button"
@@ -113,12 +114,21 @@ export function ReceiptSheetButton({
             <SheetDescription>Preview and print the transaction receipt.</SheetDescription>
           </SheetHeader>
           <div className="flex shrink-0 items-center gap-2 border-b border-border/70 px-3 py-2">
-            <h2 className="text-base font-semibold tracking-tight">Receipt</h2>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base font-semibold tracking-tight">Receipt</h2>
+              {model ? (
+                <p className="text-muted-foreground mt-0.5 truncate text-xs tabular-nums">
+                  {formatOrderNumberLabel(new Date(model.createdAtIso), model.queueNumber)}
+                  <span className="text-muted-foreground/70 px-1.5">·</span>
+                  {new Date(model.createdAtIso).toLocaleString()}
+                </p>
+              ) : null}
+            </div>
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="ml-auto size-11 shrink-0 rounded-xl"
+              className="size-11 shrink-0 rounded-xl"
               aria-label="Close receipt"
               onClick={() => {
                 setOpen(false)
@@ -176,6 +186,6 @@ export function ReceiptSheetButton({
           </div>
         </SheetContent>
       </Sheet>
-    </>
+    </span>
   )
 }

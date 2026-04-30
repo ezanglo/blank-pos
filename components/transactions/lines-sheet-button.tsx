@@ -5,11 +5,6 @@ import * as React from "react"
 import { ListOrderedIcon, XIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import {
-  loadDashboardTransactionLines,
-  type DashboardTransactionLinesPreview,
-} from "@/lib/actions/dashboard-recent-preview"
-import { formatOrderNumberLabel } from "@/lib/format-order-number"
 import { Button, buttonVariants } from "@/components/ui/button"
 import {
   Sheet,
@@ -18,6 +13,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import {
+  loadDashboardTransactionLines,
+  type DashboardTransactionLinesPreview,
+} from "@/lib/actions/dashboard-recent-preview"
+import { formatOrderNumberLabel } from "@/lib/format-order-number"
 import { cn } from "@/lib/utils"
 
 type LinesSheetButtonProps = {
@@ -38,7 +38,8 @@ export function LinesSheetButton({
 }: LinesSheetButtonProps) {
   const [open, setOpen] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
-  const [data, setData] = React.useState<DashboardTransactionLinesPreview | null>(null)
+  const [data, setData] =
+    React.useState<DashboardTransactionLinesPreview | null>(null)
 
   React.useEffect(() => {
     if (!open) {
@@ -49,7 +50,11 @@ export function LinesSheetButton({
     let cancelled = false
     setLoading(true)
     setData(null)
-    void loadDashboardTransactionLines(businessSlug, locationSlug, transactionId).then((next) => {
+    void loadDashboardTransactionLines(
+      businessSlug,
+      locationSlug,
+      transactionId
+    ).then((next) => {
       if (cancelled) return
       setLoading(false)
       if (!next) {
@@ -80,7 +85,10 @@ export function LinesSheetButton({
       ) : (
         <button
           type="button"
-          className={cn(buttonVariants({ variant: "link", size: "sm" }), "h-auto p-0")}
+          className={cn(
+            buttonVariants({ variant: "link", size: "sm" }),
+            "h-auto p-0"
+          )}
           onClick={() => setOpen(true)}
         >
           {textLabel}
@@ -99,9 +107,9 @@ export function LinesSheetButton({
           aria-label="Transaction lines"
           className={cn(
             "flex min-h-0 flex-col gap-0 border-border/80 bg-background text-popover-foreground shadow-xl",
-            "inset-y-0! left-auto! right-0! h-dvh! max-h-dvh! max-w-none!",
+            "inset-y-0! right-0! left-auto! h-dvh! max-h-dvh! max-w-none!",
             "w-[min(100dvw,480px)]! sm:w-[min(100dvw,480px)]! sm:max-w-[480px]!",
-            "overflow-hidden rounded-none border-l p-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] [&>button]:hidden",
+            "overflow-hidden rounded-none border-l p-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] [&>button]:hidden"
           )}
         >
           <SheetHeader className="sr-only">
@@ -109,7 +117,9 @@ export function LinesSheetButton({
             <SheetDescription>Line items for this sale.</SheetDescription>
           </SheetHeader>
           <div className="flex shrink-0 items-center gap-2 border-b border-border/70 px-3 py-2">
-            <h2 className="text-base font-semibold tracking-tight">Transaction lines</h2>
+            <h2 className="text-base font-semibold tracking-tight">
+              Transaction lines
+            </h2>
             <Button
               type="button"
               variant="ghost"
@@ -126,12 +136,18 @@ export function LinesSheetButton({
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 py-3 [-webkit-overflow-scrolling:touch]">
             {loading ? (
-              <p className="text-muted-foreground py-8 text-center text-sm">Loading lines…</p>
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Loading lines…
+              </p>
             ) : data ? (
               <div className="space-y-4">
-                <p className="text-muted-foreground text-sm tabular-nums">
+                <p className="text-sm text-muted-foreground tabular-nums">
                   {new Date(data.createdAtIso).toLocaleString()} ·{" "}
-                  {formatOrderNumberLabel(new Date(data.createdAtIso), data.queueNumber)} · {data.statusLabel}
+                  {formatOrderNumberLabel(
+                    new Date(data.createdAtIso),
+                    data.queueNumber
+                  )}{" "}
+                  · {data.statusLabel}
                 </p>
                 <div className="overflow-hidden rounded-lg border">
                   <table className="w-full text-sm">
@@ -146,7 +162,10 @@ export function LinesSheetButton({
                     <tbody>
                       {data.lines.length === 0 ? (
                         <tr>
-                          <td colSpan={4} className="text-muted-foreground p-6 text-center">
+                          <td
+                            colSpan={4}
+                            className="p-6 text-center text-muted-foreground"
+                          >
                             No line items.
                           </td>
                         </tr>
@@ -154,9 +173,15 @@ export function LinesSheetButton({
                         data.lines.map((line) => (
                           <tr key={line.id} className="border-t">
                             <td className="p-3">{line.productName}</td>
-                            <td className="p-3 text-right tabular-nums">{line.quantity}</td>
-                            <td className="p-3 text-right tabular-nums">{line.unit}</td>
-                            <td className="p-3 text-right tabular-nums">{line.subtotal}</td>
+                            <td className="p-3 text-right tabular-nums">
+                              {line.quantity}
+                            </td>
+                            <td className="p-3 text-right tabular-nums">
+                              {line.unit}
+                            </td>
+                            <td className="p-3 text-right tabular-nums">
+                              {line.subtotal}
+                            </td>
                           </tr>
                         ))
                       )}
